@@ -1,15 +1,15 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/StevenWang-CY/SILKern./main/assets/logo-text.svg" width="440" alt="SILKern — Sparse-Index Localization Kernels">
+<img src="https://raw.githubusercontent.com/StevenWang-CY/SILKern/main/assets/logo-text.svg" width="440" alt="SILKern — Sparse-Index Localization Kernels">
 
 **Order, woven in.**
 
 Deterministic sparse-index localization for context-parallel decode.
 
-[![CI](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml/badge.svg)](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-2a78d6.svg)](https://github.com/StevenWang-CY/SILKern./blob/main/pyproject.toml)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-0b0b0b.svg)](https://github.com/StevenWang-CY/SILKern./blob/main/LICENSE)
-[![Evidence](https://img.shields.io/badge/evidence-checksummed-eb6834.svg)](https://github.com/StevenWang-CY/SILKern./tree/main/evidence)
+[![CI](https://github.com/StevenWang-CY/SILKern/actions/workflows/ci.yml/badge.svg)](https://github.com/StevenWang-CY/SILKern/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-2a78d6.svg)](https://github.com/StevenWang-CY/SILKern/blob/main/pyproject.toml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-0b0b0b.svg)](https://github.com/StevenWang-CY/SILKern/blob/main/LICENSE)
+[![Evidence](https://img.shields.io/badge/evidence-checksummed-eb6834.svg)](https://github.com/StevenWang-CY/SILKern/tree/main/evidence)
 
 [**The contract**](docs/contract.md) · [**Determinism**](docs/determinism.md) · [**Choosing a kernel**](docs/dispatch.md) · [**Evidence**](docs/evidence.md) · [**vLLM integration**](docs/integration-vllm.md) · [**Citation**](#license-and-citation)
 
@@ -17,7 +17,7 @@ Deterministic sparse-index localization for context-parallel decode.
 
 ---
 
-<img src="https://raw.githubusercontent.com/StevenWang-CY/SILKern./main/assets/fig-problem.svg" alt="Three replays of byte-identical input. The atomic converter returns three different orders; SILKern returns one. Both return the same set and count." width="100%">
+<img src="https://raw.githubusercontent.com/StevenWang-CY/SILKern/main/assets/fig-problem.svg" alt="Three replays of byte-identical input. The atomic converter returns three different orders; SILKern returns one. Both return the same set and count." width="100%">
 
 ## Why SILKern?
 
@@ -81,9 +81,24 @@ Three generations is three, not all. **Portability is not claimed** — run
 
 ## Install
 
+Not on PyPI yet — the release is held until the accompanying manuscript clears
+review. Install from the repository:
+
 ```bash
-pip install silkern            # contract + oracle, pure Python, works anywhere
-pip install "silkern[gpu]"     # + torch and triton for the kernels
+# contract + oracle: pure Python, no GPU stack, works anywhere
+pip install "git+https://github.com/StevenWang-CY/SILKern"
+
+# + torch and triton for the kernels
+pip install "silkern[gpu] @ git+https://github.com/StevenWang-CY/SILKern"
+```
+
+The benchmarks under [`bench/`](bench/) are deliberately **not** part of the
+distribution — they are diagnostics, not library code. To run them, work from a
+clone instead:
+
+```bash
+git clone https://github.com/StevenWang-CY/SILKern && cd SILKern
+pip install -e ".[gpu]"
 ```
 
 ## Quick start
@@ -139,7 +154,7 @@ python -m bench.bench_converter --with-atomic  # prices each converter on your d
 
 ## The contract
 
-<img src="https://raw.githubusercontent.com/StevenWang-CY/SILKern./main/assets/fig-contract.svg" alt="The localization contract in five stages, with one worked example carried through all five: request routing, ownership filter, deinterleave, paged translation, stable front compaction." width="100%">
+<img src="https://raw.githubusercontent.com/StevenWang-CY/SILKern/main/assets/fig-contract.svg" alt="The localization contract in five stages, with one worked example carried through all five: request routing, ownership filter, deinterleave, paged translation, stable front compaction." width="100%">
 
 Request routing, ownership filtering, deinterleaving, paged address translation,
 and stable front compaction — with an exact valid count, fragmented non-identity
@@ -150,7 +165,7 @@ deliberately boring Python.
 
 ## What it costs
 
-<img src="https://raw.githubusercontent.com/StevenWang-CY/SILKern./main/assets/fig-cost.svg" alt="Panel a: converter segment time — row-wide 120.0 microseconds, atomic 194.4, hierarchical 239.7. Panel b: forest plot of complete decode step ratios versus the atomic baseline with 98.75 percent intervals; three contrasts sit on 1.00 inside the prespecified 1.01 margin, while row-wide at 64K exceeds it at 1.014." width="100%">
+<img src="https://raw.githubusercontent.com/StevenWang-CY/SILKern/main/assets/fig-cost.svg" alt="Panel a: converter segment time — row-wide 120.0 microseconds, atomic 194.4, hierarchical 239.7. Panel b: forest plot of complete decode step ratios versus the atomic baseline with 98.75 percent intervals; three contrasts sit on 1.00 inside the prespecified 1.01 margin, while row-wide at 64K exceeds it at 1.014." width="100%">
 
 Less than nothing, at the converter. The row-wide kernel does the atomic
 baseline's work in 38% less time, because a row-wide scan beats a scan *plus*
@@ -197,6 +212,11 @@ Read this before deploying it, not after.
   measurement here, and this repository does not claim one.
 - **One model family** in the trained-weight evidence.
 - Selection-row width is capped at 4096 for both kernels.
+- **Request ids are a caller precondition on the GPU path.** The oracle raises
+  for a `req_id` outside `block_table`; the kernels cannot, because `req_ids` is
+  device-resident and checking it would force a host synchronization that
+  CUDA-graph capture forbids. Guarantee the range upstream — see
+  [`docs/contract.md`](docs/contract.md).
 
 ## Integrating with vLLM
 
@@ -241,7 +261,7 @@ python -m silkern                     # the conformance matrix on your device
 
 All marks live in [`assets/`](assets/) as self-contained SVGs (light/dark aware); `cover.png` is the 2:1 card used for social previews.
 
-<img src="assets/cover.png" alt="SILKern cover: the weave mark and wordmark over a warm paper background" width="60%">
+<img src="https://raw.githubusercontent.com/StevenWang-CY/SILKern/main/assets/cover.png" alt="SILKern cover: the weave mark and wordmark over a warm paper background" width="60%">
 
 | Asset | File |
 |---|---|
@@ -267,6 +287,6 @@ release — see [`CITATION.cff`](CITATION.cff):
   year    = {2026},
   version = {0.1.0},
   license = {Apache-2.0},
-  url     = {https://github.com/StevenWang-CY/SILKern.}
+  url     = {https://github.com/StevenWang-CY/SILKern}
 }
 ```

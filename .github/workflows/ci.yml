@@ -5,6 +5,15 @@ on:
     branches: [main]
   pull_request:
 
+# Read-only is all any job here needs.
+permissions:
+  contents: read
+
+# A new push supersedes an in-flight run of the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -17,6 +26,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
       - name: Install
         run: pip install -e ".[dev]"
       - name: Lint
@@ -27,7 +38,7 @@ jobs:
       # This is the check that catches an accidental top-level torch/triton import.
       - name: Import without torch or triton
         run: |
-          python - <<'EOF'
+          python - <<'PYTHON'
           import silkern
           out, counts = silkern.localize_reference(
               [0], [[3, 1]], [[0, 1, 2, 3]],
@@ -38,7 +49,13 @@ jobs:
           assert report.skipped is not None, "expected a skip with no device"
           assert not report.ok
           print(report.summary())
-          EOF
+          PYTHON
+      # The console script is declared in pyproject; prove it is actually wired,
+      # and that a deviceless run is a clean exit rather than a traceback.
+      - name: Console script
+        run: |
+          silkern-verify
+          silkern-verify --arm row_stable --tile-size 256 --batch 2
 
   evidence:
     runs-on: ubuntu-latest

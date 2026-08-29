@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from numbers import Integral
 from typing import Any, Literal
 
-from silkern.contract import DEFAULT_TILE_SIZE
+from silkern.contract import DEFAULT_TILE_SIZE, SUPPORTED_TILE_SIZES
 from silkern.errors import LocalizationError
 from silkern.kernels import localize_hierarchical, localize_rowwise
 from silkern.workspace import workspace_shapes
@@ -146,15 +146,26 @@ def validate_production_call(
 
 
 def _tensor_signature(tensor: Any) -> tuple[Any, ...]:
-    """Fixed-address signature without importing torch in CPU-only processes."""
+    """Fixed-address signature without importing torch in CPU-only processes.
 
-    return (
-        int(tensor.data_ptr()),
-        tuple(tensor.shape),
-        tuple(tensor.stride()),
-        str(tensor.dtype),
-        str(tensor.device),
-    )
+    Raises :class:`AdapterError` rather than ``AttributeError`` when handed a
+    non-tensor: this runs on the per-step path, where the only acceptable
+    failure is the module's own loud one.
+    """
+
+    try:
+        return (
+            int(tensor.data_ptr()),
+            tuple(tensor.shape),
+            tuple(tensor.stride()),
+            str(tensor.dtype),
+            str(tensor.device),
+        )
+    except (AttributeError, TypeError) as exc:
+        raise AdapterError(
+            "expected a tensor exposing data_ptr/shape/stride/dtype/device, "
+            f"got {type(tensor).__name__}"
+        ) from exc
 
 
 @dataclass
@@ -183,6 +194,11 @@ class WorkspaceAdapter:
         self.hierarchical_tile_size = _positive_int(
             "hierarchical_tile_size", hierarchical_tile_size
         )
+        if self.hierarchical_tile_size not in SUPPORTED_TILE_SIZES:
+            supported = ", ".join(str(value) for value in SUPPORTED_TILE_SIZES)
+            raise AdapterError(
+                f"hierarchical_tile_size must be one of {supported}"
+            )
         self._binding: _Binding | None = None
         self.calls = 0
 
@@ -248,6 +264,17 @@ class WorkspaceAdapter:
             )
         if req_id.shape != (token_indices.shape[0],):
             raise AdapterError("req_id must contain one id per token row")
+        if block_table.ndim != 2:
+            raise AdapterError("block_table must be two-dimensional")
+        inputs = (req_id, block_table, token_indices)
+        if any(tensor.dtype != torch.int32 for tensor in inputs):
+            raise AdapterError("all production inputs must use int32")
+        if any(not tensor.is_cuda for tensor in inputs):
+            raise AdapterError("all production inputs must be CUDA tensors")
+        if any(tensor.device != token_indices.device for tensor in inputs):
+            raise AdapterError("all production inputs must be on the same device")
+        if any(not tensor.is_contiguous() for tensor in inputs):
+            raise AdapterError("all production inputs must be contiguous")
 
         out = torch.empty_like(token_indices)
         counts = torch.empty(

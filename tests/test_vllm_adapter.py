@@ -4,9 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from silkern.contract import SUPPORTED_TILE_SIZES
 from silkern.integrations.vllm import (
     AdapterError,
     WorkspaceAdapter,
+    _tensor_signature,
     install_converter,
     validate_production_call,
 )
@@ -65,6 +67,33 @@ def test_integrated_surface_fails_closed(field: str, value: object) -> None:
 def test_adapter_requires_known_arm() -> None:
     with pytest.raises(AdapterError):
         WorkspaceAdapter("atomic")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("tile_size", [0, 1, 100, 512, True])
+def test_adapter_rejects_an_unsupported_tile_size_at_construction(
+    tile_size: object,
+) -> None:
+    """Better here than four frames deep in prepare(), on the real tensors."""
+    with pytest.raises(AdapterError):
+        WorkspaceAdapter("hierarchical_stable", hierarchical_tile_size=tile_size)
+
+
+@pytest.mark.parametrize("tile_size", SUPPORTED_TILE_SIZES)
+def test_adapter_accepts_every_supported_tile_size(tile_size: int) -> None:
+    assert (
+        WorkspaceAdapter(
+            "hierarchical_stable", hierarchical_tile_size=tile_size
+        ).hierarchical_tile_size
+        == tile_size
+    )
+
+
+@pytest.mark.parametrize("value", [None, object(), 7, [1, 2, 3]])
+def test_binding_signature_fails_closed_on_a_non_tensor(value: object) -> None:
+    """This runs on the per-step path; an AttributeError there is not a failure
+    mode the caller can distinguish from a real adapter rejection."""
+    with pytest.raises(AdapterError, match="expected a tensor"):
+        _tensor_signature(value)
 
 
 def test_call_site_installation_is_scoped_and_restored() -> None:

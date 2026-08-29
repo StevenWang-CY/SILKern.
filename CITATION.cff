@@ -16,7 +16,10 @@ abstract: >-
   order and hold fixed addresses across CUDA-graph replay.
 type: software
 version: "0.1.0"
+date-released: "2026-08-04"
 license: Apache-2.0
+repository-code: "https://github.com/StevenWang-CY/SILKern"
+url: "https://github.com/StevenWang-CY/SILKern"
 authors:
   - name: "The SILKern Authors"
 keywords:

@@ -341,6 +341,11 @@ def localize_rowwise(
     row-wide scan is a single ``cumsum`` over a power-of-two-padded row; wider
     rows belong to :func:`localize_hierarchical`.
 
+    ``req_ids`` values are a caller precondition. They live on the device, so the
+    launcher cannot bound-check them without a host synchronization -- which a
+    capture-safe launcher must never do -- and an id outside ``block_table``
+    reads past the table rather than raising. See ``docs/contract.md``.
+
     Raises :class:`~silkern.errors.LocalizationError` on any unsupported geometry
     or buffer binding rather than falling back to a different code path.
     """
@@ -377,7 +382,7 @@ def localize_rowwise(
         )
     if width > MAX_ROW_WIDTH:
         raise LocalizationError(
-            f"exact row width exceeds the current {MAX_ROW_WIDTH}-element limit"
+            f"row width {width} exceeds the current {MAX_ROW_WIDTH}-element limit"
         )
     input_storage = {
         req_ids.untyped_storage().data_ptr(),
@@ -433,6 +438,7 @@ def localize_rowwise(
         num_warps=num_warps,
     )
 
+
 def localize_hierarchical(
     req_ids,
     block_table,
@@ -463,6 +469,11 @@ def localize_hierarchical(
     local prefix, per-row tile prefix, output initialization, and stable scatter.
     The non-compacting path writes columns directly in the mapping stage and
     launches only the tile-prefix stage to produce counts.
+
+    ``req_ids`` values are a caller precondition. They live on the device, so the
+    launcher cannot bound-check them without a host synchronization -- which a
+    capture-safe launcher must never do -- and an id outside ``block_table``
+    reads past the table rather than raising. See ``docs/contract.md``.
     """
     if triton is None:
         raise LocalizationError("triton is required for stable localization")

@@ -22,8 +22,15 @@ With a CUDA device and Triton:
 ```bash
 pip install -e ".[dev,gpu]"
 python -m pytest -q                   # adds the CUDA suites
-python -m silkern                       # the conformance matrix
+python -m silkern                     # the conformance matrix
+silkern-verify --arm row_stable       # the same thing, as the console script
 ```
+
+The CPU suite covers more than the oracle. `tests/test_packaging.py` resolves
+every `from silkern import ...` in `tests/` and `bench/` against the installed
+package, because the GPU suites are skipped wherever CUDA is absent — so a
+renamed export can otherwise sit undetected in a module CI always skips and only
+fail on the one machine that could have verified the kernels.
 
 ## Scope
 
@@ -53,6 +60,14 @@ The Triton kernel bodies are carried verbatim from the implementation the
 recorded evidence was collected on. Reformatting them invalidates that link, so
 `ruff` is configured to leave them alone. Behavior changes are welcome; cosmetic
 churn in `silkern/kernels.py` is not.
+
+One asymmetry is deliberate and should stay documented rather than quietly
+fixed: the oracle raises for a request id outside `block_table`, and the kernels
+cannot, because `req_ids` is device-resident and bound-checking it would force a
+host synchronization. The range is a caller precondition on the GPU path — see
+[`docs/contract.md`](docs/contract.md). Closing it with a device-side mask is a
+welcome change, but it is a kernel change: it needs a conformance run on real
+hardware in the PR, like any other.
 
 ## Adding a geometry to the vLLM adapter
 

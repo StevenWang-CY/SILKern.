@@ -39,7 +39,7 @@ def workspace_shapes(
         raise LocalizationError("batch and width must be positive")
     if width > MAX_ROW_WIDTH:
         raise LocalizationError(
-            f"exact row width exceeds the current {MAX_ROW_WIDTH}-element limit"
+            f"row width {width} exceeds the current {MAX_ROW_WIDTH}-element limit"
         )
     if tile_size not in SUPPORTED_TILE_SIZES:
         supported = ", ".join(str(value) for value in SUPPORTED_TILE_SIZES)

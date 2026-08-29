@@ -99,6 +99,12 @@ def localize_reference(
     The production converter this mirrors bypasses compaction entirely when
     ``dcp_size == 1``; so does this reference. Mapped and invalid values stay
     in their input columns even when ``compact_valid_to_front`` is true.
+
+    One asymmetry with the GPU implementations, stated because it is the only
+    one: this function raises for a request id outside ``block_table``, since it
+    can see the value. The kernels take device-resident ``req_ids`` and cannot
+    bound-check them without a host synchronization, so there the range is a
+    caller precondition. See ``docs/contract.md``.
     """
     _validate_dcp_config(dcp_size, dcp_rank, dcp_interleave)
     _validate_compact_flag(compact_valid_to_front)

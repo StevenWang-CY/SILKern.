@@ -36,6 +36,7 @@ import argparse
 import random
 import statistics
 import sys
+from collections.abc import Callable
 
 from silkern import (
     DEFAULT_TILE_SIZE,
@@ -141,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
         dcp_rank=args.dcp_rank,
     )
 
-    arms: dict[str, object] = {
+    arms: dict[str, Callable[[], None]] = {
         "row_stable": lambda: localize_rowwise(
             req, table, tokens, out, counts, **common
         ),

@@ -93,9 +93,23 @@ tables is solving a different problem.
 rather than clamped or faulted. The harness generates these too.
 
 **`block_size % dcp_interleave != 0` is rejected**, not accommodated. So is a row
-width past `MAX_ROW_WIDTH` for the row-wide kernel, a non-contiguous buffer, a
-wrong dtype, aliased input/output storage, and a mismatched workspace shape.
-Every one raises `LocalizationError`.
+width past `MAX_ROW_WIDTH` — for *both* implementations, since
+`workspace_shapes()` applies the same bound to the hierarchical arm — a
+non-contiguous buffer, a wrong dtype, aliased input/output storage, and a
+mismatched workspace shape. Every one raises `LocalizationError`.
+
+**Request ids are a caller precondition on the GPU path.** This is the one place
+where the oracle and the kernels do not agree, and it is deliberate.
+`localize_reference` raises `LocalizationError` for a `req_id` outside
+`block_table`, because it can see the value. The kernels cannot: `req_ids` lives
+on the device, and reading it back to check would force a host synchronization —
+the one thing a capture-safe launcher must never do. An out-of-range id therefore
+indexes past `block_table` on the device instead of raising. Every caller in this
+repository, and the upstream converter being replaced, guarantees
+`0 <= req_id < block_table.shape[0]`; if yours does not, clamp before the call. A
+device-side mask on `request` would close this for the price of one comparison
+per row, and is not in the shipped kernels only because the recorded conformance
+evidence was collected without it.
 
 ## Order is a first-class output
 

@@ -8,11 +8,17 @@ only in how they get there, and therefore in where they are fast.
 ```
 context ≤ 32K   →  localize_rowwise        (default)
 context > 32K   →  localize_hierarchical
-row width > 4096 →  localize_hierarchical  (row-wide is capped)
 ```
 
 If you only remember one thing: **row-wide by default, hierarchical at long
 context.** The rest of this page is why.
+
+Row width and context length are different axes, and only the second one moves
+this decision. The row width is the selector's top-k — 2048 in the qualified
+integration — and `MAX_ROW_WIDTH = 4096` bounds **both** implementations, not
+just the row-wide one: `silkern.workspace_shapes()` rejects a wider row before
+the hierarchical launcher ever runs. A top-k past 4096 is out of scope for this
+release, not a reason to switch arms.
 
 ## How they differ
 
@@ -45,7 +51,10 @@ atomic version computes, minus the race. Each program's working set is bounded b
 `tile_size` regardless of row width.
 
 Cost: four launches instead of one, and four workspace buffers you must size and
-allocate before capture with `silkern.workspace_shapes()`.
+allocate before capture with `silkern.workspace_shapes()`. Note that this arm is
+*not* a way around the row-width cap — `workspace_shapes()` enforces the same
+`MAX_ROW_WIDTH` — it bounds the per-*program* working set, which is a different
+thing.
 
 ## What the measurements say
 

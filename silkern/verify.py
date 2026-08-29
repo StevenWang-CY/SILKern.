@@ -41,12 +41,17 @@ import random
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from silkern.contract import DEFAULT_TILE_SIZE, localize_reference
+from silkern.contract import (
+    DEFAULT_TILE_SIZE,
+    SUPPORTED_TILE_SIZES,
+    localize_reference,
+)
 from silkern.errors import LocalizationError
 from silkern.kernels import localize_hierarchical, localize_rowwise
 from silkern.workspace import workspace_shapes
 
 CHECKS = ("oracle", "order", "determinism", "replay", "immutability")
+ARMS = ("row_stable", "hierarchical_stable")
 
 #: Geometry matrix used when ``conformance()`` is called with no arguments.
 #: Chosen to cross the interesting boundaries: width below/at/above a tile,
@@ -234,69 +239,69 @@ def _run_cell(
     device: str,
 ) -> CellReport:
     report = CellReport(arm=arm, geometry=dict(geometry))
-    width = geometry["width"]
-    block_size = geometry["block_size"]
-    dcp_size = geometry["dcp_size"]
-    dcp_rank = geometry["dcp_rank"]
-    dcp_interleave = geometry["dcp_interleave"]
-
-    req_ids, block_table, rows = _random_case(
-        width=width,
-        batch=batch,
-        block_size=block_size,
-        dcp_size=dcp_size,
-        seed=seed,
-    )
-
-    req = torch.tensor(req_ids, dtype=torch.int32, device=device)
-    table = torch.tensor(block_table, dtype=torch.int32, device=device)
-    tokens = torch.tensor(rows, dtype=torch.int32, device=device)
-    tokens_before = tokens.clone()
-    table_before = table.clone()
-
-    out, out_storage = _guarded(torch, (batch, width), device)
-    counts, counts_storage = _guarded(torch, (batch,), device)
-
-    workspace: dict[str, object] = {}
-    guards = [out_storage, counts_storage]
-    if arm == "hierarchical_stable":
-        for name, shape in workspace_shapes(batch, width, tile_size=tile_size).items():
-            view, storage = _guarded(torch, shape, device)
-            workspace[name] = view
-            guards.append(storage)
-
-    def launch() -> None:
-        if arm == "row_stable":
-            localize_rowwise(
-                req,
-                table,
-                tokens,
-                out,
-                counts,
-                block_size=block_size,
-                dcp_size=dcp_size,
-                dcp_rank=dcp_rank,
-                dcp_interleave=dcp_interleave,
-            )
-        else:
-            localize_hierarchical(
-                req,
-                table,
-                tokens,
-                out,
-                counts,
-                workspace["mapped"],
-                workspace["local_positions"],
-                workspace["tile_counts"],
-                workspace["tile_offsets"],
-                block_size=block_size,
-                dcp_size=dcp_size,
-                dcp_rank=dcp_rank,
-                dcp_interleave=dcp_interleave,
-                tile_size=tile_size,
-            )
-
     try:
+        width = geometry["width"]
+        block_size = geometry["block_size"]
+        dcp_size = geometry["dcp_size"]
+        dcp_rank = geometry["dcp_rank"]
+        dcp_interleave = geometry["dcp_interleave"]
+
+        req_ids, block_table, rows = _random_case(
+            width=width,
+            batch=batch,
+            block_size=block_size,
+            dcp_size=dcp_size,
+            seed=seed,
+        )
+
+        req = torch.tensor(req_ids, dtype=torch.int32, device=device)
+        table = torch.tensor(block_table, dtype=torch.int32, device=device)
+        tokens = torch.tensor(rows, dtype=torch.int32, device=device)
+        tokens_before = tokens.clone()
+        table_before = table.clone()
+
+        out, out_storage = _guarded(torch, (batch, width), device)
+        counts, counts_storage = _guarded(torch, (batch,), device)
+
+        workspace: dict[str, object] = {}
+        guards = [out_storage, counts_storage]
+        if arm == "hierarchical_stable":
+            for name, shape in workspace_shapes(batch, width, tile_size=tile_size).items():
+                view, storage = _guarded(torch, shape, device)
+                workspace[name] = view
+                guards.append(storage)
+
+        def launch() -> None:
+            if arm == "row_stable":
+                localize_rowwise(
+                    req,
+                    table,
+                    tokens,
+                    out,
+                    counts,
+                    block_size=block_size,
+                    dcp_size=dcp_size,
+                    dcp_rank=dcp_rank,
+                    dcp_interleave=dcp_interleave,
+                )
+            else:
+                localize_hierarchical(
+                    req,
+                    table,
+                    tokens,
+                    out,
+                    counts,
+                    workspace["mapped"],
+                    workspace["local_positions"],
+                    workspace["tile_counts"],
+                    workspace["tile_offsets"],
+                    block_size=block_size,
+                    dcp_size=dcp_size,
+                    dcp_rank=dcp_rank,
+                    dcp_interleave=dcp_interleave,
+                    tile_size=tile_size,
+                )
+
         launch()
         torch.cuda.synchronize()
         observed_out = out.cpu().tolist()
@@ -389,7 +394,7 @@ def _run_cell(
 def conformance(
     matrix: Sequence[dict[str, int]] | None = None,
     *,
-    arms: Sequence[str] = ("row_stable", "hierarchical_stable"),
+    arms: Sequence[str] = ARMS,
     batch: int = 5,
     tile_size: int = DEFAULT_TILE_SIZE,
     seed: int = 20260803,
@@ -411,6 +416,11 @@ def conformance(
         ``report.summary()`` names the geometry and the check. Missing CUDA or
         Triton yields a skipped (falsy) report rather than an exception, so this
         is safe to call unconditionally in CI.
+
+    Raises:
+        LocalizationError: if ``arms`` names an unknown implementation. A bad
+            *geometry* is reported as a failed cell instead, so one unsupported
+            entry in a long matrix does not discard the rest of the sweep.
     """
     report = ConformanceReport()
     try:
@@ -427,11 +437,13 @@ def conformance(
         report.skipped = "no CUDA device is available"
         return report
 
+    for arm in arms:
+        if arm not in ARMS:
+            raise LocalizationError(f"unknown arm: {arm}")
+
     report.device = torch.cuda.get_device_name(0)
     cells = tuple(DEFAULT_MATRIX if matrix is None else matrix)
     for arm in arms:
-        if arm not in ("row_stable", "hierarchical_stable"):
-            raise LocalizationError(f"unknown arm: {arm}")
         for index, geometry in enumerate(cells):
             report.cells.append(
                 _run_cell(
@@ -451,20 +463,36 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI
     """``python -m silkern`` -- exits nonzero if any cell fails."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run the silkern conformance matrix.")
-    parser.add_argument("--batch", type=int, default=5)
-    parser.add_argument("--tile-size", type=int, default=DEFAULT_TILE_SIZE)
+    parser = argparse.ArgumentParser(
+        description="Run the silkern conformance matrix.",
+        epilog=(
+            "Exits 1 if any cell fails and 0 otherwise, including when the sweep "
+            "is skipped for want of a CUDA device or Triton -- so this is safe to "
+            "run unconditionally in CI."
+        ),
+    )
+    parser.add_argument(
+        "--batch", type=int, default=5, help="selection rows per cell (>= 1)"
+    )
+    parser.add_argument(
+        "--tile-size",
+        type=int,
+        default=DEFAULT_TILE_SIZE,
+        choices=SUPPORTED_TILE_SIZES,
+    )
     parser.add_argument("--seed", type=int, default=20260803)
     parser.add_argument(
         "--arm",
         action="append",
-        choices=["row_stable", "hierarchical_stable"],
+        choices=list(ARMS),
         help="restrict to one arm; repeatable",
     )
     args = parser.parse_args(argv)
+    if args.batch < 1:
+        parser.error("--batch must be at least 1")
 
     report = conformance(
-        arms=tuple(args.arm) if args.arm else ("row_stable", "hierarchical_stable"),
+        arms=tuple(dict.fromkeys(args.arm)) if args.arm else ARMS,
         batch=args.batch,
         tile_size=args.tile_size,
         seed=args.seed,

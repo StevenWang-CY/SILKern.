@@ -5,7 +5,7 @@ import pytest
 torch = pytest.importorskip("torch")
 pytest.importorskip("triton")
 
-from silkern import exact_stable_compact_reference  # noqa: E402
+from silkern import localize_reference  # noqa: E402
 from silkern.integrations.vllm import (  # noqa: E402
     AdapterError,
     WorkspaceAdapter,
@@ -40,7 +40,7 @@ def _case():
 @pytest.mark.parametrize("arm", ["row_stable", "hierarchical_stable"])
 def test_adapter_matches_exact_oracle_and_replays_at_fixed_addresses(arm: str) -> None:
     case = _case()
-    expected = exact_stable_compact_reference(
+    expected = localize_reference(
         *case,
         block_size=64,
         dcp_size=2,
