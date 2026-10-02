@@ -100,6 +100,12 @@ def _figure(height: int):
     return plt.figure(figsize=(WIDTH / 72, height / 72), dpi=72)
 
 
+def _panel_title(fig, x, y, letter, title):
+    height = fig.get_figheight() * 72
+    fig.text(x / WIDTH, 1 - y / height, letter, fontsize=HEADING, weight="bold")
+    fig.text((x + 24) / WIDTH, 1 - y / height, title, fontsize=HEADING, weight="normal")
+
+
 def _axis(fig, rectangle):
     ax = fig.add_axes(rectangle)
     ax.set_axisbelow(True)
@@ -151,7 +157,7 @@ def render_apple() -> None:
     device = metadata["device"]["device_name"]
     mlx_version = metadata["versions"]["mlx"]
     ratios = [cell["compiled_ratio"] for cell in data["cells"]]
-    height = 744
+    height = 672
     fig = _figure(height)
     fig.text(24 / WIDTH, 1 - 30 / height, "Latency (µs)", fontsize=LABEL)
     fig.legend(
@@ -171,17 +177,8 @@ def render_apple() -> None:
         borderpad=0,
         borderaxespad=0,
     )
-    fig.add_artist(
-        plt.Line2D(
-            [24 / WIDTH, 1096 / WIDTH],
-            [1 - 51 / height] * 2,
-            transform=fig.transFigure,
-            color=RULE,
-            linewidth=0.8,
-        )
-    )
     for index, width in enumerate((128, 2048, 4096, None)):
-        x, y = (80 + (index % 2) * 570), (122 + (index // 2) * 336)
+        x, y = (80 + (index % 2) * 570), (108 + (index // 2) * 300)
         is_consumer = width is None
         cells = (
             consumer["cells"]
@@ -191,15 +188,11 @@ def render_apple() -> None:
                 key=lambda c: c["geometry"]["batch"],
             )
         )
-        title = (
-            "d  Selected attention"
-            if is_consumer
-            else f"{'abc'[index]}  Localization · width {width:,}"
-        )
-        fig.text((x - 56) / WIDTH, 1 - (y - 32) / height, title, fontsize=HEADING, weight="bold")
+        title = "Selected attention" if is_consumer else f"Localization, width {width:,}"
+        _panel_title(fig, x - 56, y - 32, "abcd"[index], title)
         ax = _bar_panel(
             fig,
-            [x / WIDTH, 1 - (y + 207) / height, 428 / WIDTH, 207 / height],
+            [x / WIDTH, 1 - (y + 185) / height, 428 / WIDTH, 185 / height],
             cells,
             limit=440 if is_consumer else 240,
             ticks=[0, 100, 200, 300, 400] if is_consumer else [0, 50, 100, 150, 200],
@@ -236,24 +229,8 @@ def render_cuda() -> None:
     fig = _figure(422)
     ax = _axis(fig, [0.165, 0.21, 0.292, 0.56])
     ax2 = _axis(fig, [0.689, 0.21, 0.285, 0.56])
-    fig.text(
-        0.022,
-        0.955,
-        "a  Converter · 32K context",
-        fontsize=HEADING,
-        weight="bold",
-        ha="left",
-        va="top",
-    )
-    fig.text(
-        0.559,
-        0.955,
-        "b  Complete decode vs atomic",
-        fontsize=HEADING,
-        weight="bold",
-        ha="left",
-        va="top",
-    )
+    _panel_title(fig, 24, 36, "a", "Converter, 32K context")
+    _panel_title(fig, 626, 36, "b", "Complete decode vs atomic")
     arms = [
         ("row_stable", "Rowwise", ACCENT, "o"),
         ("pinned_atomic", "Atomic", NEUTRAL, "s"),

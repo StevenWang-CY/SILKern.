@@ -57,10 +57,11 @@
 - Add reproducible tensor, page-table, cache, and consumer diagrams with labeled
   survivor paths. Present Apple latency in grouped bars with zero baselines,
   direct values, and a separate consumer scale; preserve archived CUDA intervals.
-- Unify all six figures with shared typography and theme tokens. Replace isolated
-  token boxes with continuous arrays, distinguish masking gates from reductions,
-  and move explanatory annotations into captions. Enlarge Apple bars and labels
-  in a two-by-two panel layout.
+- Unify all six figures with shared typography and theme tokens. Use bracketed
+  vectors, indexed K/V matrices, explicit mask paths, and consistent mathematical
+  typography. Organize localization and consumption into three-panel figures;
+  move explanatory detail into captions and present Apple latency in a compact
+  two-by-two chart with aligned scales and direct labels.
 - Clarify that historical H100 converter timings cover a complete 48-layer
   segment, retain the 64K rowwise regression, and remove unsupported universal
   dispatch and serving-performance claims.
