@@ -1,0 +1,1089 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "skipped": null,
+  "metadata": {
+    "platform": "macOS-26.6-arm64-arm-64bit",
+    "machine": "arm64",
+    "python": "3.12.12",
+    "versions": {
+      "silkern": "0.2.0",
+      "mlx": "0.32.3"
+    },
+    "device": {
+      "device_name": "Apple M5 Max",
+      "max_recommended_working_set_size": 40200896512,
+      "memory_size": 51539607552,
+      "architecture": "applegpu_g17s",
+      "max_buffer_length": 30150672384,
+      "resource_limit": 499000
+    },
+    "execution_backend": "apple_metal",
+    "source_sha256": {
+      "silkern/contract.py": "4872372da6a52089757002da9aef457e3ffabd730a649966846bd2f33c8b03be",
+      "silkern/mlx.py": "ef3a25770c7489fd7a7902ed4d86e97c580b5fe4f9be98626a5ddc32fd51a07d",
+      "silkern/mlx_verify.py": "25b34643f8693c2767c01acc540e5e9bd689a7c3b535afbc2d0347bbed29ad60"
+    },
+    "seed": 0,
+    "batch": 4,
+    "repeats": 3
+  },
+  "cells": [
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 1,
+        "block_size": 64,
+        "dcp_size": 1,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 1,
+        "block_size": 64,
+        "dcp_size": 1,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 1,
+        "block_size": 64,
+        "dcp_size": 1,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 1,
+        "block_size": 64,
+        "dcp_size": 1,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 7,
+        "block_size": 32,
+        "dcp_size": 2,
+        "dcp_rank": 1,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 7,
+        "block_size": 32,
+        "dcp_size": 2,
+        "dcp_rank": 1,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 7,
+        "block_size": 32,
+        "dcp_size": 2,
+        "dcp_rank": 1,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 7,
+        "block_size": 32,
+        "dcp_size": 2,
+        "dcp_rank": 1,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 31,
+        "block_size": 64,
+        "dcp_size": 4,
+        "dcp_rank": 3,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 31,
+        "block_size": 64,
+        "dcp_size": 4,
+        "dcp_rank": 3,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 31,
+        "block_size": 64,
+        "dcp_size": 4,
+        "dcp_rank": 3,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 31,
+        "block_size": 64,
+        "dcp_size": 4,
+        "dcp_rank": 3,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 32,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 32,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 32,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 32,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 33,
+        "block_size": 32,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 33,
+        "block_size": 32,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 33,
+        "block_size": 32,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 33,
+        "block_size": 32,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 127,
+        "block_size": 64,
+        "dcp_size": 4,
+        "dcp_rank": 1,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 127,
+        "block_size": 64,
+        "dcp_size": 4,
+        "dcp_rank": 1,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 127,
+        "block_size": 64,
+        "dcp_size": 4,
+        "dcp_rank": 1,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 127,
+        "block_size": 64,
+        "dcp_size": 4,
+        "dcp_rank": 1,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 128,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 1,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 128,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 1,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 128,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 1,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 128,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 1,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 129,
+        "block_size": 64,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 129,
+        "block_size": 64,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 129,
+        "block_size": 64,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 129,
+        "block_size": 64,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 513,
+        "block_size": 32,
+        "dcp_size": 4,
+        "dcp_rank": 3,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 513,
+        "block_size": 32,
+        "dcp_size": 4,
+        "dcp_rank": 3,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 513,
+        "block_size": 32,
+        "dcp_size": 4,
+        "dcp_rank": 3,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 513,
+        "block_size": 32,
+        "dcp_size": 4,
+        "dcp_rank": 3,
+        "dcp_interleave": 4,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 1024,
+        "block_size": 64,
+        "dcp_size": 1,
+        "dcp_rank": 0,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 1024,
+        "block_size": 64,
+        "dcp_size": 1,
+        "dcp_rank": 0,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 1024,
+        "block_size": 64,
+        "dcp_size": 1,
+        "dcp_rank": 0,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 1024,
+        "block_size": 64,
+        "dcp_size": 1,
+        "dcp_rank": 0,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 2049,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 2049,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 2049,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 2049,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 4096,
+        "block_size": 64,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 4096,
+        "block_size": 64,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": false
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "mlx",
+      "geometry": {
+        "width": 4096,
+        "block_size": 64,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    },
+    {
+      "backend": "metal",
+      "geometry": {
+        "width": 4096,
+        "block_size": 64,
+        "dcp_size": 8,
+        "dcp_rank": 7,
+        "dcp_interleave": 2,
+        "compact_valid_to_front": true
+      },
+      "checks": {
+        "oracle": true,
+        "shape": true,
+        "dtype": true,
+        "order": true,
+        "determinism": true,
+        "immutability": true,
+        "request_bounds": true
+      },
+      "error": null,
+      "ok": true
+    }
+  ]
+}

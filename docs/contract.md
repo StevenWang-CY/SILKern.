@@ -1,136 +1,162 @@
 # The localization contract
 
-The normative definition is [`silkern/contract.py`](../silkern/contract.py) —
-`localize_reference` is 40 lines of deliberately boring Python and is the
-arbiter. This page states the same thing in prose and pins down the edge cases
-that a GPU implementation is most likely to get wrong.
+[README](../README.md) · [Architecture](architecture.md) · [Apple / MLX](apple-mlx.md) · [Determinism](determinism.md)
 
-## Inputs
+[`localize_reference`](../silkern/contract.py) defines the result for supported
+inputs. Accelerator implementations must match its arrays and counts exactly on
+their shared valid-input domain. Memory ownership and malformed-request behavior
+are backend-specific and documented below.
 
-| Name | Shape | Meaning |
+## Inputs and outputs
+
+| Input | Shape | Meaning |
 |---|---|---|
-| `req_ids` | `(batch,)` | which request each selection row belongs to |
-| `block_table` | `(requests, table_width)` | per-request page table: logical block → physical block |
-| `rows` | `(batch, width)` | the selector's output: **global logical** token positions, in the selector's order |
-| `block_size` | scalar | KV page size in tokens |
-| `dcp_size`, `dcp_rank` | scalar | context-parallel degree and this rank's index |
-| `dcp_interleave` | scalar | ownership granularity; must divide `block_size` |
+| `req_ids` | `(batch,)` | Request owning each selection row |
+| `block_table` | `(requests, table_width)` | Logical page → physical page for each request |
+| `rows` / `token_indices` | `(batch, width)` | Global logical token positions, in selector order |
+| `block_size` | Scalar | Positive page size in tokens |
+| `dcp_size`, `dcp_rank` | Scalars | Parallel degree and rank, with `0 <= rank < size` |
+| `dcp_interleave` | Scalar, default `1` | Positive ownership granularity; divides `block_size` |
+| `compact_valid_to_front` | Boolean, default `True` | Enable stable front compaction when `dcp_size > 1` |
 
-## Outputs
-
-| Name | Shape | Meaning |
+| Output | Shape | Meaning |
 |---|---|---|
-| `out` | `(batch, width)` | **rank-local physical** KV slots, valid entries in a front prefix, tail `-1` |
-| `counts` | `(batch,)` | the exact number of valid entries per row |
+| `out` | `(batch, width)` | Translated physical slots, with `-1` for invalid/padded positions |
+| `counts` | `(batch,)` | Exact number of valid mappings in each row |
 
-## The five stages
+Sequences and arrays must be nonempty and rectangular. Inputs are integers;
+booleans and floating-point values are not accepted as integer data or geometry.
+Accelerators use signed `int32` arrays and support widths through
+`MAX_ROW_WIDTH = 4096`. The Python oracle uses Python integer arithmetic and
+serves as the specification beyond that accelerator storage limit.
 
-For each element of each row, in order:
+## Five stages, one stable result
 
-**1. Request routing.** The row's `req_id` selects `block_table[req_id]`. Rows in
-one batch may belong to different requests, and their page tables are unrelated.
+![The five localization stages with a worked row](../assets/fig-contract.svg)
 
-**2. Ownership.**
+For each input token, in its original column order:
 
-```
+**1. Route the request.** `req_ids[row]` chooses the page-table row. Different
+selection rows may use different, unrelated tables.
+
+**2. Filter ownership.** A negative token is invalid. For a nonnegative token:
+
+```text
 owner = (token // dcp_interleave) % dcp_size
 ```
 
-Elements with `owner != dcp_rank` are not this rank's problem and are dropped.
-Negative tokens are invalid sentinels and are also dropped.
+Keep only tokens whose owner is `dcp_rank`.
 
-**3. Deinterleave.**
+**3. Deinterleave.** Convert the global position to the rank's local position:
 
-```
+```text
 local = (token // (dcp_size * dcp_interleave)) * dcp_interleave
         + token % dcp_interleave
 ```
 
-With `dcp_interleave == 1` this is just `token // dcp_size`. The general form
-handles grouped interleave, where ownership rotates in runs of `dcp_interleave`
-consecutive positions rather than one at a time.
+**4. Translate through the page table.**
 
-**4. Paged translation.**
-
-```
+```text
 logical_block, offset = divmod(local, block_size)
-physical = block_table[req_id][logical_block] * block_size + offset
+physical = block_table[request][logical_block] * block_size + offset
 ```
 
-If `logical_block >= table_width` the element is dropped (mapped to `-1`). A
-block-table value that is in range is used **verbatim**, including if it is
-negative — this matches the upstream precondition that a selected token addresses
-a populated entry, and deliberately does not silently repair a malformed table.
+A logical block outside the table is invalid. An in-range table entry is used
+verbatim, including negative entries. A mapping's validity comes from ownership
+and bounds, not from the sign of the resulting physical value.
 
-**5. Stable front compaction.** Survivors are written to the front of the row,
-retaining their relative input order. The tail is filled with `-1`. `counts[row]`
-is the number of survivors.
+**5. Preserve order.** When compaction is active, valid mappings occupy the front
+prefix in their original relative order. The remainder is `-1`. The count is
+the number of valid mappings. With compaction disabled, mapped and invalid
+values remain in their original columns.
 
-## Edge cases that matter
+## Edge cases
 
-These are where implementations diverge. All of them are covered by
-`silkern.conformance()` and by `tests/test_contract.py`.
+| Case | Required behavior |
+|---|---|
+| `dcp_size == 1` | Bypass compaction even if requested; preserve columns |
+| `compact_valid_to_front=False` | Preserve columns and return the exact count |
+| Duplicate selected tokens | Preserve each occurrence and its relative position |
+| All-invalid row | Fill the row with `-1`, count zero |
+| Token beyond table coverage | Map to `-1`; do not clamp it into the last page |
+| Negative in-range physical page | Translate verbatim and count the mapping |
+| Fragmented/non-monotonic page table | Translate each logical page independently |
+| Partial final tile | Preserve the same result as a whole-row scan |
 
-**`dcp_size == 1` bypasses compaction.** Mapped and invalid values stay in their
-input columns even when `compact_valid_to_front=True`. This mirrors the
-production converter's own fast path. It is not an oversight; changing it would
-break drop-in compatibility.
+In a non-compacting layout, `out[:count]` is not a valid-prefix view. Even in a
+compacting layout, negative page entries mean `out >= 0` is not the validity
+mask. Well-formed KV-cache integrations normally provide populated nonnegative
+physical page IDs; the oracle preserves the historical converter's wider
+semantics.
+The [consumer guide](consuming-indices.md) turns these layout rules into safe
+KV gathers and selected attention, including a single-rank counterexample.
 
-**Valid lanes are not the first `tile_count` lanes.** In the hierarchical scatter,
-a tile's survivors are scattered through the tile, not packed at its start. An
-implementation that assumes otherwise passes on dense rows and silently corrupts
-sparse ones. `silkern/kernels.py` carries a comment at exactly that line.
+## Integer and bounds requirements
 
-**Negative page-table entries are passed through.** In range → used verbatim.
-The oracle does this; the kernels do this; the conformance harness generates them
-(`rng.randrange(-2, 4096)`) specifically to check that both agree.
+CUDA and MLX physical-slot arithmetic must fit signed 32-bit storage:
+`physical_page * block_size + offset` must be in `[-2**31, 2**31 - 1]` for every
+selected in-range entry. Overflow is outside the supported accelerator domain;
+Python's unbounded integer result does not make overflowing device arithmetic
+valid. Avoid host synchronization in a hot launcher by validating page allocation
+bounds when constructing the cache.
 
-**Non-monotonic, fragmented page tables are the normal case.** The table is not an
-identity map and is not sorted. Any implementation that works only on identity
-tables is solving a different problem.
+Both CUDA and MLX validate scalar geometry against the signed 32-bit domain,
+including `dcp_size * dcp_interleave`. Hierarchical workspace sizing also rejects
+`batch * width > 2**31 - 1` to keep flattened fill indexing representable.
+The CUDA rowwise launcher requires `batch <= 2**31 - 1`, matching the signed
+grid-x range; adapter preparation rejects an oversized batch before allocation.
+Data-dependent physical-address bounds remain caller responsibilities.
 
-**Out-of-range global tokens.** Tokens past the end of the page table are dropped
-rather than clamped or faulted. The harness generates these too.
+Request IDs have an explicit backend distinction:
 
-**`block_size % dcp_interleave != 0` is rejected**, not accommodated. So is a row
-width past `MAX_ROW_WIDTH` — for *both* implementations, since
-`workspace_shapes()` applies the same bound to the hierarchical arm — a
-non-contiguous buffer, a wrong dtype, aliased input/output storage, and a
-mismatched workspace shape. Every one raises `LocalizationError`.
+| Backend | Out-of-range request ID |
+|---|---|
+| Python oracle | Raises `LocalizationError` |
+| CUDA / Triton | Unsupported caller input; upstream must guarantee `0 <= id < requests` |
+| MLX / Metal or composition | Safely produces an all-`-1` row with count zero |
 
-**Request ids are a caller precondition on the GPU path.** This is the one place
-where the oracle and the kernels do not agree, and it is deliberate.
-`localize_reference` raises `LocalizationError` for a `req_id` outside
-`block_table`, because it can see the value. The kernels cannot: `req_ids` lives
-on the device, and reading it back to check would force a host synchronization —
-the one thing a capture-safe launcher must never do. An out-of-range id therefore
-indexes past `block_table` on the device instead of raising. Every caller in this
-repository, and the upstream converter being replaced, guarantees
-`0 <= req_id < block_table.shape[0]`; if yours does not, clamp before the call. A
-device-side mask on `request` would close this for the price of one comparison
-per row, and is not in the shipped kernels only because the recorded conformance
-evidence was collected without it.
+CUDA request IDs reside on the device, so host validation would require
+synchronization. The current CUDA kernels require valid IDs and do not provide
+the MLX masking behavior. Validate routing upstream; do not silently clamp an
+invalid ID to another request's table.
 
-## Order is a first-class output
+## Execution guarantees
 
-The contract requires that the valid prefix equal the input row *filtered* by
-ownership and validity, in input order. Set equality and count equality are not
-sufficient, and an atomic-reservation converter satisfies both while violating
-this. `silkern.conformance()` derives the expected order independently of the
-oracle — a separate function, `_expected_order`, written as a filter over the
-input rather than reusing the oracle's control flow — so agreement between them
-is evidence rather than a tautology. `tests/test_verify.py` proves the two agree
-on randomized cases, which is what makes a field disagreement meaningful.
+| Property | CUDA | MLX |
+|---|---|---|
+| Array dtype | Contiguous `torch.int32` on one CUDA device | `mx.int32`; strided inputs supported |
+| Output ownership | Caller supplies disjoint output buffers | Function returns new arrays |
+| Scratch ownership | Caller supplies hierarchical workspace | MLX manages intermediates |
+| Input mutation | Inputs unchanged | Inputs unchanged |
+| Allocation policy | Launchers do not allocate device buffers | Allocations permitted; lazy execution |
+| Capture model | Designed for fixed-address CUDA graph replay | No equivalent pointer/capture guarantee |
 
-## Guarantees the implementations add
+CUDA metadata validation rejects wrong shapes/dtypes/devices, unsupported
+geometry, storage aliasing, and incompatible workspace. The integration adapter
+also rejects unregistered bindings. MLX validates metadata before constructing
+its computation. Neither API silently changes the mathematical layout to handle
+an unsupported geometry.
 
-Beyond the contract, both GPU implementations promise:
+CUDA tensors must also have resolved value metadata. Triton reads raw memory,
+so a PyTorch lazy-negation view is rejected even when its dtype and strides
+match. Materialize it with
+[`tensor.resolve_neg()`](https://docs.pytorch.org/docs/stable/generated/torch.Tensor.resolve_neg.html)
+before registering buffers or
+capturing a graph. Overlapping writable byte ranges are rejected even when
+different storage objects, such as separate DLPack imports, refer to the same
+physical allocation.
 
-- **No device allocation.** Every buffer is caller-owned. Safe under CUDA-graph
-  capture and replay at fixed addresses.
-- **No writes outside the declared buffers.** Verified with zeroed guard regions
-  around every output.
-- **Inputs are not modified.**
-- **Fail closed.** An unsupported geometry or binding raises; it never falls back
-  to a different code path, because a fallback inside a captured graph writes to
-  a stale address.
+CUDA launches are asynchronous. Order input updates, localization, consumer
+reads, and subsequent buffer reuse on the same stream or through CUDA events.
+Concurrent work must use disjoint writable output and scratch buffers. Captured
+CUDA graphs replay without Python validation: retain their storage and do not
+resize or rebind captured tensors until the graph is no longer used.
+
+## Order is observable output
+
+Set equality and count equality are insufficient. The compacted result must
+match the input sequence filtered by ownership and table bounds, including
+repeated values. CUDA conformance checks compare with an independently derived
+order as well as the oracle, and verify guard regions and replay stability.
+Apple checks exercise its own backend paths. Consult each report for the checks
+actually run; a host-only test does not establish device correctness.

@@ -1,8 +1,7 @@
 """Time the three converters against each other on your own device.
 
-This reproduces the shape of the converter-segment comparison in
-``evidence/`` -- the deterministic row-wide converter costing *less* than the
-nondeterministic atomic one -- on whatever hardware you have.
+This measures the converter-segment comparison on your own hardware. Results
+may differ from the archived measurements in ``evidence/``.
 
     python -m bench.bench_converter --width 2048 --batch 8 --dcp-size 2
 
@@ -37,29 +36,86 @@ import random
 import statistics
 import sys
 from collections.abc import Callable
+from numbers import Integral
 
 from silkern import (
     DEFAULT_TILE_SIZE,
+    LocalizationError,
     localize_hierarchical,
+    localize_reference,
     localize_rowwise,
     workspace_shapes,
 )
+from silkern.kernels import _validate_launch_config
+
+_MAX_FIXTURE_ELEMENTS = 4_194_304
+
+
+def _fixture_geometry(width, batch, block_size, dcp_size, dcp_rank=0, *,
+                      tile_size=DEFAULT_TILE_SIZE, with_atomic=False):
+    """Validate host fixtures and return safe page/sample population bounds."""
+    workspace_shapes(batch, width, tile_size=tile_size)
+    block_size, dcp_size, _, _, _ = _validate_launch_config(
+        block_size, dcp_size, dcp_rank, 1, True, 4
+    )
+    width, batch = int(width), int(batch)
+    if with_atomic and dcp_size == 1:
+        raise LocalizationError("atomic comparison requires --dcp-size greater than 1")
+    table_width = max(4, (width * dcp_size) // block_size + 2)
+    if batch * width + 4 * table_width > _MAX_FIXTURE_ELEMENTS:
+        raise LocalizationError(
+            f"diagnostic fixtures must not exceed {_MAX_FIXTURE_ELEMENTS} elements"
+        )
+    page_population = max(4096, table_width)
+    limit = block_size * table_width * dcp_size
+    if max(page_population * block_size, limit) > 2**31:
+        raise LocalizationError("diagnostic indices and physical slots must fit int32")
+    return table_width, page_population, limit
+
+
+def _validate_options(args, *, with_atomic: bool) -> None:
+    """Shared CLI preflight, performed before loading an accelerator runtime."""
+    _fixture_geometry(
+        args.width, args.batch, args.block_size, args.dcp_size, args.dcp_rank,
+        tile_size=getattr(args, "tile_size", DEFAULT_TILE_SIZE), with_atomic=with_atomic,
+    )
+    for name in ("replays", "blocks"):
+        value = getattr(args, name, 1)
+        if not isinstance(value, Integral) or isinstance(value, bool) or value < 1:
+            raise LocalizationError(f"--{name} must be a positive integer")
 
 
 def _case(width: int, batch: int, block_size: int, dcp_size: int, seed: int):
+    table_width, page_population, limit = _fixture_geometry(width, batch, block_size, dcp_size)
+    width, batch = int(width), int(batch)
     rng = random.Random(seed)
-    table_width = max(4, (width * dcp_size) // block_size + 2)
     requests = 4
     req_ids = [(row * 3 + 1) % requests for row in range(batch)]
     # Fragmented, non-monotonic page table -- the realistic case.
     block_table = [
-        rng.sample(range(4096), table_width) for _ in range(requests)
+        rng.sample(range(page_population), table_width) for _ in range(requests)
     ]
-    limit = block_size * table_width * dcp_size
     rows = [
         sorted(rng.sample(range(limit), width)) for _ in range(batch)
     ]
     return req_ids, block_table, rows
+
+
+def _check_results(name, observed_out, observed_counts, expected_out, expected_counts) -> None:
+    """Check full stable output or atomic multisets/counts/tails before timing."""
+    if observed_counts != expected_counts or len(observed_out) != len(expected_out):
+        raise LocalizationError(f"{name} oracle mismatch: row counts or output batch")
+    if name != "atomic_baseline":
+        if observed_out != expected_out:
+            raise LocalizationError(f"{name} oracle mismatch: output values or order")
+        return
+    for actual, expected, count in zip(observed_out, expected_out, expected_counts, strict=True):
+        if (
+            len(actual) != len(expected)
+            or sorted(actual[:count]) != sorted(expected[:count])
+            or actual[count:] != [-1] * (len(expected) - count)
+        ):
+            raise LocalizationError(f"{name} oracle mismatch: valid multiset or padded tail")
 
 
 def _time_graph(torch, launch, *, replays: int, blocks: int) -> list[float]:
@@ -110,6 +166,10 @@ def main(argv: list[str] | None = None) -> int:
         help="also time the atomic-reservation baseline",
     )
     args = parser.parse_args(argv)
+    try:
+        _validate_options(args, with_atomic=args.with_atomic)
+    except LocalizationError as exc:
+        parser.error(str(exc))
 
     try:
         import torch
@@ -141,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         dcp_size=args.dcp_size,
         dcp_rank=args.dcp_rank,
     )
+    expected_out, expected_counts = localize_reference(req_ids, block_table, rows, **common)
 
     arms: dict[str, Callable[[], None]] = {
         "row_stable": lambda: localize_rowwise(
@@ -168,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
             req, table, tokens, out, counts, scratch, **common
         )
 
-    print(f"device      : {torch.cuda.get_device_name(0)}")
+    print(f"device      : {torch.cuda.get_device_name(torch.cuda.current_device())}")
     print(
         f"geometry    : width={args.width} batch={args.batch} "
         f"block_size={args.block_size} dcp={args.dcp_rank}/{args.dcp_size} "
@@ -177,6 +238,17 @@ def main(argv: list[str] | None = None) -> int:
     print(f"schedule    : {args.blocks} blocks x {args.replays} graph replays\n")
 
     results: dict[str, float] = {}
+    # Qualify every arm before printing any timing. Compilation is outside the
+    # measured region; the atomic baseline is allowed to permute only the prefix.
+    for name, launch in arms.items():
+        try:
+            launch()
+            torch.cuda.synchronize()
+            _check_results(name, out.cpu().tolist(), counts.cpu().tolist(),
+                           expected_out, expected_counts)
+        except (LocalizationError, RuntimeError) as exc:
+            print(f"benchmark qualification failed: {exc}", file=sys.stderr)
+            return 1
     for name, launch in arms.items():
         samples = _time_graph(
             torch, launch, replays=args.replays, blocks=args.blocks

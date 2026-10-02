@@ -1,105 +1,117 @@
-# What is established, and what is not
+# Evidence and claim boundaries
 
-Software claims are cheap. This page separates what was measured from what was
-inferred from what was not tested at all, so you can decide how much of it
-transfers to your stack.
+[README](../README.md) · [Apple / MLX](apple-mlx.md) · [Dispatch](dispatch.md) · [Contributing](../CONTRIBUTING.md)
 
-Raw analyzer output is in [`evidence/`](../evidence/). Every number quoted
-anywhere in this repository appears verbatim in one of those files.
+A result supports the code, inputs, environment, and timing definition that
+produced it. This page distinguishes archived NVIDIA experiments from new Apple
+and host validation. No NVIDIA GPU experiments were run during the Apple support
+and hardening update.
 
-## Established
+## Historical NVIDIA record
 
-**The implementations reproduce the contract.** Both kernels match the
-independent CPU oracle elementwise — arrays and counts — across a geometry matrix
-crossing widths 1–4096, page sizes 32 and 64, DCP degrees 1/2/4/8 including the
-last rank of each, and grouped interleave. Checked on SM90, SM100, and SM120.
+The artifacts below were inherited with the repository. Their embedded source
+identity and claim boundaries remain authoritative. A checksum establishes file
+integrity; it does not rerun an experiment or qualify a changed implementation.
 
-**The prefix is the selector's order.** Checked against an order derivation
-written independently of the oracle, per row, with the tail asserted to be `-1`.
+| Artifact | Recorded finding | Boundary |
+|---|---|---|
+| [01 · B200 conformance](../evidence/01-oracle-conformance-b200/analysis.json) | 131/131 correctness cells, 13/13 atomic differentials, 3/3 canary checks; 10,000 graph replays per arm | Single B200 standalone implementation; not full-model or serving evidence |
+| [02 · Trained layer-0 semantics](../evidence/02-trained-layer0-semantics/analysis.json) | 24/24 cells across 4K–32K and DCP-2/4; exact local arrays; recombined attention within the recorded tolerances | Trained selector and one model family; not all-layer or quality evaluation |
+| [03 · Subpath timing](../evidence/03-subpath-timing/) | Study abstained: results did not clear its prespecified practical margin | Retained inconclusive outcome |
+| [04 · Mechanism decomposition](../evidence/04-mechanism-decomposition/) | Converter-work effect resolved; order-only effect inconsistently signed | Does not prove a universal absence of order-dependent cost |
+| [05 · Complete-decode canary](../evidence/05-full-decode-canary/analysis.json) | 32K rowwise non-inferiority; 64K rowwise regression; hierarchical met the margin at both contexts | Five sessions, two H100s, reference executor |
+| [06 · Order instability](../evidence/06-order-instability-b200/orders.json) | Atomic: 17–20 orders per 20 identical-input replays; stable: one | Recorded two-B200 workload |
 
-**Replay stability.** 10,000 fixed-address graph replays per arm with pointer
-identity and allocator-growth gates. No compiled variant spilled registers.
+The B200 correctness matrix includes page sizes 16/32/64/128, DCP sizes 1/2/4/8,
+every rank, interleaves 1/2/4, and widths from 1 through 4096. It includes
+fragmented and negative-entry tables. Do not relabel this specific matrix as a
+full conformance run on every architecture listed elsewhere in the project.
 
-**Memory safety.** Guarded buffers with zeroed canary regions around every output
-and workspace; inputs verified unmodified.
+## Reading performance correctly
 
-**It holds under a real trained selector.** With real tokenized text and trained
-layer-0 selector, QKV, and output weights, 24/24 cells pass at 4K/8K/16K/32K under
-DCP-2 and DCP-4: each rank's array equals the oracle, each rank's order equals
-filtering the selector array by ownership, the partitions are disjoint and their
-union reconstructs the returned global set, and recombined attention matches the
-unsharded result (worst post-projection difference `6.1e-05`). No ownership
-balance was assumed — rank shares were measured, not stipulated.
+The H100 segment artifact reports **microseconds per complete 48-layer segment**,
+not per localization call. At 32K, rowwise is 119.996 µs versus atomic 194.393 µs;
+`(1 - 119.996 / 194.393) * 100` gives approximately 38.3% lower segment latency.
+The hierarchical segment is 239.727 µs. See
+[raw segment values](../evidence/05-full-decode-canary/segments.json).
 
-**Determinism is not paid for at the converter.** Row-wide 120 µs vs. atomic
-194 µs vs. hierarchical 239 µs, timed as captured graphs.
+Whole-step rowwise/atomic at 32K is
+`1.000031 [0.997373, 1.002696]`. This met the study's 1.01 non-inferiority margin;
+it did not demonstrate a whole-step speedup. At 64K the ratio is
+`1.014006 [1.010326, 1.017700]`, a measured regression of about 1.4%. Intervals
+are 98.75% intervals across five sessions. See the
+[complete-step analysis](../evidence/05-full-decode-canary/analysis.json).
 
-**Order itself carries no resolved cost.** An 8-arm decomposition resolves
-converter work (~2 µs at every context) but finds the order-only contrast
-inconsistently signed across contexts. That is counter-evidence against the
-tempting story, and it is retained rather than dropped.
+The executor evaluates a dense-weighted mixture of experts rather than an
+optimized active-expert path. That shared overhead changes the fraction of time
+attributable to localization. Neither absolute latency nor the measured ratios
+can simply be transferred to a faster production executor.
 
-**Complete-step non-inferiority at 32K.** Five fresh two-process sessions on two
-H100s, a real 48-layer model, live context parallelism, randomized paired blocks,
-a 1.01 margin fixed before any observation, and a direction-blind precision stop.
-Primary contrast `1.00003 [0.99737, 1.00270]`. In every session the two
-deterministic arms produced bitwise-identical free-running generations while the
-atomic arm's varied.
+Potential cache, scheduling, and inter-kernel resource explanations for the
+64K regression remain hypotheses. The evidence does not identify one cause or
+establish a universal context-length dispatch threshold.
 
-## Established, and unfavorable
+## Apple and current implementation validation
 
-Kept here because a repository that only reports its wins is not evidence.
+The [current Apple audit artifact](../evidence/09-apple-mlx-consumer/) records
+48/48 conformance cells with 16 repeat evaluations and three process sessions
+on an M5 Max with MLX 0.32.3. Compiled Metal is
+1.10–1.21× faster than compiled compositional MLX across the nine measured
+geometries; all eager and compiled arms are retained. The MLX backend has its
+own oracle comparisons, repeated evaluations, stream checks, and microbenchmark.
+[Apple measurement and reproduction](apple-mlx.md#measurement-and-reproduction)
+identifies the available machine record and commands. Metal-versus-MLX timings
+compare native implementations of one primitive with evaluated outputs.
 
-**The row-wide arm costs 1.4% at 64K.** `1.01401 [1.01033, 1.01770]` — the whole
-interval sits above the prefixed margin, reproduced in all five sessions, about
-+1 ms per step. It arises downstream of the converter, whose segment timing is
-unchanged. Mitigation: use `localize_hierarchical` at long context. See
-[`dispatch.md`](dispatch.md).
+The [initial Apple checkpoint](../evidence/07-apple-mlx/) is retained with its
+original JSON records. It predates the scan-synchronization and arithmetic
+corrections. [Record 08](../evidence/08-apple-mlx-audit/) includes those corrections;
+current implementation claims use record 09 after the large-batch Metal grid
+fix and thread-local stream support. Record 09 also records independent
+request/table/token perturbation gates for compiled localization. Records 07
+and 08 checked the original fixture per run and had separate changing-input
+tests; they did not record these stronger per-session gates.
+Differences between these descriptive sessions are not a controlled before/after
+performance experiment.
 
-**A subpath timing study abstained.** Nine sessions, four contrasts, all four
-favoring the stable arm, **none** clearing its prefixed practical margin. The
-preregistered decision was an abstention and it was honored. See
-[`evidence/03`](../evidence/03-subpath-timing/).
+Record 09 separately measures a complete compiled selected-attention consumer:
+localization, masked K/V gathers, shared normalization, and recombination of
+two logical shards on one device. Both fixed cases show a rounded **1.12×**
+MLX/Metal ratio across three session medians. The independent attention and
+changing-query/request/selection gates run before timing; page tables and caches
+are static. See the [consumer scope and table](apple-mlx.md#complete-selected-attention-consumer)
+and [raw consumer summary](../evidence/09-apple-mlx-consumer/consumer-summary.json).
 
-**The reference executor is not fast.** Its per-step time is inflated by a
-capture-safe dense-weighted mixture-of-experts that evaluates all experts rather
-than the active ones. The inflation is identical across arms, so the *ratios* are
-unaffected — but the absolute step time is not representative of a tuned serving
-step, and a converter's share of a faster step is correspondingly larger.
+A local Apple result does not establish CUDA graph behavior, an MLX-LM model
+integration, distributed attention, or serving throughput. Host-only tests can
+validate public API and metadata rules but do not requalify changed CUDA code.
+Read the current test and conformance reports together with these limitations.
 
-## Inferred, not observed
+## Claims that require additional evidence
 
-Stated separately because the distinction is the point.
+- Production throughput, TPOT under load, goodput, queueing, and memory headroom.
+- Portability to unmeasured chips, runtime versions, or integration revisions.
+- End-to-end bitwise reproducibility across attention, GEMM, collectives, and batching.
+- Improved model quality, RL learning outcomes, or benchmark scores.
+- Performance across model families or distributed Apple deployments.
 
-**Why the 64K row-wide cost exists.** Per-kernel counters show the downstream
-kernels are serialized-identical, and cannot see inter-kernel effects. That the
-remaining difference arises *between* kernels — scheduling, cache state,
-contention from the row-wide kernel's larger per-program working set — is an
-inference from what the instrumentation could not observe. It is consistent with
-the data and is not a measurement.
+## Verify and reproduce
 
-## Not established
-
-- **Any serving-grade result.** No TPOT under load, no throughput, no goodput, no
-  queueing behavior. All timing is from a single-purpose reference executor.
-- **Portability.** Three GPU generations were tested. Nothing is claimed about a
-  fourth, about AMD, or about a different Triton version.
-- **A speedup.** The 32K result is *non-inferiority* against a margin fixed in
-  advance. The converter-segment win is a segment measurement, not an end-to-end
-  claim.
-- **Model quality.** Determinism is not quality. No claim is made that preserving
-  the selector's order improves model output — only that it stops changing.
-- **Generality across model families.** The trained-weight evidence is one family.
-- **Capacity or memory headroom** under production batching.
-
-## How to check any of this
+The checksum manifest is relative to the evidence directory:
 
 ```bash
-shasum -a 256 -c evidence/SHA256SUMS           # the artifacts are what they claim
-python -m silkern                                # the correctness claims, on your device
-python -m bench.order_instability              # the instability claim, on your device
-python -m bench.bench_converter --with-atomic  # the cost claim, on your device
+(cd evidence && shasum -a 256 -c SHA256SUMS)
 ```
 
-If a claim on this page does not reproduce on your hardware, that is a result
-worth reporting. Include the geometry line from `report.summary()`.
+For Apple support, install `.[mlx]` and run:
+
+```bash
+python -m silkern.mlx_verify --require-device
+python -m bench.bench_mlx
+```
+
+For separately authorized CUDA qualification, use `python -m silkern --require-device` and the
+CUDA benchmarks under [`bench/`](../bench/). Preserve the complete invocation,
+versions, geometry, synchronization policy, and result, including failures and
+unfavorable measurements. Documentation may round source values or calculate
+clearly labeled ratios; the raw artifact remains the source of truth.

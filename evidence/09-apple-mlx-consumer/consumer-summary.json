@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "benchmark": "silkern_mlx_selected_attention_summary",
+  "aggregation": "Per-arm median of session medians; descriptive ratios, no confidence interval.",
+  "sessions": [
+    "consumer-session-1.json",
+    "consumer-session-2.json",
+    "consumer-session-3.json"
+  ],
+  "session_count": 3,
+  "metadata": {
+    "platform": "macOS-26.6-arm64-arm-64bit",
+    "machine": "arm64",
+    "python": "3.12.12",
+    "versions": {
+      "silkern": "0.2.0",
+      "mlx": "0.32.3"
+    },
+    "device": {
+      "device_name": "Apple M5 Max",
+      "max_recommended_working_set_size": 40200896512,
+      "memory_size": 51539607552,
+      "architecture": "applegpu_g17s",
+      "max_buffer_length": 30150672384,
+      "resource_limit": 499000
+    },
+    "execution_backend": "apple_metal",
+    "source_sha256": {
+      "silkern/contract.py": "b7fb66103fb1c5f3ca8e7e7b40e8891752c197c55083e8b534a64c76a5c1ab84",
+      "silkern/mlx.py": "456a50ccb4d3009b40acd200a99fc681b1fe293deec0a34cd169830fbd034ad8",
+      "silkern/mlx_verify.py": "6ede953f27d43ec3022fb118e3a1554c13942cc9352fa8edbd03547b3fba4f0f",
+      "bench/bench_mlx_attention.py": "c2b6f753f420e7d2b26eeac3c09cd06e6bb232c1754c991b445c745de777f849",
+      "examples/mlx_sparse_attention.py": "1053aef726941aa47d946c2ccbd45e51f2fbe7a03b3ba70ac0c038c97d80dd9d",
+      "bench/bench_mlx.py": "a9387837dbf5dab6f4078efd645ff80e585bb157d5362ddcde194fe15878a620"
+    }
+  },
+  "methodology": {
+    "measurement": "synchronized compiled selected-attention consumer",
+    "units": "microseconds per call",
+    "includes": [
+      "localization",
+      "paged K/V gather",
+      "masked softmax",
+      "logical-shard recombination",
+      "Python dispatch",
+      "output allocation",
+      "synchronization"
+    ],
+    "excludes": [
+      "fixture generation",
+      "oracle validation",
+      "first-use compilation"
+    ],
+    "order": "rotate arm order each block",
+    "full_model_decode": false,
+    "distributed_execution": false,
+    "oracle": "independent unsharded float64 attention and exact per-shard counts",
+    "float_tolerance": {
+      "relative": 1e-05,
+      "absolute": 1e-06
+    },
+    "changing_input_checks": [
+      "query",
+      "request_ids",
+      "token_indices"
+    ],
+    "static_inputs": [
+      "page tables",
+      "key/value caches"
+    ],
+    "warmup": 10,
+    "iterations_per_block": 50,
+    "blocks": 12,
+    "seed": 11
+  },
+  "cells": [
+    {
+      "geometry": {
+        "batch": 1,
+        "width": 128,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_interleave": 1,
+        "key_dim": 64,
+        "value_dim": 64,
+        "request_count": 4,
+        "table_width": 2
+      },
+      "median_us": {
+        "mlx_compiled": 294.8225,
+        "metal_compiled": 263.15917
+      },
+      "compiled_ratio": 1.1203200709289363
+    },
+    {
+      "geometry": {
+        "batch": 8,
+        "width": 2048,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_interleave": 1,
+        "key_dim": 64,
+        "value_dim": 64,
+        "request_count": 4,
+        "table_width": 32
+      },
+      "median_us": {
+        "mlx_compiled": 366.66751,
+        "metal_compiled": 326.90207999999996
+      },
+      "compiled_ratio": 1.1216432455859566
+    }
+  ]
+}

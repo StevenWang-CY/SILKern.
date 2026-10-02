@@ -20,10 +20,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -33,9 +33,9 @@ jobs:
       - name: Lint
         run: python -m ruff check .
       - name: Test (no GPU)
-        run: python -m pytest -q -W error -m "not gpu"
+        run: python -m pytest -q -W error -m "not gpu and not mlx"
       # The contract and the oracle must work with no GPU stack installed at all.
-      # This is the check that catches an accidental top-level torch/triton import.
+      # Catch accidental mandatory imports; optional Triton imports are guarded.
       - name: Import without torch or triton
         run: |
           python - <<'PYTHON'
@@ -56,11 +56,91 @@ jobs:
         run: |
           silkern-verify
           silkern-verify --arm row_stable --tile-size 256 --batch 2
+          silkern-verify-mlx --json
+
+  distribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check --strict dist/*
+      - name: Test installed wheel outside checkout
+        run: |
+          python -m venv /tmp/silkern-wheel
+          /tmp/silkern-wheel/bin/python -m pip install dist/*.whl
+          cd /tmp
+          /tmp/silkern-wheel/bin/python - <<'PYTHON'
+          import importlib.util
+          import silkern
+          assert importlib.util.find_spec("mlx") is None
+          assert importlib.util.find_spec("torch") is None
+          assert importlib.util.find_spec("triton") is None
+          assert silkern.localize_reference([0], [[3]], [[0, 1]],
+              block_size=2, dcp_size=2, dcp_rank=0) == ([[6, -1]], [1])
+          assert callable(silkern.localize_mlx)
+          PYTHON
+          /tmp/silkern-wheel/bin/silkern-verify --json
+          /tmp/silkern-wheel/bin/silkern-verify-mlx --json
+
+  apple:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install Apple backend
+        run: python -m pip install -e ".[dev,mlx]"
+      - name: Require a usable MLX CPU runtime
+        id: mlx-runtime
+        # A missing/broken optional dependency must fail this job instead of
+        # letting importorskip turn the entire Apple suite into a green skip.
+        run: |
+          python - <<'PYTHON'
+          import platform
+          import mlx.core as mx
+          from silkern import localize_mlx
+          assert platform.machine() == "arm64"
+          with mx.stream(mx.cpu):
+              out, counts = localize_mlx(
+                  mx.array([0], dtype=mx.int32),
+                  mx.array([[3]], dtype=mx.int32),
+                  mx.array([[0, 1]], dtype=mx.int32),
+                  block_size=2, dcp_size=2, dcp_rank=0, stream=mx.cpu,
+              )
+              mx.eval(out, counts)
+          assert out.tolist() == [[6, -1]]
+          assert counts.tolist() == [1]
+          print("MLX CPU localization passed; Metal available:", mx.metal.is_available())
+          PYTHON
+      - name: Run CPU and available Metal tests
+        # Hosted VM images may not expose Metal. CPU MLX tests still run;
+        # the conformance artifact explicitly records a device skip.
+        run: python -m pytest -q -W error -m "not gpu"
+      - name: Record Apple conformance or explicit skip
+        id: conformance
+        # Preserve diagnostics when a test fails, provided MLX itself works.
+        if: ${{ !cancelled() && steps.mlx-runtime.outcome == 'success' }}
+        run: silkern-verify-mlx --json > mlx-conformance.json
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.conformance.outcome != 'skipped' }}
+        with:
+          name: mlx-conformance
+          path: mlx-conformance.json
+          if-no-files-found: error
 
   evidence:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Verify evidence checksums
         working-directory: evidence
         run: shasum -a 256 -c SHA256SUMS

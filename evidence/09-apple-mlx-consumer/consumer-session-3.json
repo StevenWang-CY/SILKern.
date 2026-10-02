@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "benchmark": "silkern_mlx_selected_attention",
+  "created_at": "2026-10-02T04:06:43.946097+00:00",
+  "metadata": {
+    "platform": "macOS-26.6-arm64-arm-64bit",
+    "machine": "arm64",
+    "python": "3.12.12",
+    "versions": {
+      "silkern": "0.2.0",
+      "mlx": "0.32.3"
+    },
+    "device": {
+      "device_name": "Apple M5 Max",
+      "max_recommended_working_set_size": 40200896512,
+      "memory_size": 51539607552,
+      "architecture": "applegpu_g17s",
+      "max_buffer_length": 30150672384,
+      "resource_limit": 499000
+    },
+    "execution_backend": "apple_metal",
+    "source_sha256": {
+      "silkern/contract.py": "b7fb66103fb1c5f3ca8e7e7b40e8891752c197c55083e8b534a64c76a5c1ab84",
+      "silkern/mlx.py": "456a50ccb4d3009b40acd200a99fc681b1fe293deec0a34cd169830fbd034ad8",
+      "silkern/mlx_verify.py": "6ede953f27d43ec3022fb118e3a1554c13942cc9352fa8edbd03547b3fba4f0f",
+      "examples/mlx_sparse_attention.py": "1053aef726941aa47d946c2ccbd45e51f2fbe7a03b3ba70ac0c038c97d80dd9d",
+      "bench/bench_mlx.py": "a9387837dbf5dab6f4078efd645ff80e585bb157d5362ddcde194fe15878a620",
+      "bench/bench_mlx_attention.py": "c2b6f753f420e7d2b26eeac3c09cd06e6bb232c1754c991b445c745de777f849"
+    }
+  },
+  "methodology": {
+    "measurement": "synchronized compiled selected-attention consumer",
+    "units": "microseconds per call",
+    "includes": [
+      "localization",
+      "paged K/V gather",
+      "masked softmax",
+      "logical-shard recombination",
+      "Python dispatch",
+      "output allocation",
+      "synchronization"
+    ],
+    "excludes": [
+      "fixture generation",
+      "oracle validation",
+      "first-use compilation"
+    ],
+    "order": "rotate arm order each block",
+    "full_model_decode": false,
+    "distributed_execution": false,
+    "oracle": "independent unsharded float64 attention and exact per-shard counts",
+    "float_tolerance": {
+      "relative": 1e-05,
+      "absolute": 1e-06
+    },
+    "changing_input_checks": [
+      "query",
+      "request_ids",
+      "token_indices"
+    ],
+    "static_inputs": [
+      "page tables",
+      "key/value caches"
+    ],
+    "warmup": 10,
+    "iterations_per_block": 50,
+    "blocks": 12,
+    "seed": 11
+  },
+  "cells": [
+    {
+      "geometry": {
+        "batch": 1,
+        "width": 128,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_interleave": 1,
+        "key_dim": 64,
+        "value_dim": 64,
+        "request_count": 4,
+        "table_width": 2
+      },
+      "seed": 11,
+      "oracle_passed": true,
+      "changing_inputs_passed": true,
+      "oracle_max_abs_error": {
+        "mlx_compiled": 2.906477092334825e-08,
+        "metal_compiled": 2.906477092334825e-08
+      },
+      "valid_counts": [
+        [
+          53
+        ],
+        [
+          62
+        ]
+      ],
+      "schedule": [
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ]
+      ],
+      "results": {
+        "mlx_compiled": {
+          "block_samples_us": [
+            347.29416,
+            302.75334,
+            280.1525,
+            301.96582,
+            282.10584,
+            294.1325,
+            294.91666,
+            289.2475,
+            295.25082,
+            291.95168,
+            280.8475,
+            296.42668
+          ],
+          "median_us": 294.52458,
+          "mean_us": 296.42041666666665,
+          "min_us": 280.1525,
+          "max_us": 347.29416,
+          "stdev_us": 17.713239299843348
+        },
+        "metal_compiled": {
+          "block_samples_us": [
+            264.62334,
+            258.45084,
+            261.74084,
+            256.38916,
+            258.0775,
+            265.13166,
+            263.22168,
+            265.64,
+            265.01418,
+            263.09666,
+            258.90918,
+            263.90334
+          ],
+          "median_us": 263.15917,
+          "mean_us": 262.01653166666665,
+          "min_us": 256.38916,
+          "max_us": 265.64,
+          "stdev_us": 3.225228358431899
+        }
+      },
+      "compiled_ratio": 1.1191879804150469
+    },
+    {
+      "geometry": {
+        "batch": 8,
+        "width": 2048,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_interleave": 1,
+        "key_dim": 64,
+        "value_dim": 64,
+        "request_count": 4,
+        "table_width": 32
+      },
+      "seed": 12,
+      "oracle_passed": true,
+      "changing_inputs_passed": true,
+      "oracle_max_abs_error": {
+        "mlx_compiled": 1.3611733629126377e-08,
+        "metal_compiled": 1.3611733629126377e-08
+      },
+      "valid_counts": [
+        [
+          921,
+          934,
+          896,
+          952,
+          925,
+          923,
+          912,
+          0
+        ],
+        [
+          918,
+          910,
+          944,
+          910,
+          902,
+          917,
+          930,
+          0
+        ]
+      ],
+      "schedule": [
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ],
+        [
+          "mlx_compiled",
+          "metal_compiled"
+        ],
+        [
+          "metal_compiled",
+          "mlx_compiled"
+        ]
+      ],
+      "results": {
+        "mlx_compiled": {
+          "block_samples_us": [
+            1051.29918,
+            511.85834,
+            474.81332,
+            475.58082,
+            439.30834,
+            472.1575,
+            433.14082,
+            444.87666,
+            426.17334,
+            426.1875,
+            416.7325,
+            497.51334
+          ],
+          "median_us": 458.51708,
+          "mean_us": 505.80347166666667,
+          "min_us": 416.7325,
+          "max_us": 1051.29918,
+          "stdev_us": 174.4350996208092
+        },
+        "metal_compiled": {
+          "block_samples_us": [
+            719.7425,
+            478.42,
+            387.3375,
+            395.09666,
+            396.78584,
+            411.565,
+            415.865,
+            385.77416,
+            381.0275,
+            400.76584,
+            398.4925,
+            389.34166
+          ],
+          "median_us": 397.63917000000004,
+          "mean_us": 430.0178466666667,
+          "min_us": 381.0275,
+          "max_us": 719.7425,
+          "stdev_us": 94.78734992640864
+        }
+      },
+      "compiled_ratio": 1.153098373080298
+    }
+  ]
+}

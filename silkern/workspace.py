@@ -35,12 +35,15 @@ def workspace_shapes(
         for value in (batch, width, tile_size)
     ):
         raise LocalizationError("batch, width, and tile_size must be integers")
+    batch, width, tile_size = int(batch), int(width), int(tile_size)
     if batch < 1 or width < 1:
         raise LocalizationError("batch and width must be positive")
     if width > MAX_ROW_WIDTH:
         raise LocalizationError(
             f"row width {width} exceeds the current {MAX_ROW_WIDTH}-element limit"
         )
+    if batch * width > 2**31 - 1:
+        raise LocalizationError("batch * width must fit int32 for hierarchical kernel indexing")
     if tile_size not in SUPPORTED_TILE_SIZES:
         supported = ", ".join(str(value) for value in SUPPORTED_TILE_SIZES)
         raise LocalizationError(f"tile_size must be one of {supported}")

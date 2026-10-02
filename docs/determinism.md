@@ -1,112 +1,82 @@
-# Why the atomic converter is order-unstable
+# Why stable localization matters
 
-Not a bug report. The converter this replaces is correct, and understanding
-*why* it is both correct and unstable is the whole point.
+[README](../README.md) · [Contract](contract.md) · [Architecture](architecture.md) · [Evidence](evidence.md)
 
-## The mechanism, in one paragraph
+An atomic-reservation converter can preserve the selected multiset and count
+while changing the order of the returned prefix. SILKern strengthens that
+boundary by preserving the selector's relative order.
 
-The converter processes a selection row in tiles of `BLOCK_N` elements. Each tile
-scans its own elements, counts how many survive ownership filtering and paged
-translation, and then reserves a contiguous output segment for those survivors
-with a single `atomic_add` on a per-row counter:
+![Identical input can yield different atomic tile orders; a deterministic scan fixes each destination](../assets/fig-problem.svg)
 
-```
-base = atomic_add(&counter[row], tile_count)     # <- the only interesting line
+## Where the order changes
+
+A tiled converter can compute a local prefix within each tile and reserve space
+with an atomic counter:
+
+```text
+base = atomic_add(counter[row], tile_count)
 out[row][base + local_position] = physical
 ```
 
-Every tile ends up somewhere. No element is lost, none is duplicated, and the
-final counter is the exact valid count. The *set* is a function of the input
-alone.
+The atomic makes reservations disjoint; it does not define which tile reserves
+first. Scheduling determines tile bases, so the final prefix can vary even
+when every input byte is unchanged. At width 2048 and tile size 128, a row has
+16 tiles whose reservations can arrive in different orders.
 
-The *order* is not. `base` depends on how many elements the tiles that reached
-the atomic *first* happened to contribute — and which tiles reach it first is a
-function of scheduling, occupancy, clock, memory pressure, what else is on the
-device, and nothing you control. At a top-k of 2048 with `BLOCK_N=128` there are
-16 tiles per row racing for 16 segments, which is why the shuffling is coarse and
-blocky rather than a fine permutation.
+The historical two-B200 artifact records **17–20 distinct consumed orders** per
+20 replays of identical inputs, while the stable converter returns one order.
+This is a recorded result about that experiment, not a measurement from the
+current development machine. See [raw order records](../evidence/06-order-instability-b200/orders.json).
 
-You can watch it:
+## Why the consumer can care
 
-```bash
-python -m bench.order_instability
+Floating-point addition is not associative. Changing the order of KV rows can
+change an attention reduction's last bits, and a near-tie between logits can
+then change a chosen token. Whether that happens depends on the consumer,
+numerics, and input; it is not inevitable on every decode step.
+
+Stable localization is useful when comparing sparse-attention implementations,
+replaying a failure, debugging cached versus uncached paths, or auditing rollout
+and evaluation reproducibility. It removes one variable from those comparisons.
+The repository does not quantify RL training bias, evaluation-score drift, or
+prefix-cache effects attributable to this converter.
+
+## Deterministic destinations
+
+SILKern computes a survivor's location from input order:
+
+```text
+destination[j] = sum(valid[0:j+1]) - 1
 ```
 
-Measured on a live two-B200 pair, one selection row, 20 replays of
-byte-identical input: **17 to 20 distinct consumed orders** from the atomic
-converter; both `silkern` implementations return exactly one
-([`evidence/06`](../evidence/06-order-instability-b200/)).
+The rowwise CUDA implementation computes a whole-row scan. The hierarchical
+implementation adds deterministic tile offsets to tile-local positions. Apple
+MLX offers a custom Metal scan and a compositional array implementation. Their
+valid-input output contract is the same.
 
-## Why a different order is a different answer
+Alternatives have different tradeoffs:
 
-Sparse attention gathers the selected KV rows and reduces over them. In finite
-precision, addition is not associative:
-
-```
-(a + b) + c  ≠  a + (b + c)
-```
-
-The differences are tiny — last-place bits — and they are also *amplified*: they
-pass through a softmax, then a projection, then 47 more layers, and at the end
-they choose between two logits that were nearly tied. Most steps, the argmax is
-unchanged. Some steps, it isn't. Then the sequence forks and every subsequent
-token is different.
-
-This is why "the outputs are numerically close" is not a defense. Nobody claimed
-they were far apart. The claim is that they are *not the same*, and greedy
-decoding is a discontinuous function of them.
-
-## What this costs you, concretely
-
-**RL rollouts.** You generate a trajectory, compute rewards, and update against
-the log-probs you recorded. If a replay of the same prefix produces different
-log-probs, your importance ratios are computed against a policy the model did not
-actually execute. The bias is small per token and does not average out, because
-it is correlated with exactly the near-tie states where the gradient is largest.
-
-**Evaluation.** Two runs of the same checkpoint on the same benchmark produce
-different scores. You cannot separate a real 0.3-point regression from converter
-noise without repeating everything many times — which is expensive, and which
-people therefore do not do.
-
-**Debugging.** A failure reproduces on Tuesday and not Wednesday. Bisection is
-meaningless when the oracle is itself nondeterministic. This is the cost people
-underestimate most, because it shows up as engineer-weeks rather than as a
-number on a dashboard.
-
-**Prefix caching.** A cached prefix and a freshly computed one take different
-tile paths, so they disagree in the last bits — which surfaces as "caching
-changes my outputs," a bug report that is very hard to close.
-
-## Why the obvious fixes don't work
-
-| Fix | Why not |
+| Approach | Consequence |
 |---|---|
-| Sort the output prefix afterward | Allocates a workspace, and the *selector's* order is not sorted order — you would be imposing a different arbitrary order, not restoring the intended one |
-| One `atomic_add` per element instead of per tile | Strictly worse: finer-grained racing, more atomic traffic, still unspecified |
-| A grid-wide barrier before reserving | Not available inside a single kernel launch without cooperative groups, which constrains occupancy and complicates capture |
-| Serialize the tiles | Throws away the parallelism the tiling existed to provide |
-| `torch.use_deterministic_algorithms(True)` | Governs PyTorch's own kernels. This converter is a custom Triton kernel; the flag does not reach it |
+| Sort physical indices | Defines a new order; does not restore selector order |
+| Atomic reservation per element | Still scheduling-dependent, with more reservations |
+| Serialize reservations | Can preserve order at the expense of parallel work |
+| Deterministic prefix positions | Preserves selector order without racing for output segments |
 
-What actually works is not racing in the first place. A row-wide `cumsum` gives
-each element its destination as a pure function of the input
-(`localize_rowwise`), or bounded tile scans compose through a deterministic
-tile-prefix pass in caller-owned workspace (`localize_hierarchical`). Neither
-uses an atomic. Both are cheaper than or comparable to the baseline — see
-[`dispatch.md`](dispatch.md).
+Sorting or staging can be designed with preallocated workspace; allocation is
+not an inherent impossibility. The reason to use a stable prefix is that it
+expresses the desired order directly. PyTorch's deterministic-algorithms setting
+does not automatically rewrite a custom Triton converter.
 
-## What determinism here does *not* buy you
+## What this guarantee covers
 
-Being precise about the boundary, because overclaiming here is easy:
+For identical valid integer inputs and geometry, localization returns identical
+values, counts, and order. This does not promise bitwise-identical model output:
+attention and GEMM reductions, collective order, batch composition, and other
+components may still vary. Preserving selector order is a reproducibility
+property, not evidence of improved model quality.
 
-- **This is not end-to-end bitwise reproducibility.** Other nondeterminism
-  remains: reduction order inside attention and GEMM kernels, cuBLAS algorithm
-  selection, NCCL reduction order, batch-composition effects under continuous
-  batching. `silkern` removes one specific source; it does not certify the stack.
-- **It is not a correctness fix.** The atomic converter is not wrong. If your
-  pipeline genuinely does not care about order, you lose nothing by keeping it —
-  though you also gain nothing by keeping it, since the deterministic converter
-  is cheaper.
-- **It says nothing about which order is *better*.** Preserving the selector's
-  order is a determinism property, not a quality one. No claim is made that
-  selector order improves model output.
+The performance cost is empirical. Historical rowwise converter measurements
+are favorable, while hierarchical has more launch overhead and one rowwise
+complete-step result regresses. See [dispatch](dispatch.md) and
+[evidence](evidence.md) rather than assuming stable ordering is always faster.
