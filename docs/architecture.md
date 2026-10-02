@@ -8,7 +8,7 @@ of the execution framework, and keeps each backend's memory model explicit.
 
 ![Tensor flow, stable scatter, page-table routing, and selected KV cache entries](../assets/fig-platforms.svg)
 
-**Figure 1. Localization at the sparse-attention boundary.** Color follows each surviving token through ownership filtering, address translation, and stable scatter. The page-table view resolves logical pages into three 64-slot cache tiles; highlighted cells show the selected K/V addresses. The example uses rank 0 of two ranks, interleave 1, and page size 64. Output follows selector order even when physical pages are nonmonotonic. Backends share this compacting result with distinct memory ownership.
+**Figure 1. Localization at the sparse-attention boundary.** (a) Rank 0 keeps three tokens, translates their addresses, and scatters them to destinations derived from the validity prefix. Color tracks each survivor; output retains selector order. (b) Logical pages 0, 1, and 2 map to physical pages 11, 2, and 7. Paired grids represent aligned K/V pages; highlighted offsets 4, 1, and 3 select slots 708, 129, and 451. The example uses two ranks, interleave 1, page size 64, and request 0.
 
 ## Layers and responsibilities
 

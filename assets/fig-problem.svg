@@ -1,19 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="368" viewBox="0 0 1120 368" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="376" viewBox="0 0 1120 376" role="img" aria-labelledby="title desc">
 <title id="title">Completion-order reservation versus deterministic tile prefixes</title>
-<desc id="desc">Tile groups T0=[704,705], T1=[132,133], T2=[448,896], T3=[897,260] are tracked by four colors. Atomic reservation may emit T1,T0,T3,T2; T0,T2,T1,T3; or T2,T3,T0,T1 on separate replays. Stable input-prefix offsets 0, 2, 4, 6 always emit T0,T1,T2,T3. Both paths have the same eight values and exact count. Curves illustrate only the first replay; these arrays are illustrative, not measured GPU results.</desc>
-<style>text{font-family:Arial,Helvetica,sans-serif;font-size:16px;font-variant-numeric:tabular-nums;fill:var(--ink)}
-svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#fff;--neutral:#f1f3f5;--blue:#32669b;--blue-wash:#e8f0f8;--teal:#287c72;--teal-wash:#e7f2ef;--copper:#a16a3b;--copper-wash:#f7eddf;--violet:#786a9e;--violet-wash:#eeebf5}
-.heading{font-size:19px;font-weight:600}.subhead{font-size:16px;font-weight:600}
-.small{font-size:13px}.label{font-size:14px}.muted{fill:var(--muted)}
-.mono{font-family:Menlo,Consolas,monospace;font-size:15px}
-.mono.small{font-size:13px}.data{font-size:16px;font-weight:500}.data.knockout{font-weight:600}
-.math{font-family:Georgia,'Times New Roman',serif;font-size:17px;font-style:italic}
+<desc id="desc">Tile groups T0=[704,705], T1=[132,133], T2=[448,896], T3=[897,260] are tracked by four colors. Atomic reservation can emit T1,T0,T3,T2; T0,T2,T1,T3; or T2,T3,T0,T1 on separate replays. Stable input-prefix offsets 0,2,4,6 always emit T0,T1,T2,T3. Both paths have the same eight values and count. Curves illustrate the first replay only; these are schematic arrays, not measured GPU results.</desc>
+<style>svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#ffffff;--neutral:#f1f3f5;--comparison:#b5bfca;--blue:#32669b;--blue-wash:#e8f0f8;--teal:#287c72;--teal-wash:#e7f2ef;--copper:#a16a3b;--copper-wash:#f7eddf;--violet:#786a9e;--violet-wash:#eeebf5;--knockout:#ffffff}@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--neutral:#1b232c;--comparison:#778696;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338;--knockout:#111820}}text{font-family:'Arial','DejaVu Sans',sans-serif;font-size:18px;font-variant-numeric:tabular-nums;fill:var(--ink)}.heading{font-size:22px;font-weight:700}.subhead{font-weight:700}.muted{fill:var(--muted)}.data{font-weight:400}.data.knockout{font-weight:700}
 .rule{fill:none;stroke:var(--rule);stroke-width:1}
 .edge{fill:none;stroke:var(--line);stroke-width:1.25;stroke-linejoin:round;stroke-linecap:round}
 .outline{fill:var(--paper);stroke:var(--line);stroke-width:1.2}
-.node{fill:var(--neutral);stroke:var(--line);stroke-width:1}
-.grid-cell{fill:var(--neutral);stroke:var(--rule);stroke-width:.7}
-.grid-frame{fill:none;stroke:var(--line);stroke-width:1}
+.grid-frame,.array-frame{fill:none;stroke:var(--line);stroke-width:1}
+.wash{fill:var(--wash);stroke:none}.plain{fill:var(--paper);stroke:none}
+.array-divider{fill:none;stroke:var(--rule);stroke-width:.8}
+.port{fill:var(--paper);stroke:var(--color);stroke-width:1.25}
 .route-cutout{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round}
 .blue{--color:var(--blue);--wash:var(--blue-wash)}
 .teal{--color:var(--teal);--wash:var(--teal-wash)}
@@ -22,199 +17,178 @@ svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#fff;--n
 .colored{fill:var(--color)}.tile{fill:var(--wash);stroke:var(--color);stroke-width:1.25}
 .trace{fill:none;stroke:var(--color);stroke-width:1.7;stroke-linecap:round}
 .solid{fill:var(--color);stroke:var(--color);stroke-width:1}
-.knockout{fill:#fff}.dash{stroke-dasharray:3 4}
-@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--neutral:#1b232c;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}.knockout{fill:#111820}}
+.knockout{fill:var(--knockout)}
 </style>
 <defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
-<path d="M560 15V350" class="rule"/>
-<text x="22" y="28" class="heading" text-anchor="start">a  Atomic reservation</text>
-<text x="22" y="53" class="label muted" text-anchor="start">Tile arrival determines the reserved segment</text>
-<text x="22" y="112" class="label" text-anchor="start">Input</text>
-<text x="166" y="81" class="small mono blue colored" text-anchor="middle">T0</text>
-<rect x="122" y="88" width="88" height="34" rx="3" class="blue tile"/>
-<text x="144" y="111" class="mono blue colored" text-anchor="middle">704</text>
-<text x="188" y="111" class="mono blue colored" text-anchor="middle">705</text>
-<path d="M166 93v24" class="rule"/>
-<text x="265" y="81" class="small mono teal colored" text-anchor="middle">T1</text>
-<rect x="221" y="88" width="88" height="34" rx="3" class="teal tile"/>
-<text x="243" y="111" class="mono teal colored" text-anchor="middle">132</text>
-<text x="287" y="111" class="mono teal colored" text-anchor="middle">133</text>
-<path d="M265 93v24" class="rule"/>
-<text x="364" y="81" class="small mono copper colored" text-anchor="middle">T2</text>
-<rect x="320" y="88" width="88" height="34" rx="3" class="copper tile"/>
-<text x="342" y="111" class="mono copper colored" text-anchor="middle">448</text>
-<text x="386" y="111" class="mono copper colored" text-anchor="middle">896</text>
-<path d="M364 93v24" class="rule"/>
-<text x="463" y="81" class="small mono violet colored" text-anchor="middle">T3</text>
-<rect x="419" y="88" width="88" height="34" rx="3" class="violet tile"/>
-<text x="441" y="111" class="mono violet colored" text-anchor="middle">897</text>
-<text x="485" y="111" class="mono violet colored" text-anchor="middle">260</text>
-<path d="M463 93v24" class="rule"/>
-<text x="22" y="209" class="label" text-anchor="start">Replay 1</text>
-<text x="166" y="178" class="small mono teal colored" text-anchor="middle">T1</text>
-<rect x="122" y="185" width="88" height="34" rx="3" class="teal tile"/>
-<text x="144" y="208" class="mono teal colored" text-anchor="middle">132</text>
-<text x="188" y="208" class="mono teal colored" text-anchor="middle">133</text>
-<path d="M166 190v24" class="rule"/>
-<text x="265" y="178" class="small mono blue colored" text-anchor="middle">T0</text>
-<rect x="221" y="185" width="88" height="34" rx="3" class="blue tile"/>
-<text x="243" y="208" class="mono blue colored" text-anchor="middle">704</text>
-<text x="287" y="208" class="mono blue colored" text-anchor="middle">705</text>
-<path d="M265 190v24" class="rule"/>
-<text x="364" y="178" class="small mono violet colored" text-anchor="middle">T3</text>
-<rect x="320" y="185" width="88" height="34" rx="3" class="violet tile"/>
-<text x="342" y="208" class="mono violet colored" text-anchor="middle">897</text>
-<text x="386" y="208" class="mono violet colored" text-anchor="middle">260</text>
-<path d="M364 190v24" class="rule"/>
-<text x="463" y="178" class="small mono copper colored" text-anchor="middle">T2</text>
-<rect x="419" y="185" width="88" height="34" rx="3" class="copper tile"/>
-<text x="441" y="208" class="mono copper colored" text-anchor="middle">448</text>
-<text x="485" y="208" class="mono copper colored" text-anchor="middle">896</text>
-<path d="M463 190v24" class="rule"/>
-<text x="22" y="268" class="label" text-anchor="start">Replay 2</text>
-<text x="166" y="237" class="small mono blue colored" text-anchor="middle">T0</text>
-<rect x="122" y="244" width="88" height="34" rx="3" class="blue tile"/>
-<text x="144" y="267" class="mono blue colored" text-anchor="middle">704</text>
-<text x="188" y="267" class="mono blue colored" text-anchor="middle">705</text>
-<path d="M166 249v24" class="rule"/>
-<text x="265" y="237" class="small mono copper colored" text-anchor="middle">T2</text>
-<rect x="221" y="244" width="88" height="34" rx="3" class="copper tile"/>
-<text x="243" y="267" class="mono copper colored" text-anchor="middle">448</text>
-<text x="287" y="267" class="mono copper colored" text-anchor="middle">896</text>
-<path d="M265 249v24" class="rule"/>
-<text x="364" y="237" class="small mono teal colored" text-anchor="middle">T1</text>
-<rect x="320" y="244" width="88" height="34" rx="3" class="teal tile"/>
-<text x="342" y="267" class="mono teal colored" text-anchor="middle">132</text>
-<text x="386" y="267" class="mono teal colored" text-anchor="middle">133</text>
-<path d="M364 249v24" class="rule"/>
-<text x="463" y="237" class="small mono violet colored" text-anchor="middle">T3</text>
-<rect x="419" y="244" width="88" height="34" rx="3" class="violet tile"/>
-<text x="441" y="267" class="mono violet colored" text-anchor="middle">897</text>
-<text x="485" y="267" class="mono violet colored" text-anchor="middle">260</text>
-<path d="M463 249v24" class="rule"/>
-<text x="22" y="327" class="label" text-anchor="start">Replay 3</text>
-<text x="166" y="296" class="small mono copper colored" text-anchor="middle">T2</text>
-<rect x="122" y="303" width="88" height="34" rx="3" class="copper tile"/>
-<text x="144" y="326" class="mono copper colored" text-anchor="middle">448</text>
-<text x="188" y="326" class="mono copper colored" text-anchor="middle">896</text>
-<path d="M166 308v24" class="rule"/>
-<text x="265" y="296" class="small mono violet colored" text-anchor="middle">T3</text>
-<rect x="221" y="303" width="88" height="34" rx="3" class="violet tile"/>
-<text x="243" y="326" class="mono violet colored" text-anchor="middle">897</text>
-<text x="287" y="326" class="mono violet colored" text-anchor="middle">260</text>
-<path d="M265 308v24" class="rule"/>
-<text x="364" y="296" class="small mono blue colored" text-anchor="middle">T0</text>
-<rect x="320" y="303" width="88" height="34" rx="3" class="blue tile"/>
-<text x="342" y="326" class="mono blue colored" text-anchor="middle">704</text>
-<text x="386" y="326" class="mono blue colored" text-anchor="middle">705</text>
-<path d="M364 308v24" class="rule"/>
-<text x="463" y="296" class="small mono teal colored" text-anchor="middle">T1</text>
-<rect x="419" y="303" width="88" height="34" rx="3" class="teal tile"/>
-<text x="441" y="326" class="mono teal colored" text-anchor="middle">132</text>
-<text x="485" y="326" class="mono teal colored" text-anchor="middle">133</text>
-<path d="M463 308v24" class="rule"/>
-<path d="M166 124C166 145 265 144 265 164" class="route-cutout"/>
-<path d="M166 124C166 145 265 144 265 164" class="blue trace" marker-end="url(#arrow)"/>
-<path d="M265 124C265 145 166 144 166 164" class="route-cutout"/>
-<path d="M265 124C265 145 166 144 166 164" class="teal trace" marker-end="url(#arrow)"/>
-<path d="M364 124C364 145 463 144 463 164" class="route-cutout"/>
-<path d="M364 124C364 145 463 144 463 164" class="copper trace" marker-end="url(#arrow)"/>
-<path d="M463 124C463 145 364 144 364 164" class="route-cutout"/>
-<path d="M463 124C463 145 364 144 364 164" class="violet trace" marker-end="url(#arrow)"/>
-<text x="22" y="356" class="label muted" text-anchor="start">Same values and count; tile order can change.</text>
-<text x="582" y="28" class="heading" text-anchor="start">b  Stable prefix destinations</text>
-<text x="582" y="53" class="label muted" text-anchor="start">Input order determines every destination</text>
-<text x="582" y="112" class="label" text-anchor="start">Input</text>
-<text x="726" y="81" class="small mono blue colored" text-anchor="middle">T0</text>
-<rect x="682" y="88" width="88" height="34" rx="3" class="blue tile"/>
-<text x="704" y="111" class="mono blue colored" text-anchor="middle">704</text>
-<text x="748" y="111" class="mono blue colored" text-anchor="middle">705</text>
-<path d="M726 93v24" class="rule"/>
-<text x="825" y="81" class="small mono teal colored" text-anchor="middle">T1</text>
-<rect x="781" y="88" width="88" height="34" rx="3" class="teal tile"/>
-<text x="803" y="111" class="mono teal colored" text-anchor="middle">132</text>
-<text x="847" y="111" class="mono teal colored" text-anchor="middle">133</text>
-<path d="M825 93v24" class="rule"/>
-<text x="924" y="81" class="small mono copper colored" text-anchor="middle">T2</text>
-<rect x="880" y="88" width="88" height="34" rx="3" class="copper tile"/>
-<text x="902" y="111" class="mono copper colored" text-anchor="middle">448</text>
-<text x="946" y="111" class="mono copper colored" text-anchor="middle">896</text>
-<path d="M924 93v24" class="rule"/>
-<text x="1023" y="81" class="small mono violet colored" text-anchor="middle">T3</text>
-<rect x="979" y="88" width="88" height="34" rx="3" class="violet tile"/>
-<text x="1001" y="111" class="mono violet colored" text-anchor="middle">897</text>
-<text x="1045" y="111" class="mono violet colored" text-anchor="middle">260</text>
-<path d="M1023 93v24" class="rule"/>
-<text x="582" y="209" class="label" text-anchor="start">Replay 1</text>
-<text x="726" y="178" class="small mono blue colored" text-anchor="middle">T0</text>
-<rect x="682" y="185" width="88" height="34" rx="3" class="blue tile"/>
-<text x="704" y="208" class="mono blue colored" text-anchor="middle">704</text>
-<text x="748" y="208" class="mono blue colored" text-anchor="middle">705</text>
-<path d="M726 190v24" class="rule"/>
-<text x="825" y="178" class="small mono teal colored" text-anchor="middle">T1</text>
-<rect x="781" y="185" width="88" height="34" rx="3" class="teal tile"/>
-<text x="803" y="208" class="mono teal colored" text-anchor="middle">132</text>
-<text x="847" y="208" class="mono teal colored" text-anchor="middle">133</text>
-<path d="M825 190v24" class="rule"/>
-<text x="924" y="178" class="small mono copper colored" text-anchor="middle">T2</text>
-<rect x="880" y="185" width="88" height="34" rx="3" class="copper tile"/>
-<text x="902" y="208" class="mono copper colored" text-anchor="middle">448</text>
-<text x="946" y="208" class="mono copper colored" text-anchor="middle">896</text>
-<path d="M924 190v24" class="rule"/>
-<text x="1023" y="178" class="small mono violet colored" text-anchor="middle">T3</text>
-<rect x="979" y="185" width="88" height="34" rx="3" class="violet tile"/>
-<text x="1001" y="208" class="mono violet colored" text-anchor="middle">897</text>
-<text x="1045" y="208" class="mono violet colored" text-anchor="middle">260</text>
-<path d="M1023 190v24" class="rule"/>
-<text x="582" y="268" class="label" text-anchor="start">Replay 2</text>
-<text x="726" y="237" class="small mono blue colored" text-anchor="middle">T0</text>
-<rect x="682" y="244" width="88" height="34" rx="3" class="blue tile"/>
-<text x="704" y="267" class="mono blue colored" text-anchor="middle">704</text>
-<text x="748" y="267" class="mono blue colored" text-anchor="middle">705</text>
-<path d="M726 249v24" class="rule"/>
-<text x="825" y="237" class="small mono teal colored" text-anchor="middle">T1</text>
-<rect x="781" y="244" width="88" height="34" rx="3" class="teal tile"/>
-<text x="803" y="267" class="mono teal colored" text-anchor="middle">132</text>
-<text x="847" y="267" class="mono teal colored" text-anchor="middle">133</text>
-<path d="M825 249v24" class="rule"/>
-<text x="924" y="237" class="small mono copper colored" text-anchor="middle">T2</text>
-<rect x="880" y="244" width="88" height="34" rx="3" class="copper tile"/>
-<text x="902" y="267" class="mono copper colored" text-anchor="middle">448</text>
-<text x="946" y="267" class="mono copper colored" text-anchor="middle">896</text>
-<path d="M924 249v24" class="rule"/>
-<text x="1023" y="237" class="small mono violet colored" text-anchor="middle">T3</text>
-<rect x="979" y="244" width="88" height="34" rx="3" class="violet tile"/>
-<text x="1001" y="267" class="mono violet colored" text-anchor="middle">897</text>
-<text x="1045" y="267" class="mono violet colored" text-anchor="middle">260</text>
-<path d="M1023 249v24" class="rule"/>
-<text x="582" y="327" class="label" text-anchor="start">Replay 3</text>
-<text x="726" y="296" class="small mono blue colored" text-anchor="middle">T0</text>
-<rect x="682" y="303" width="88" height="34" rx="3" class="blue tile"/>
-<text x="704" y="326" class="mono blue colored" text-anchor="middle">704</text>
-<text x="748" y="326" class="mono blue colored" text-anchor="middle">705</text>
-<path d="M726 308v24" class="rule"/>
-<text x="825" y="296" class="small mono teal colored" text-anchor="middle">T1</text>
-<rect x="781" y="303" width="88" height="34" rx="3" class="teal tile"/>
-<text x="803" y="326" class="mono teal colored" text-anchor="middle">132</text>
-<text x="847" y="326" class="mono teal colored" text-anchor="middle">133</text>
-<path d="M825 308v24" class="rule"/>
-<text x="924" y="296" class="small mono copper colored" text-anchor="middle">T2</text>
-<rect x="880" y="303" width="88" height="34" rx="3" class="copper tile"/>
-<text x="902" y="326" class="mono copper colored" text-anchor="middle">448</text>
-<text x="946" y="326" class="mono copper colored" text-anchor="middle">896</text>
-<path d="M924 308v24" class="rule"/>
-<text x="1023" y="296" class="small mono violet colored" text-anchor="middle">T3</text>
-<rect x="979" y="303" width="88" height="34" rx="3" class="violet tile"/>
-<text x="1001" y="326" class="mono violet colored" text-anchor="middle">897</text>
-<text x="1045" y="326" class="mono violet colored" text-anchor="middle">260</text>
-<path d="M1023 308v24" class="rule"/>
-<path d="M726 124C726 145 726 144 726 164" class="route-cutout"/>
-<path d="M726 124C726 145 726 144 726 164" class="blue trace" marker-end="url(#arrow)"/>
-<path d="M825 124C825 145 825 144 825 164" class="route-cutout"/>
-<path d="M825 124C825 145 825 144 825 164" class="teal trace" marker-end="url(#arrow)"/>
-<path d="M924 124C924 145 924 144 924 164" class="route-cutout"/>
-<path d="M924 124C924 145 924 144 924 164" class="copper trace" marker-end="url(#arrow)"/>
-<path d="M1023 124C1023 145 1023 144 1023 164" class="route-cutout"/>
-<path d="M1023 124C1023 145 1023 144 1023 164" class="violet trace" marker-end="url(#arrow)"/>
-<text x="582" y="356" class="label muted" text-anchor="start">Offsets [0, 2, 4, 6] are independent of scheduling.</text>
+<path d="M560 16V358" class="rule"/>
+<text x="24" y="36" class="heading" text-anchor="start">a  Atomic reservation</text>
+<text x="24" y="122" class="" text-anchor="start">Input</text>
+<text x="176" y="82" class="blue colored" text-anchor="middle">T0</text>
+<text x="272" y="82" class="teal colored" text-anchor="middle">T1</text>
+<text x="368" y="82" class="copper colored" text-anchor="middle">T2</text>
+<text x="464" y="82" class="violet colored" text-anchor="middle">T3</text>
+<defs><clipPath id="array-1"><rect x="128" y="96" width="384" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-1)">
+<rect x="128" y="96" width="384" height="40" rx="0" class="plain"/>
+<rect x="128" y="96" width="96" height="40" rx="0" class="blue wash"/>
+<text x="176.0" y="122.0" class="data blue colored" text-anchor="middle">704  705</text>
+<rect x="224" y="96" width="96" height="40" rx="0" class="teal wash"/>
+<path d="M224 96v40" class="array-divider"/>
+<text x="272.0" y="122.0" class="data teal colored" text-anchor="middle">132  133</text>
+<rect x="320" y="96" width="96" height="40" rx="0" class="copper wash"/>
+<path d="M320 96v40" class="array-divider"/>
+<text x="368.0" y="122.0" class="data copper colored" text-anchor="middle">448  896</text>
+<rect x="416" y="96" width="96" height="40" rx="0" class="violet wash"/>
+<path d="M416 96v40" class="array-divider"/>
+<text x="464.0" y="122.0" class="data violet colored" text-anchor="middle">897  260</text>
+</g>
+<rect x="128" y="96" width="384" height="40" rx="6" class="array-frame"/>
+<text x="24" y="224" class="" text-anchor="start">Replay 1</text>
+<defs><clipPath id="array-2"><rect x="128" y="198" width="384" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-2)">
+<rect x="128" y="198" width="384" height="40" rx="0" class="plain"/>
+<rect x="128" y="198" width="96" height="40" rx="0" class="teal wash"/>
+<text x="176.0" y="224.0" class="data teal colored" text-anchor="middle">132  133</text>
+<rect x="224" y="198" width="96" height="40" rx="0" class="blue wash"/>
+<path d="M224 198v40" class="array-divider"/>
+<text x="272.0" y="224.0" class="data blue colored" text-anchor="middle">704  705</text>
+<rect x="320" y="198" width="96" height="40" rx="0" class="violet wash"/>
+<path d="M320 198v40" class="array-divider"/>
+<text x="368.0" y="224.0" class="data violet colored" text-anchor="middle">897  260</text>
+<rect x="416" y="198" width="96" height="40" rx="0" class="copper wash"/>
+<path d="M416 198v40" class="array-divider"/>
+<text x="464.0" y="224.0" class="data copper colored" text-anchor="middle">448  896</text>
+</g>
+<rect x="128" y="198" width="384" height="40" rx="6" class="array-frame"/>
+<text x="24" y="284" class="" text-anchor="start">Replay 2</text>
+<defs><clipPath id="array-3"><rect x="128" y="258" width="384" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-3)">
+<rect x="128" y="258" width="384" height="40" rx="0" class="plain"/>
+<rect x="128" y="258" width="96" height="40" rx="0" class="blue wash"/>
+<text x="176.0" y="284.0" class="data blue colored" text-anchor="middle">704  705</text>
+<rect x="224" y="258" width="96" height="40" rx="0" class="copper wash"/>
+<path d="M224 258v40" class="array-divider"/>
+<text x="272.0" y="284.0" class="data copper colored" text-anchor="middle">448  896</text>
+<rect x="320" y="258" width="96" height="40" rx="0" class="teal wash"/>
+<path d="M320 258v40" class="array-divider"/>
+<text x="368.0" y="284.0" class="data teal colored" text-anchor="middle">132  133</text>
+<rect x="416" y="258" width="96" height="40" rx="0" class="violet wash"/>
+<path d="M416 258v40" class="array-divider"/>
+<text x="464.0" y="284.0" class="data violet colored" text-anchor="middle">897  260</text>
+</g>
+<rect x="128" y="258" width="384" height="40" rx="6" class="array-frame"/>
+<text x="24" y="344" class="" text-anchor="start">Replay 3</text>
+<defs><clipPath id="array-4"><rect x="128" y="318" width="384" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-4)">
+<rect x="128" y="318" width="384" height="40" rx="0" class="plain"/>
+<rect x="128" y="318" width="96" height="40" rx="0" class="copper wash"/>
+<text x="176.0" y="344.0" class="data copper colored" text-anchor="middle">448  896</text>
+<rect x="224" y="318" width="96" height="40" rx="0" class="violet wash"/>
+<path d="M224 318v40" class="array-divider"/>
+<text x="272.0" y="344.0" class="data violet colored" text-anchor="middle">897  260</text>
+<rect x="320" y="318" width="96" height="40" rx="0" class="blue wash"/>
+<path d="M320 318v40" class="array-divider"/>
+<text x="368.0" y="344.0" class="data blue colored" text-anchor="middle">704  705</text>
+<rect x="416" y="318" width="96" height="40" rx="0" class="teal wash"/>
+<path d="M416 318v40" class="array-divider"/>
+<text x="464.0" y="344.0" class="data teal colored" text-anchor="middle">132  133</text>
+</g>
+<rect x="128" y="318" width="384" height="40" rx="6" class="array-frame"/>
+<path d="M176 139C176 165 272 163 272 193" class="route-cutout"/>
+<path d="M176 139C176 165 272 163 272 193" class="blue trace" marker-end="url(#arrow)"/>
+<circle cx="176" cy="139" r="2.5" class="blue port"/>
+<path d="M272 139C272 165 176 163 176 193" class="route-cutout"/>
+<path d="M272 139C272 165 176 163 176 193" class="teal trace" marker-end="url(#arrow)"/>
+<circle cx="272" cy="139" r="2.5" class="teal port"/>
+<path d="M368 139C368 165 464 163 464 193" class="route-cutout"/>
+<path d="M368 139C368 165 464 163 464 193" class="copper trace" marker-end="url(#arrow)"/>
+<circle cx="368" cy="139" r="2.5" class="copper port"/>
+<path d="M464 139C464 165 368 163 368 193" class="route-cutout"/>
+<path d="M464 139C464 165 368 163 368 193" class="violet trace" marker-end="url(#arrow)"/>
+<circle cx="464" cy="139" r="2.5" class="violet port"/>
+<text x="584" y="36" class="heading" text-anchor="start">b  Stable prefix destinations</text>
+<text x="584" y="122" class="" text-anchor="start">Input</text>
+<text x="736" y="82" class="blue colored" text-anchor="middle">T0</text>
+<text x="832" y="82" class="teal colored" text-anchor="middle">T1</text>
+<text x="928" y="82" class="copper colored" text-anchor="middle">T2</text>
+<text x="1024" y="82" class="violet colored" text-anchor="middle">T3</text>
+<defs><clipPath id="array-5"><rect x="688" y="96" width="384" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-5)">
+<rect x="688" y="96" width="384" height="40" rx="0" class="plain"/>
+<rect x="688" y="96" width="96" height="40" rx="0" class="blue wash"/>
+<text x="736.0" y="122.0" class="data blue colored" text-anchor="middle">704  705</text>
+<rect x="784" y="96" width="96" height="40" rx="0" class="teal wash"/>
+<path d="M784 96v40" class="array-divider"/>
+<text x="832.0" y="122.0" class="data teal colored" text-anchor="middle">132  133</text>
+<rect x="880" y="96" width="96" height="40" rx="0" class="copper wash"/>
+<path d="M880 96v40" class="array-divider"/>
+<text x="928.0" y="122.0" class="data copper colored" text-anchor="middle">448  896</text>
+<rect x="976" y="96" width="96" height="40" rx="0" class="violet wash"/>
+<path d="M976 96v40" class="array-divider"/>
+<text x="1024.0" y="122.0" class="data violet colored" text-anchor="middle">897  260</text>
+</g>
+<rect x="688" y="96" width="384" height="40" rx="6" class="array-frame"/>
+<text x="584" y="224" class="" text-anchor="start">Replay 1</text>
+<defs><clipPath id="array-6"><rect x="688" y="198" width="384" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-6)">
+<rect x="688" y="198" width="384" height="40" rx="0" class="plain"/>
+<rect x="688" y="198" width="96" height="40" rx="0" class="blue wash"/>
+<text x="736.0" y="224.0" class="data blue colored" text-anchor="middle">704  705</text>
+<rect x="784" y="198" width="96" height="40" rx="0" class="teal wash"/>
+<path d="M784 198v40" class="array-divider"/>
+<text x="832.0" y="224.0" class="data teal colored" text-anchor="middle">132  133</text>
+<rect x="880" y="198" width="96" height="40" rx="0" class="copper wash"/>
+<path d="M880 198v40" class="array-divider"/>
+<text x="928.0" y="224.0" class="data copper colored" text-anchor="middle">448  896</text>
+<rect x="976" y="198" width="96" height="40" rx="0" class="violet wash"/>
+<path d="M976 198v40" class="array-divider"/>
+<text x="1024.0" y="224.0" class="data violet colored" text-anchor="middle">897  260</text>
+</g>
+<rect x="688" y="198" width="384" height="40" rx="6" class="array-frame"/>
+<text x="584" y="284" class="" text-anchor="start">Replay 2</text>
+<defs><clipPath id="array-7"><rect x="688" y="258" width="384" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-7)">
+<rect x="688" y="258" width="384" height="40" rx="0" class="plain"/>
+<rect x="688" y="258" width="96" height="40" rx="0" class="blue wash"/>
+<text x="736.0" y="284.0" class="data blue colored" text-anchor="middle">704  705</text>
+<rect x="784" y="258" width="96" height="40" rx="0" class="teal wash"/>
+<path d="M784 258v40" class="array-divider"/>
+<text x="832.0" y="284.0" class="data teal colored" text-anchor="middle">132  133</text>
+<rect x="880" y="258" width="96" height="40" rx="0" class="copper wash"/>
+<path d="M880 258v40" class="array-divider"/>
+<text x="928.0" y="284.0" class="data copper colored" text-anchor="middle">448  896</text>
+<rect x="976" y="258" width="96" height="40" rx="0" class="violet wash"/>
+<path d="M976 258v40" class="array-divider"/>
+<text x="1024.0" y="284.0" class="data violet colored" text-anchor="middle">897  260</text>
+</g>
+<rect x="688" y="258" width="384" height="40" rx="6" class="array-frame"/>
+<text x="584" y="344" class="" text-anchor="start">Replay 3</text>
+<defs><clipPath id="array-8"><rect x="688" y="318" width="384" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-8)">
+<rect x="688" y="318" width="384" height="40" rx="0" class="plain"/>
+<rect x="688" y="318" width="96" height="40" rx="0" class="blue wash"/>
+<text x="736.0" y="344.0" class="data blue colored" text-anchor="middle">704  705</text>
+<rect x="784" y="318" width="96" height="40" rx="0" class="teal wash"/>
+<path d="M784 318v40" class="array-divider"/>
+<text x="832.0" y="344.0" class="data teal colored" text-anchor="middle">132  133</text>
+<rect x="880" y="318" width="96" height="40" rx="0" class="copper wash"/>
+<path d="M880 318v40" class="array-divider"/>
+<text x="928.0" y="344.0" class="data copper colored" text-anchor="middle">448  896</text>
+<rect x="976" y="318" width="96" height="40" rx="0" class="violet wash"/>
+<path d="M976 318v40" class="array-divider"/>
+<text x="1024.0" y="344.0" class="data violet colored" text-anchor="middle">897  260</text>
+</g>
+<rect x="688" y="318" width="384" height="40" rx="6" class="array-frame"/>
+<path d="M736 139C736 165 736 163 736 193" class="route-cutout"/>
+<path d="M736 139C736 165 736 163 736 193" class="blue trace" marker-end="url(#arrow)"/>
+<circle cx="736" cy="139" r="2.5" class="blue port"/>
+<path d="M832 139C832 165 832 163 832 193" class="route-cutout"/>
+<path d="M832 139C832 165 832 163 832 193" class="teal trace" marker-end="url(#arrow)"/>
+<circle cx="832" cy="139" r="2.5" class="teal port"/>
+<path d="M928 139C928 165 928 163 928 193" class="route-cutout"/>
+<path d="M928 139C928 165 928 163 928 193" class="copper trace" marker-end="url(#arrow)"/>
+<circle cx="928" cy="139" r="2.5" class="copper port"/>
+<path d="M1024 139C1024 165 1024 163 1024 193" class="route-cutout"/>
+<path d="M1024 139C1024 165 1024 163 1024 193" class="violet trace" marker-end="url(#arrow)"/>
+<circle cx="1024" cy="139" r="2.5" class="violet port"/>
 </svg>
