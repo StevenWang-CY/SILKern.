@@ -8,8 +8,10 @@ the figures legible when embedded in light or dark Markdown pages.
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 from html import escape
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 from figure_style import TEXT_CSS, THEME_CSS, WIDTH
 
@@ -29,6 +31,7 @@ STYLE = (
 .junction{fill:var(--line);stroke:none}
 .memory{fill:var(--paper);stroke:var(--line);stroke-width:1}
 .memory-active{fill:var(--wash);stroke:var(--color);stroke-width:1}
+.tensor-cell{fill:var(--wash);stroke:var(--color);stroke-width:1}
 .mask-bit{fill:var(--color);stroke:none}
 .mask-zero{fill:none;stroke:var(--rule);stroke-width:1}
 .math-index{font-size:75%}
@@ -45,10 +48,10 @@ STYLE = (
 
 
 class SVG:
-    def __init__(self, height: int, title: str, description: str):
+    def __init__(self, height: int, title: str, description: str, *, width=WIDTH):
         self.items = [
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{height}" '
-            f'viewBox="0 0 {WIDTH} {height}" role="img" aria-labelledby="title desc">',
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+            f'viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
             f'<title id="title">{escape(title)}</title>',
             f'<desc id="desc">{escape(description)}</desc>',
             f"<style>{STYLE}</style>",
@@ -112,6 +115,15 @@ class SVG:
         for j, value in enumerate(values):
             color = colors.get(j)
             cls = f"data {color} colored" if color else "data muted"
+            if color:
+                self.rect(
+                    x + j * step + 5,
+                    y + 3,
+                    step - 10,
+                    height - 6,
+                    f"{color} tensor-cell",
+                    3,
+                )
             if emphasis and color:
                 cls += " emphasis"
                 self.path(f"M{x + j * step + 10} {y + height - 2}h{step - 20}", f"{color} trace")
@@ -152,8 +164,59 @@ class SVG:
         self.path(f"M{x} {y}v5h{width}v-5", f"{color} trace" if color else "edge")
         self.text(x + width / 2, y + 24, value, "muted", "middle")
 
-    def save(self, name):
+    def save(self, name, *, panels=()):
         (ROOT / "assets" / name).write_text("\n".join(self.items + ["</svg>", ""]))
+        if panels:
+            stack_panels(name, panels)
+
+
+def stack_panels(name, panels):
+    """Reuse the exact vector content at readable size on a narrow Markdown page."""
+    ns = "http://www.w3.org/2000/svg"
+    ET.register_namespace("", ns)
+
+    def tag(value):
+        return f"{{{ns}}}{value}"
+
+    source = ET.parse(ROOT / "assets" / name).getroot()
+    height = sum(panel[3] for panel in panels) + 24 * (len(panels) - 1)
+    root = ET.Element(
+        tag("svg"),
+        {
+            "width": "400",
+            "height": str(height),
+            "viewBox": f"0 0 400 {height}",
+            "role": "img",
+            "aria-labelledby": "title desc",
+        },
+    )
+    definitions = ET.SubElement(root, tag("defs"))
+    content = ET.SubElement(definitions, tag("g"), {"id": "figure-content"})
+    for child in source:
+        local = child.tag.rsplit("}", 1)[-1]
+        if local in {"title", "desc", "style", "defs"}:
+            root.append(deepcopy(child))
+        else:
+            content.append(deepcopy(child))
+    ET.SubElement(root, tag("style")).text = ".wide-only{display:none}"
+    y = 0
+    for left, top, width, panel_height in panels:
+        panel = ET.SubElement(
+            root,
+            tag("svg"),
+            {
+                "x": "0",
+                "y": str(y),
+                "width": str(width),
+                "height": str(panel_height),
+                "viewBox": f"{left} {top} {width} {panel_height}",
+                "overflow": "hidden",
+            },
+        )
+        ET.SubElement(panel, tag("use"), {"href": "#figure-content"})
+        y += panel_height + 24
+    path = ROOT / "assets" / name.replace(".svg", "-narrow.svg")
+    path.write_text(ET.tostring(root, encoding="unicode") + "\n")
 
 
 def render_overview():
@@ -174,7 +237,7 @@ def render_overview():
     )
     active = {0: "blue", 2: "teal", 5: "copper"}
     compact = {0: "blue", 1: "teal", 2: "copper"}
-    s.path("M351 16V524M736 16V430M736 482V524", "rule")
+    s.path("M351 16V524M736 16V430M736 482V524", "rule wide-only")
     s.text(24, 36, "a  Ownership and coordinates", "heading")
     s.text(375, 36, "b  Paged addresses", "heading")
     s.text(760, 36, "c  Stable compaction", "heading")
@@ -232,11 +295,11 @@ def render_overview():
         a, b = 800 + (source + 0.5) * 48, 800 + (dest + 0.5) * 48
         s.path(f"M{a} 306C{a} 367 {b} 373 {b} 442", f"{color} trace", True)
     s.math(1030, 400, "s[p_{j}] ← a_{j}", "", "middle")
-    s.path("M691 468H794", arrow=True)
+    s.path("M691 468H794", "edge wide-only", arrow=True)
     s.array(800, 448, [708, 129, 451, "−1", "−1", "−1"], compact, step=48, emphasis=True)
     s.bracket(800, 498, 144, "count = 3")
     s.bracket(944, 498, 144, "padding")
-    s.save("fig-platforms.svg")
+    s.save("fig-platforms.svg", panels=((0, 0, 351, 544), (351, 0, 385, 544), (736, 0, 384, 544)))
 
 
 def render_contract():
@@ -289,6 +352,63 @@ def render_contract():
         s.text(740, y, title, "subhead")
         s.array(740, y + 16, values, color_map, step=356 / 6)
     s.save("fig-contract.svg")
+    render_contract_narrow()
+
+
+def render_contract_narrow():
+    s = SVG(
+        880,
+        "Coordinate translation and output layouts, narrow layout",
+        "The same six input columns as the wide figure are shown as table rows: "
+        "tokens 8,5,130,7,-1,262 have owners 0,1,0,1,invalid,0. Owned tokens map to "
+        "local positions 4,65,131, page-offset pairs (0,4),(1,1),(2,3), and physical "
+        "slots 708,129,451. Equations and both output layouts are unchanged.",
+        width=400,
+    )
+    s.text(24, 36, "a  Coordinate translation", "heading")
+    xs = (44, 110, 172, 242, 330)
+    for x, value in zip(xs, ("t", "Owner", "ℓ", "(b, δ)", "a"), strict=True):
+        s.text(x, 91, value, "", "middle")
+    s.path("M24 104H374", "rule")
+    rows = (
+        (8, 0, 4, "(0, 4)", 708),
+        (5, 1, "—", "—", "—"),
+        (130, 0, 65, "(1, 1)", 129),
+        (7, 1, "—", "—", "—"),
+        ("−1", "—", "—", "—", "—"),
+        (262, 0, 131, "(2, 3)", 451),
+    )
+    for j, row in enumerate(rows):
+        color = {0: "blue", 2: "teal", 5: "copper"}.get(j)
+        for x, value in zip(xs, row, strict=True):
+            s.text(x, 140 + j * 46, value, f"{color} colored" if color else "muted", "middle")
+        s.path(f"M24 {154 + j * 46}H374", "rule")
+    s.text(24, 439, "b  Equations and layouts", "heading")
+    for y, value in (
+        (490, "owner = ⌊t / I⌋ mod D"),
+        (528, "ℓ = ⌊t / (D I)⌋ I + t mod I"),
+        (566, "(b, δ) = divmod(ℓ, S)"),
+        (604, "a = P[request, b] S + δ"),
+    ):
+        s.text(24, y, value)
+    s.path("M24 634H374", "rule")
+    for y, label, values, colors in (
+        (
+            681,
+            "Front compaction · count = 3",
+            [708, 129, 451, "−1", "−1", "−1"],
+            {0: "blue", 1: "teal", 2: "copper"},
+        ),
+        (
+            802,
+            "Preserve columns · count = 3",
+            [708, "−1", 129, "−1", "−1", 451],
+            {0: "blue", 2: "teal", 5: "copper"},
+        ),
+    ):
+        s.text(24, y, label)
+        s.array(24, y + 17, values, colors, step=350 / 6)
+    s.save("fig-contract-narrow.svg")
 
 
 def render_order():
@@ -329,6 +449,48 @@ def render_order():
             b = xs[orders[0].index(identity)] + 48
             s.path(f"M{a} 139C{a} 165 {b} 163 {b} 193", f"{COLORS[identity]} trace", True)
     s.save("fig-problem.svg")
+    render_order_narrow()
+
+
+def render_order_narrow():
+    s = SVG(
+        864,
+        "Completion-order reservation versus stable prefixes, narrow layout",
+        "Each two-cell glyph represents an ordered pair: T0=[704,705], T1=[132,133], "
+        "T2=[448,896], T3=[897,260]. Three atomic replays permute these tile groups, "
+        "whereas stable prefixes always preserve T0,T1,T2,T3. These are schematic "
+        "replays, not new GPU measurements.",
+        width=400,
+    )
+    for panel in (0, 1):
+        y0 = panel * 432
+        s.text(
+            24,
+            y0 + 36,
+            ("a  Atomic reservation", "b  Stable prefix destinations")[panel],
+            "heading",
+        )
+        orders = [[1, 0, 3, 2], [0, 2, 1, 3], [2, 3, 0, 1]] if panel == 0 else [[0, 1, 2, 3]] * 3
+        for y, label, order in [(106, "Input", [0, 1, 2, 3])] + [
+            (234 + i * 68, f"Replay {i + 1}", order) for i, order in enumerate(orders)
+        ]:
+            s.text(24, y0 + y + 6, label)
+            for pos, identity in enumerate(order):
+                x = 148 + pos * 62
+                color = COLORS[identity]
+                s.text(x, y0 + y, f"T{identity}", f"{color} colored", "middle")
+                for j in (0, 1):
+                    s.rect(x - 18 + j * 18, y0 + y + 11, 17, 9, f"{color} tensor-cell", 1)
+        for identity in range(4):
+            a = 148 + identity * 62
+            b = 148 + orders[0].index(identity) * 62
+            s.path(
+                f"M{a} {y0 + 137}C{a} {y0 + 175} {b} {y0 + 171} {b} {y0 + 210}",
+                f"{COLORS[identity]} trace",
+                True,
+            )
+    s.path("M24 416H376", "rule")
+    s.save("fig-problem-narrow.svg")
 
 
 def render_consumer():
@@ -348,7 +510,7 @@ def render_consumer():
         "the output is zero. Valid arithmetic must be finite and representable. This "
         "illustrates a one-device consumer, not a distributed runtime.",
     )
-    s.path("M351 16V576M736 16V576", "rule")
+    s.path("M351 16V576M736 16V576", "rule wide-only")
     s.text(24, 36, "a  Layout and validity", "heading")
     s.text(375, 36, "b  Masked gather", "heading")
     s.text(760, 36, "c  Shared normalization", "heading")
@@ -428,7 +590,7 @@ def render_consumer():
     s.path("M926 524H958", "blue trace")
     s.text(942, 547, "Z", "blue colored", "middle")
     s.text(927, 579, "Z = 0 ⇒ y = 0", "muted", "middle")
-    s.save("fig-consumer.svg")
+    s.save("fig-consumer.svg", panels=((0, 0, 351, 596), (351, 0, 385, 596), (736, 0, 384, 596)))
 
 
 def main():

@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1836" viewBox="0 0 400 1836" role="img" aria-labelledby="title desc"><defs><g id="figure-content"><path d="M351 16V576M736 16V576" class="rule wide-only" />
+<text x="24" y="36" class="heading" text-anchor="start"><tspan class="panel">a</tspan><tspan dx="12">Layout and validity</tspan></text>
+<text x="375" y="36" class="heading" text-anchor="start"><tspan class="panel">b</tspan><tspan dx="12">Masked gather</tspan></text>
+<text x="760" y="36" class="heading" text-anchor="start"><tspan class="panel">c</tspan><tspan dx="12">Shared normalization</tspan></text>
+<text x="24" y="94" class="subhead" text-anchor="start">Front compaction · n = 2</text>
+<text x="24" y="150" class="" text-anchor="start">Slots</text>
+<text x="24" y="210" class="" text-anchor="start">Mask</text>
+<path d="M91 124H85V164H91M321.0 124H327.0V164H321.0" class="tensor-bracket" />
+<rect x="90.0" y="127" width="50.5" height="34" rx="3" class="blue tensor-cell" />
+<text x="115.25" y="150.0" class="data blue colored" text-anchor="middle">14</text>
+<rect x="150.5" y="127" width="50.5" height="34" rx="3" class="teal tensor-cell" />
+<text x="175.75" y="150.0" class="data teal colored" text-anchor="middle">12</text>
+<text x="236.25" y="150.0" class="data muted" text-anchor="middle">−1</text>
+<text x="296.75" y="150.0" class="data muted" text-anchor="middle">−1</text>
+<text x="115.25" y="210" class="blue colored" text-anchor="middle">1</text>
+<rect x="103.25" y="219" width="24" height="4" rx="0" class="blue mask-bit" />
+<text x="175.75" y="210" class="teal colored" text-anchor="middle">1</text>
+<rect x="163.75" y="219" width="24" height="4" rx="0" class="teal mask-bit" />
+<text x="236.25" y="210" class="muted" text-anchor="middle">0</text>
+<rect x="224.25" y="219" width="24" height="4" rx="0" class="mask-zero" />
+<text x="296.75" y="210" class="muted" text-anchor="middle">0</text>
+<rect x="284.75" y="219" width="24" height="4" rx="0" class="mask-zero" />
+<path d="M115.25 172v12" class="blue trace" />
+<path d="M175.75 172v12" class="teal trace" />
+<text x="201" y="268" class="" text-anchor="middle">v<tspan class="math-index" baseline-shift="sub">j</tspan> = [j &lt; n]</text>
+<text x="24" y="358" class="subhead" text-anchor="start">Preserve columns · n = 2</text>
+<text x="24" y="414" class="" text-anchor="start">Slots</text>
+<text x="24" y="474" class="" text-anchor="start">Mask</text>
+<path d="M91 388H85V428H91M321.0 388H327.0V428H321.0" class="tensor-bracket" />
+<rect x="90.0" y="391" width="50.5" height="34" rx="3" class="blue tensor-cell" />
+<text x="115.25" y="414.0" class="data blue colored" text-anchor="middle">14</text>
+<text x="175.75" y="414.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="211.0" y="391" width="50.5" height="34" rx="3" class="teal tensor-cell" />
+<text x="236.25" y="414.0" class="data teal colored" text-anchor="middle">12</text>
+<text x="296.75" y="414.0" class="data muted" text-anchor="middle">−1</text>
+<text x="115.25" y="474" class="blue colored" text-anchor="middle">1</text>
+<rect x="103.25" y="483" width="24" height="4" rx="0" class="blue mask-bit" />
+<text x="175.75" y="474" class="muted" text-anchor="middle">0</text>
+<rect x="163.75" y="483" width="24" height="4" rx="0" class="mask-zero" />
+<text x="236.25" y="474" class="teal colored" text-anchor="middle">1</text>
+<rect x="224.25" y="483" width="24" height="4" rx="0" class="teal mask-bit" />
+<text x="296.75" y="474" class="muted" text-anchor="middle">0</text>
+<rect x="284.75" y="483" width="24" height="4" rx="0" class="mask-zero" />
+<path d="M115.25 436v12" class="blue trace" />
+<path d="M236.25 436v12" class="teal trace" />
+<text x="201" y="532" class="" text-anchor="middle">v<tspan class="math-index" baseline-shift="sub">j</tspan> = input-column validity</text>
+<path d="M24 310H327" class="rule" />
+<text x="378" y="90" class="" text-anchor="start">s</text>
+<path d="M432 64H426V100H432M664 64H670V100H664" class="tensor-bracket" />
+<rect x="431" y="67" width="51" height="30" rx="3" class="blue tensor-cell" />
+<text x="456.5" y="88.0" class="data blue colored" text-anchor="middle">14</text>
+<text x="517.5" y="88.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="553" y="67" width="51" height="30" rx="3" class="teal tensor-cell" />
+<text x="578.5" y="88.0" class="data teal colored" text-anchor="middle">12</text>
+<text x="639.5" y="88.0" class="data muted" text-anchor="middle">−1</text>
+<text x="378" y="139" class="" text-anchor="start">v</text>
+<text x="456.5" y="139" class="blue colored" text-anchor="middle">1</text>
+<rect x="444.5" y="148" width="24" height="4" rx="0" class="blue mask-bit" />
+<text x="517.5" y="139" class="muted" text-anchor="middle">0</text>
+<rect x="505.5" y="148" width="24" height="4" rx="0" class="mask-zero" />
+<text x="578.5" y="139" class="teal colored" text-anchor="middle">1</text>
+<rect x="566.5" y="148" width="24" height="4" rx="0" class="teal mask-bit" />
+<text x="639.5" y="139" class="muted" text-anchor="middle">0</text>
+<rect x="627.5" y="148" width="24" height="4" rx="0" class="mask-zero" />
+<path d="M412 82H407V201H422" class="edge" marker-end="url(#arrow)" />
+<path d="M393 132H397V477H422" class="control" marker-end="url(#arrow)" />
+<path d="M548 158V174" class="control" marker-end="url(#arrow)" />
+<rect x="426" y="180" width="244" height="42" rx="2" class="outline" />
+<text x="548.0" y="207.0" class="" text-anchor="middle">where(v, s, 0)</text>
+<path d="M548 226V243" class="edge" marker-end="url(#arrow)" />
+<path d="M432 249H426V285H432M664 249H670V285H664" class="tensor-bracket" />
+<rect x="431" y="252" width="51" height="30" rx="3" class="blue tensor-cell" />
+<text x="456.5" y="273.0" class="data blue colored" text-anchor="middle">14</text>
+<text x="517.5" y="273.0" class="data muted" text-anchor="middle">0</text>
+<rect x="553" y="252" width="51" height="30" rx="3" class="teal tensor-cell" />
+<text x="578.5" y="273.0" class="data teal colored" text-anchor="middle">12</text>
+<text x="639.5" y="273.0" class="data muted" text-anchor="middle">0</text>
+<path d="M501 291V318" class="edge" marker-end="url(#arrow)" />
+<rect x="426" y="324" width="150" height="40" rx="2" class="outline" />
+<text x="501.0" y="350.0" class="" text-anchor="middle">Gather K / V</text>
+<text x="625" y="310" class="math" text-anchor="middle">K</text>
+<rect x="606" y="322" width="38" height="16" rx="0" class="memory" />
+<path d="M615.5 322v16" class="array-divider" />
+<path d="M625.0 322v16" class="array-divider" />
+<path d="M634.5 322v16" class="array-divider" />
+<rect x="606" y="358" width="38" height="16" rx="0" class="teal memory-active" />
+<path d="M615.5 358v16" class="array-divider" />
+<path d="M625.0 358v16" class="array-divider" />
+<path d="M634.5 358v16" class="array-divider" />
+<rect x="606" y="380" width="38" height="16" rx="0" class="blue memory-active" />
+<path d="M615.5 380v16" class="array-divider" />
+<path d="M625.0 380v16" class="array-divider" />
+<path d="M634.5 380v16" class="array-divider" />
+<circle cx="625" cy="344" r="0.85" class="junction" />
+<circle cx="625" cy="348" r="0.85" class="junction" />
+<circle cx="625" cy="352" r="0.85" class="junction" />
+<text x="677" y="310" class="math" text-anchor="middle">V</text>
+<rect x="658" y="322" width="38" height="16" rx="0" class="memory" />
+<path d="M667.5 322v16" class="array-divider" />
+<path d="M677.0 322v16" class="array-divider" />
+<path d="M686.5 322v16" class="array-divider" />
+<rect x="658" y="358" width="38" height="16" rx="0" class="teal memory-active" />
+<path d="M667.5 358v16" class="array-divider" />
+<path d="M677.0 358v16" class="array-divider" />
+<path d="M686.5 358v16" class="array-divider" />
+<rect x="658" y="380" width="38" height="16" rx="0" class="blue memory-active" />
+<path d="M667.5 380v16" class="array-divider" />
+<path d="M677.0 380v16" class="array-divider" />
+<path d="M686.5 380v16" class="array-divider" />
+<circle cx="677" cy="344" r="0.85" class="junction" />
+<circle cx="677" cy="348" r="0.85" class="junction" />
+<circle cx="677" cy="352" r="0.85" class="junction" />
+<text x="726" y="336" class="muted" text-anchor="end">0</text>
+<text x="726" y="372" class="muted" text-anchor="end">12</text>
+<text x="726" y="394" class="muted" text-anchor="end">14</text>
+<path d="M602 344H581" class="edge" marker-end="url(#arrow)" />
+<path d="M501 370V396" class="edge" marker-end="url(#arrow)" />
+<path d="M432 402H426V438H432M664 402H670V438H664" class="tensor-bracket" />
+<rect x="431" y="405" width="51" height="30" rx="3" class="blue tensor-cell" />
+<text x="456.5" y="426.0" class="data blue colored" text-anchor="middle">x<tspan class="math-index" baseline-shift="sub">14</tspan></text>
+<text x="517.5" y="426.0" class="data muted" text-anchor="middle">x<tspan class="math-index" baseline-shift="sub">0</tspan></text>
+<rect x="553" y="405" width="51" height="30" rx="3" class="teal tensor-cell" />
+<text x="578.5" y="426.0" class="data teal colored" text-anchor="middle">x<tspan class="math-index" baseline-shift="sub">12</tspan></text>
+<text x="639.5" y="426.0" class="data muted" text-anchor="middle">x<tspan class="math-index" baseline-shift="sub">0</tspan></text>
+<path d="M548 442V451" class="edge" marker-end="url(#arrow)" />
+<rect x="426" y="456" width="244" height="42" rx="2" class="outline" />
+<text x="548.0" y="483.0" class="" text-anchor="middle">where(v, x, 0)</text>
+<path d="M548 502V530" class="edge" marker-end="url(#arrow)" />
+<path d="M432 536H426V580H432M664 536H670V580H664" class="tensor-bracket" />
+<rect x="431" y="539" width="51" height="38" rx="3" class="blue tensor-cell" />
+<path d="M436 578h41" class="blue trace" />
+<text x="456.5" y="564.0" class="data blue colored emphasis" text-anchor="middle">x<tspan class="math-index" baseline-shift="sub">14</tspan></text>
+<text x="517.5" y="564.0" class="data muted" text-anchor="middle">0</text>
+<rect x="553" y="539" width="51" height="38" rx="3" class="teal tensor-cell" />
+<path d="M558 578h41" class="teal trace" />
+<text x="578.5" y="564.0" class="data teal colored emphasis" text-anchor="middle">x<tspan class="math-index" baseline-shift="sub">12</tspan></text>
+<text x="639.5" y="564.0" class="data muted" text-anchor="middle">0</text>
+<text x="927" y="90" class="" text-anchor="middle">z<tspan class="math-index" baseline-shift="sub">rj</tspan> = q · K<tspan class="math-index" baseline-shift="sub">rj</tspan> / √d</text>
+<text x="927" y="125" class="muted" text-anchor="middle">Invalid z<tspan class="math-index" baseline-shift="sub">rj</tspan> ← −∞</text>
+<path d="M801 154V171H1053V154" class="edge" />
+<path d="M927 171V199" class="edge" marker-end="url(#arrow)" />
+<circle cx="927" cy="171" r="2.5" class="junction" />
+<text x="927" y="228" class="" text-anchor="middle">m = max<tspan class="math-index" baseline-shift="sub">r,j</tspan> z<tspan class="math-index" baseline-shift="sub">rj</tspan></text>
+<path d="M927 244V287" class="edge" marker-end="url(#arrow)" />
+<text x="927" y="319" class="" text-anchor="middle">w<tspan class="math-index" baseline-shift="sub">rj</tspan> = v<tspan class="math-index" baseline-shift="sub">rj</tspan> ? exp(z<tspan class="math-index" baseline-shift="sub">rj</tspan> − m) : 0</text>
+<path d="M927 335V358H830V387" class="edge" marker-end="url(#arrow)" />
+<path d="M927 358H1022V387" class="edge" marker-end="url(#arrow)" />
+<circle cx="927" cy="358" r="2.5" class="junction" />
+<text x="830" y="416" class="" text-anchor="middle">N = Σ<tspan class="math-index" baseline-shift="sub">r,j</tspan> w<tspan class="math-index" baseline-shift="sub">rj</tspan> V<tspan class="math-index" baseline-shift="sub">rj</tspan></text>
+<text x="1022" y="416" class="" text-anchor="middle">Z = Σ<tspan class="math-index" baseline-shift="sub">r,j</tspan> w<tspan class="math-index" baseline-shift="sub">rj</tspan></text>
+<path d="M830 435V470H927M1022 435V470H927" class="edge" />
+<path d="M927 470V492" class="edge" marker-end="url(#arrow)" />
+<circle cx="927" cy="470" r="2.5" class="junction" />
+<text x="909" y="530" class="blue colored" text-anchor="end">y =</text>
+<text x="942" y="515" class="blue colored" text-anchor="middle">N</text>
+<path d="M926 524H958" class="blue trace" />
+<text x="942" y="547" class="blue colored" text-anchor="middle">Z</text>
+<text x="927" y="579" class="muted" text-anchor="middle">Z = 0 ⇒ y = 0</text>
+</g></defs><title id="title">Layout-aware masking, paged gathering and a shared softmax</title>
+<desc id="desc">Panel a compares compact slots [14,12,-1,-1] with mask [1,1,0,0] to preserved columns [14,-1,12,-1] with mask [1,0,1,0]. Both counts are 2. Panel b substitutes address zero for invalid positions, gathers K/V, then selects zero for invalid gathered values. Unused cache slot zero may contain NaN, so both masks are needed. Indexed K and V matrices show placeholder row zero and selected rows 12 and 14. Each four-cell row is a schematic feature vector, not its actual dimension. Solid routes carry values and dashed routes carry validity. Panel c masks invalid logits to negative infinity, computes one maximum over all logical shards and positions, and selects zero for invalid weights. An empty selection sets the maximum to zero. Sums N of weighted values and Z of weights are combined in one division; if Z=0, the output is zero. Valid arithmetic must be finite and representable. This illustrates a one-device consumer, not a distributed runtime.</desc>
+<style>svg{--ink:#242424;--muted:#636363;--line:#777777;--rule:#d8d8d8;--paper:#ffffff;--comparison:#b9bec3;--blue:#355e8a;--blue-wash:#e8f0f8;--teal:#47786d;--teal-wash:#e7f2ef;--copper:#9d6444;--copper-wash:#f7eddf;--violet:#786791;--violet-wash:#eeebf5}@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--comparison:#778696;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}}text{font-family:'Arial','DejaVu Sans',sans-serif;font-size:18px;font-variant-numeric:tabular-nums;fill:var(--ink)}.heading{font-size:20px;font-weight:400}.panel,.key{font-weight:700}.subhead{font-weight:400}.math{font-style:italic}.muted{fill:var(--muted)}.data{font-weight:400}.emphasis{font-weight:700}
+.rule{fill:none;stroke:var(--rule);stroke-width:1}
+.edge{fill:none;stroke:var(--line);stroke-width:1.1;stroke-linejoin:round;stroke-linecap:round}
+.outline{fill:var(--paper);stroke:var(--ink);stroke-width:1.05}
+.tensor-bracket{fill:none;stroke:var(--line);stroke-width:1.1}
+.control{fill:none;stroke:var(--line);stroke-width:1.1;stroke-dasharray:3 3}
+.junction{fill:var(--line);stroke:none}
+.memory{fill:var(--paper);stroke:var(--line);stroke-width:1}
+.memory-active{fill:var(--wash);stroke:var(--color);stroke-width:1}
+.tensor-cell{fill:var(--wash);stroke:var(--color);stroke-width:1}
+.mask-bit{fill:var(--color);stroke:none}
+.mask-zero{fill:none;stroke:var(--rule);stroke-width:1}
+.math-index{font-size:75%}
+.array-divider{fill:none;stroke:var(--rule);stroke-width:.8}
+.route-cutout{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round}
+.blue{--color:var(--blue);--wash:var(--blue-wash)}
+.teal{--color:var(--teal);--wash:var(--teal-wash)}
+.copper{--color:var(--copper);--wash:var(--copper-wash)}
+.violet{--color:var(--violet);--wash:var(--violet-wash)}
+.colored{fill:var(--color)}
+.trace{fill:none;stroke:var(--color);stroke-width:1.3;stroke-linecap:round}
+</style>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke" /></marker></defs>
+<style>.wide-only{display:none}</style><svg x="0" y="0" width="351" height="596" viewBox="0 0 351 596" overflow="hidden"><use href="#figure-content" /></svg><svg x="0" y="620" width="385" height="596" viewBox="351 0 385 596" overflow="hidden"><use href="#figure-content" /></svg><svg x="0" y="1240" width="384" height="596" viewBox="736 0 384 596" overflow="hidden"><use href="#figure-content" /></svg></svg>

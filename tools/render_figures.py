@@ -95,15 +95,16 @@ def _configure() -> None:
     )
 
 
-def _figure(height: int):
+def _figure(height: int, width: int = WIDTH):
     # One SVG point per layout unit; the README can scale the whole figure.
-    return plt.figure(figsize=(WIDTH / 72, height / 72), dpi=72)
+    return plt.figure(figsize=(width / 72, height / 72), dpi=72)
 
 
 def _panel_title(fig, x, y, letter, title):
     height = fig.get_figheight() * 72
-    fig.text(x / WIDTH, 1 - y / height, letter, fontsize=HEADING, weight="bold")
-    fig.text((x + 24) / WIDTH, 1 - y / height, title, fontsize=HEADING, weight="normal")
+    width = fig.get_figwidth() * 72
+    fig.text(x / width, 1 - y / height, letter, fontsize=HEADING, weight="bold")
+    fig.text((x + 24) / width, 1 - y / height, title, fontsize=HEADING, weight="normal")
 
 
 def _axis(fig, rectangle):
@@ -115,7 +116,7 @@ def _axis(fig, rectangle):
     return ax
 
 
-def _bar_panel(fig, rectangle, cells, *, limit, ticks, labels):
+def _bar_panel(fig, rectangle, cells, *, limit, ticks, labels, narrow=False):
     ax = fig.add_axes(rectangle)
     ax.set_axisbelow(True)
     ax.grid(axis="y", color=RULE, linewidth=0.7)
@@ -124,15 +125,16 @@ def _bar_panel(fig, rectangle, cells, *, limit, ticks, labels):
     ax.tick_params(axis="x", length=0, pad=10)
     # All four panels use the same physical bar width, including the two-group consumer.
     positions = list(range(3)) if len(cells) == 3 else [0.4, 1.6]
+    spacing = 0.23 if narrow else 0.205
     for arm, offset, color in (
-        ("mlx_compiled", -0.205, COMPARISON),
-        ("metal_compiled", 0.205, ACCENT),
+        ("mlx_compiled", -spacing, COMPARISON),
+        ("metal_compiled", spacing, ACCENT),
     ):
         heights = [cell["median_us"][arm] for cell in cells]
         bars = ax.bar(
             [v + offset for v in positions],
             heights,
-            width=0.34,
+            width=0.38 if narrow else 0.34,
             color=color,
             edgecolor=INK,
             linewidth=0.45,
@@ -148,7 +150,7 @@ def _bar_panel(fig, rectangle, cells, *, limit, ticks, labels):
     return ax
 
 
-def render_apple() -> None:
+def render_apple(*, narrow=False) -> None:
     record = ROOT / APPLE_RECORD
     data = json.loads((record / "summary.json").read_text())
     consumer = json.loads((record / "consumer-summary.json").read_text())
@@ -157,16 +159,16 @@ def render_apple() -> None:
     device = metadata["device"]["device_name"]
     mlx_version = metadata["versions"]["mlx"]
     ratios = [cell["compiled_ratio"] for cell in data["cells"]]
-    height = 672
-    fig = _figure(height)
-    fig.text(24 / WIDTH, 1 - 30 / height, "Latency (µs)", fontsize=LABEL)
+    height, canvas_width = (1380, 420) if narrow else (672, WIDTH)
+    fig = _figure(height, canvas_width)
+    fig.text(24 / canvas_width, 1 - 30 / height, "Latency (µs)", fontsize=LABEL)
     fig.legend(
         handles=[
             Patch(facecolor=COMPARISON, edgecolor=INK, linewidth=0.45, label="Compiled MLX"),
             Patch(facecolor=ACCENT, edgecolor=INK, linewidth=0.45, label="Compiled Metal"),
         ],
         loc="upper right",
-        bbox_to_anchor=(1096 / WIDTH, 1 - 10 / height),
+        bbox_to_anchor=((canvas_width - 24) / canvas_width, 1 - (52 if narrow else 10) / height),
         ncols=2,
         frameon=False,
         fontsize=LABEL,
@@ -178,7 +180,11 @@ def render_apple() -> None:
         borderaxespad=0,
     )
     for index, width in enumerate((128, 2048, 4096, None)):
-        x, y = (80 + (index % 2) * 570), (108 + (index // 2) * 300)
+        x, y = (
+            (64, 150 + index * 320)
+            if narrow
+            else (80 + (index % 2) * 570, 108 + (index // 2) * 300)
+        )
         is_consumer = width is None
         cells = (
             consumer["cells"]
@@ -189,10 +195,15 @@ def render_apple() -> None:
             )
         )
         title = "Selected attention" if is_consumer else f"Localization, width {width:,}"
-        _panel_title(fig, x - 56, y - 32, "abcd"[index], title)
+        _panel_title(fig, 24 if narrow else x - 56, y - 32, "abcd"[index], title)
         ax = _bar_panel(
             fig,
-            [x / WIDTH, 1 - (y + 185) / height, 428 / WIDTH, 185 / height],
+            [
+                x / canvas_width,
+                1 - (y + 185) / height,
+                (332 if narrow else 428) / canvas_width,
+                185 / height,
+            ],
             cells,
             limit=440 if is_consumer else 240,
             ticks=[0, 100, 200, 300, 400] if is_consumer else [0, 50, 100, 150, 200],
@@ -202,16 +213,18 @@ def render_apple() -> None:
                 else str(c["geometry"]["batch"])
                 for c in cells
             ],
+            narrow=narrow,
         )
         ax.set_xlabel(
             "Batch × selection width" if is_consumer else "Batch size", labelpad=14, fontsize=LABEL
         )
     _save_svg(
         fig,
-        "fig-apple-performance.svg",
+        "fig-apple-performance-narrow.svg" if narrow else "fig-apple-performance.svg",
         f"{device} compiled localization and selected-attention measurements",
         f"Grouped bars compare compiled compositional MLX in gray with compiled custom Metal in blue on {device}, MLX {mlx_version}. "
-        "Four panels form a two-by-two grid. Panels a, b, c are localization at widths 128, 2048, 4096, "
+        f"Four panels form {'one vertical column' if narrow else 'a two-by-two grid'}. "
+        "Panels a, b, c are localization at widths 128, 2048, 4096, "
         "with batch sizes 1, 8, 32 and identical zero-based 0–240 microsecond scales. "
         f"Metal is {min(ratios):.2f} to {max(ratios):.2f} times faster across the nine localization geometries. "
         "Panel d covers complete selected attention at batch 1 / width 128 and batch 8 / width 2048 "
@@ -223,14 +236,22 @@ def render_apple() -> None:
     )
 
 
-def render_cuda() -> None:
+def render_cuda(*, narrow=False) -> None:
     segments = json.loads((ROOT / "evidence/05-full-decode-canary/segments.json").read_text())
     analysis = json.loads((ROOT / "evidence/05-full-decode-canary/analysis.json").read_text())
-    fig = _figure(422)
-    ax = _axis(fig, [0.165, 0.21, 0.292, 0.56])
-    ax2 = _axis(fig, [0.689, 0.21, 0.285, 0.56])
+    fig = _figure(790, 420) if narrow else _figure(422)
+    ax = _axis(
+        fig,
+        [120 / 420, 1 - 320 / 790, 270 / 420, 220 / 790] if narrow else [0.165, 0.21, 0.292, 0.56],
+    )
+    ax2 = _axis(
+        fig,
+        [170 / 420, 1 - 720 / 790, 224 / 420, 240 / 790] if narrow else [0.689, 0.21, 0.285, 0.56],
+    )
     _panel_title(fig, 24, 36, "a", "Converter, 32K context")
-    _panel_title(fig, 626, 36, "b", "Complete decode vs atomic")
+    _panel_title(
+        fig, 24 if narrow else 626, 416 if narrow else 36, "b", "Complete decode vs atomic"
+    )
     arms = [
         ("row_stable", "Rowwise", ACCENT, "o"),
         ("pinned_atomic", "Atomic", NEUTRAL, "s"),
@@ -251,7 +272,7 @@ def render_cuda() -> None:
     ax.set_yticks([2, 1, 0], [arm[1] for arm in arms])
     ax.set_ylim(-0.5, 2.5)
     ax.set_xlim(0, 275)
-    ax.set_xticks([0, 50, 100, 150, 200, 250])
+    ax.set_xticks([0, 100, 200] if narrow else [0, 50, 100, 150, 200, 250])
     ax.set_xlabel("Converter latency (µs)", labelpad=10, fontsize=LABEL)
     rows = [
         ("row_stable", 32768, "Rowwise"),
@@ -298,7 +319,7 @@ def render_cuda() -> None:
     ax2.set_xlabel("Complete-step latency ratio", labelpad=10, fontsize=LABEL)
     _save_svg(
         fig,
-        "fig-cost.svg",
+        "fig-cost-narrow.svg" if narrow else "fig-cost.svg",
         "Archived CUDA converter latency and complete decode cost",
         "Panel (a): at 32K, the 48-layer converter segment takes 119.996 microseconds rowwise, 194.393 atomic, "
         "and 239.727 hierarchical; rowwise is 38.3 percent lower than atomic. Horizontal bars use a zero baseline; "
@@ -316,6 +337,8 @@ def main() -> None:
     _configure()
     render_cuda()
     render_apple()
+    render_cuda(narrow=True)
+    render_apple(narrow=True)
 
 
 if __name__ == "__main__":

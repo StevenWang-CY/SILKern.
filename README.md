@@ -11,11 +11,14 @@ Deterministic sparse-index localization for **Apple silicon / MLX** and **CUDA /
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-292824.svg)](LICENSE)
 [![Evidence](https://img.shields.io/badge/Evidence-checksummed-525252.svg)](evidence/)
 
-[Get started](#get-started) · [Apple / MLX](docs/apple-mlx.md) · [Use in attention](docs/consuming-indices.md) · [Performance](#performance-with-context) · [Contract](docs/contract.md)
+[Get started](#get-started) · [Apple / MLX](docs/apple-mlx.md) · [Use in attention](#from-slots-to-attention) · [Performance](#performance-with-context) · [Contract](docs/contract.md)
 
 </div>
 
-<img src="assets/fig-platforms.svg" width="100%" alt="Three-panel worked example showing rank ownership, page-table address translation, and stable prefix compaction with a count of three.">
+<picture>
+  <source media="(max-width: 767px)" srcset="assets/fig-platforms-narrow.svg">
+  <img src="assets/fig-platforms.svg" width="100%" alt="Three-panel worked example showing rank ownership, page-table address translation, and stable prefix compaction with a count of three.">
+</picture>
 
 **Figure 1. From global positions to stable cache addresses.** (a) Rank 0 keeps tokens 8, 130, and 262 and deinterleaves them to local positions 4, 65, and 131. (b) The page table translates these to physical slots 708, 129, and 451. (c) Prefix destinations 0, 1, and 2 preserve selector order; the remaining columns are padding and the count is 3. Only valid destinations are shown. Color tracks each survivor. This worked row uses two ranks, interleave 1, page size 64, and request 0; all retained mappings are in range. K/V gathering remains a consumer operation.
 
@@ -84,7 +87,10 @@ assert out == [[708, 129, 451, -1, -1, -1]]
 assert counts == [3]
 ```
 
-<img src="assets/fig-contract.svg" width="100%" alt="Worked example: rank zero keeps input tokens 8, 130, and 262, deinterleaves to local positions 4, 65, and 131, translates through page blocks 11, 2, and 7, and returns physical slots 708, 129, and 451 followed by minus-one padding; count is three.">
+<picture>
+  <source media="(max-width: 767px)" srcset="assets/fig-contract-narrow.svg">
+  <img src="assets/fig-contract.svg" width="100%" alt="Worked example: rank zero keeps input tokens 8, 130, and 262, deinterleaves to local positions 4, 65, and 131, translates through page blocks 11, 2, and 7, and returns physical slots 708, 129, and 451 followed by minus-one padding; count is three.">
+</picture>
 
 **Figure 2. A worked localization row.** (a) Columns 0, 2, and 5 survive ownership filtering and become physical slots 708, 129, and 451. The example uses rank 0, two ranks (`D = 2`), interleave `I = 1`, page size `S = 64`, and request-0 page table `[11, 2, 7, 5]`. (b) The equations apply to nonnegative tokens; the table is read only for an owned, in-range mapping. Both layouts have count 3, but only front compaction has a valid three-element prefix.
 
@@ -165,7 +171,10 @@ On an **Apple M5 Max with MLX 0.32.3**, the compiled custom Metal path achieved
 nine tested batch/width combinations. The eager comparison was 1.76–1.96×.
 Both baselines are retained; the headline compares compiled with compiled.
 
-<img src="assets/fig-apple-performance.svg" width="100%" alt="Compiled localization and complete selected-attention latency on Apple M5 Max. Gray bars show MLX and blue bars show Metal; direct labels give latency. The four panels separate three localization widths from the attention consumer.">
+<picture>
+  <source media="(max-width: 767px)" srcset="assets/fig-apple-performance-narrow.svg">
+  <img src="assets/fig-apple-performance.svg" width="100%" alt="Compiled localization and complete selected-attention latency on Apple M5 Max. Gray bars show MLX and blue bars show Metal; direct labels give latency. The four panels separate three localization widths from the attention consumer.">
+</picture>
 
 **Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Gray bars show MLX and blue bars show Metal, with latency labeled in microseconds. (a–c) Localization at three selection widths, with identical scales. (d) Complete selected attention with two logical shards, fixed caches, and 64-dimensional keys and values, on a separate scale. All bars start at zero and show medians of three process-session medians, including dispatch, allocation, execution, and synchronization. Warmup and initial compilation are excluded.
 
@@ -206,7 +215,10 @@ GPU experiments were run for the Apple support and hardening update.** They
 describe their recorded implementation and stack, not a fresh qualification of
 all subsequent changes.
 
-<img src="assets/fig-cost.svg" width="100%" alt="Archived two-H100 converter latencies and complete-step ratio intervals; the 64K rowwise result exceeds the 1.01 margin.">
+<picture>
+  <source media="(max-width: 767px)" srcset="assets/fig-cost-narrow.svg">
+  <img src="assets/fig-cost.svg" width="100%" alt="Archived two-H100 converter latencies and complete-step ratio intervals; the 64K rowwise result exceeds the 1.01 margin.">
+</picture>
 
 **Figure 4. Historical two-H100 measurements.** (a) Pooled median latency for the complete 48-layer converter segment at 32K context. (b) Complete-step ratios relative to atomic, with 98.75% intervals and the prespecified 1.01 margin. The 64K rowwise interval lies above that margin. These archived results are not a new NVIDIA qualification.
 
@@ -226,6 +238,22 @@ Source: [segment medians](evidence/05-full-decode-canary/segments.json) and
 **Context length is not a universal dispatch rule.** The 32K/64K contrast comes
 from one recorded workload. Benchmark both CUDA variants in your consumer;
 Apple backend selection is independent of this result.
+
+## From slots to attention
+
+Localized addresses need a layout-aware mask before gathering K/V and a shared
+normalization across logical shards. The complete consumer makes that boundary
+explicit:
+
+<picture>
+  <source media="(max-width: 767px)" srcset="assets/fig-consumer-narrow.svg">
+  <img src="assets/fig-consumer.svg" width="100%" alt="Three panels show compact versus column-preserving validity, masked K/V gathering with indexed cache rows, and shared attention normalization.">
+</picture>
+
+**Figure 5. Consuming localized addresses.** (a) Filled and open marks reinforce the numeric validity mask; equal counts can describe different layouts. (b) Dashed paths carry the mask to both address selection and post-gather masking. K/V matrices show placeholder row 0 and selected rows 12 and 14; each row glyph is a schematic feature vector. The placeholder may contain NaN. (c) The maximum and both sums cover every logical shard and selected position. An empty selection uses `m = 0` and returns zero. This one-device consumer requires populated nonnegative pages, in-bounds slots, and finite, representable arithmetic.
+
+See the [consumer guide](docs/consuming-indices.md) and the
+[runnable selected-attention example](examples/mlx_sparse_attention.py).
 
 ## Verification and compatibility
 

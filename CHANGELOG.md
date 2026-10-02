@@ -48,6 +48,9 @@
 
 ### Documentation and evidence
 
+- Embed the consumer figure in the README and add narrow layouts for every
+  figure. Preserve tensor and memory glyphs at readable sizes in side panels
+  and on phones; verify GitHub's rendered responsive image sources.
 - Add architecture and Apple integration guides with separate memory-ownership
   guarantees for MLX and CUDA.
 - Add a practical consumer guide for safe gathers, prefix versus column masks,

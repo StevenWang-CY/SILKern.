@@ -10,6 +10,7 @@
 .junction{fill:var(--line);stroke:none}
 .memory{fill:var(--paper);stroke:var(--line);stroke-width:1}
 .memory-active{fill:var(--wash);stroke:var(--color);stroke-width:1}
+.tensor-cell{fill:var(--wash);stroke:var(--color);stroke-width:1}
 .mask-bit{fill:var(--color);stroke:none}
 .mask-zero{fill:none;stroke:var(--rule);stroke-width:1}
 .math-index{font-size:75%}
@@ -31,27 +32,43 @@
 <text x="368" y="82" class="copper colored" text-anchor="middle">T2</text>
 <text x="464" y="82" class="violet colored" text-anchor="middle">T3</text>
 <path d="M134 96H128V136H134M506 96H512V136H506" class="tensor-bracket"/>
+<rect x="133" y="99" width="86" height="34" rx="3" class="blue tensor-cell"/>
 <text x="176.0" y="122.0" class="data blue colored" text-anchor="middle">704, 705</text>
+<rect x="229" y="99" width="86" height="34" rx="3" class="teal tensor-cell"/>
 <text x="272.0" y="122.0" class="data teal colored" text-anchor="middle">132, 133</text>
+<rect x="325" y="99" width="86" height="34" rx="3" class="copper tensor-cell"/>
 <text x="368.0" y="122.0" class="data copper colored" text-anchor="middle">448, 896</text>
+<rect x="421" y="99" width="86" height="34" rx="3" class="violet tensor-cell"/>
 <text x="464.0" y="122.0" class="data violet colored" text-anchor="middle">897, 260</text>
 <text x="24" y="224" class="" text-anchor="start">Replay 1</text>
 <path d="M134 198H128V238H134M506 198H512V238H506" class="tensor-bracket"/>
+<rect x="133" y="201" width="86" height="34" rx="3" class="teal tensor-cell"/>
 <text x="176.0" y="224.0" class="data teal colored" text-anchor="middle">132, 133</text>
+<rect x="229" y="201" width="86" height="34" rx="3" class="blue tensor-cell"/>
 <text x="272.0" y="224.0" class="data blue colored" text-anchor="middle">704, 705</text>
+<rect x="325" y="201" width="86" height="34" rx="3" class="violet tensor-cell"/>
 <text x="368.0" y="224.0" class="data violet colored" text-anchor="middle">897, 260</text>
+<rect x="421" y="201" width="86" height="34" rx="3" class="copper tensor-cell"/>
 <text x="464.0" y="224.0" class="data copper colored" text-anchor="middle">448, 896</text>
 <text x="24" y="284" class="" text-anchor="start">Replay 2</text>
 <path d="M134 258H128V298H134M506 258H512V298H506" class="tensor-bracket"/>
+<rect x="133" y="261" width="86" height="34" rx="3" class="blue tensor-cell"/>
 <text x="176.0" y="284.0" class="data blue colored" text-anchor="middle">704, 705</text>
+<rect x="229" y="261" width="86" height="34" rx="3" class="copper tensor-cell"/>
 <text x="272.0" y="284.0" class="data copper colored" text-anchor="middle">448, 896</text>
+<rect x="325" y="261" width="86" height="34" rx="3" class="teal tensor-cell"/>
 <text x="368.0" y="284.0" class="data teal colored" text-anchor="middle">132, 133</text>
+<rect x="421" y="261" width="86" height="34" rx="3" class="violet tensor-cell"/>
 <text x="464.0" y="284.0" class="data violet colored" text-anchor="middle">897, 260</text>
 <text x="24" y="344" class="" text-anchor="start">Replay 3</text>
 <path d="M134 318H128V358H134M506 318H512V358H506" class="tensor-bracket"/>
+<rect x="133" y="321" width="86" height="34" rx="3" class="copper tensor-cell"/>
 <text x="176.0" y="344.0" class="data copper colored" text-anchor="middle">448, 896</text>
+<rect x="229" y="321" width="86" height="34" rx="3" class="violet tensor-cell"/>
 <text x="272.0" y="344.0" class="data violet colored" text-anchor="middle">897, 260</text>
+<rect x="325" y="321" width="86" height="34" rx="3" class="blue tensor-cell"/>
 <text x="368.0" y="344.0" class="data blue colored" text-anchor="middle">704, 705</text>
+<rect x="421" y="321" width="86" height="34" rx="3" class="teal tensor-cell"/>
 <text x="464.0" y="344.0" class="data teal colored" text-anchor="middle">132, 133</text>
 <path d="M176 139C176 165 272 163 272 193" class="route-cutout"/>
 <path d="M176 139C176 165 272 163 272 193" class="blue trace" marker-end="url(#arrow)"/>
@@ -68,27 +85,43 @@
 <text x="928" y="82" class="copper colored" text-anchor="middle">T2</text>
 <text x="1024" y="82" class="violet colored" text-anchor="middle">T3</text>
 <path d="M694 96H688V136H694M1066 96H1072V136H1066" class="tensor-bracket"/>
+<rect x="693" y="99" width="86" height="34" rx="3" class="blue tensor-cell"/>
 <text x="736.0" y="122.0" class="data blue colored" text-anchor="middle">704, 705</text>
+<rect x="789" y="99" width="86" height="34" rx="3" class="teal tensor-cell"/>
 <text x="832.0" y="122.0" class="data teal colored" text-anchor="middle">132, 133</text>
+<rect x="885" y="99" width="86" height="34" rx="3" class="copper tensor-cell"/>
 <text x="928.0" y="122.0" class="data copper colored" text-anchor="middle">448, 896</text>
+<rect x="981" y="99" width="86" height="34" rx="3" class="violet tensor-cell"/>
 <text x="1024.0" y="122.0" class="data violet colored" text-anchor="middle">897, 260</text>
 <text x="584" y="224" class="" text-anchor="start">Replay 1</text>
 <path d="M694 198H688V238H694M1066 198H1072V238H1066" class="tensor-bracket"/>
+<rect x="693" y="201" width="86" height="34" rx="3" class="blue tensor-cell"/>
 <text x="736.0" y="224.0" class="data blue colored" text-anchor="middle">704, 705</text>
+<rect x="789" y="201" width="86" height="34" rx="3" class="teal tensor-cell"/>
 <text x="832.0" y="224.0" class="data teal colored" text-anchor="middle">132, 133</text>
+<rect x="885" y="201" width="86" height="34" rx="3" class="copper tensor-cell"/>
 <text x="928.0" y="224.0" class="data copper colored" text-anchor="middle">448, 896</text>
+<rect x="981" y="201" width="86" height="34" rx="3" class="violet tensor-cell"/>
 <text x="1024.0" y="224.0" class="data violet colored" text-anchor="middle">897, 260</text>
 <text x="584" y="284" class="" text-anchor="start">Replay 2</text>
 <path d="M694 258H688V298H694M1066 258H1072V298H1066" class="tensor-bracket"/>
+<rect x="693" y="261" width="86" height="34" rx="3" class="blue tensor-cell"/>
 <text x="736.0" y="284.0" class="data blue colored" text-anchor="middle">704, 705</text>
+<rect x="789" y="261" width="86" height="34" rx="3" class="teal tensor-cell"/>
 <text x="832.0" y="284.0" class="data teal colored" text-anchor="middle">132, 133</text>
+<rect x="885" y="261" width="86" height="34" rx="3" class="copper tensor-cell"/>
 <text x="928.0" y="284.0" class="data copper colored" text-anchor="middle">448, 896</text>
+<rect x="981" y="261" width="86" height="34" rx="3" class="violet tensor-cell"/>
 <text x="1024.0" y="284.0" class="data violet colored" text-anchor="middle">897, 260</text>
 <text x="584" y="344" class="" text-anchor="start">Replay 3</text>
 <path d="M694 318H688V358H694M1066 318H1072V358H1066" class="tensor-bracket"/>
+<rect x="693" y="321" width="86" height="34" rx="3" class="blue tensor-cell"/>
 <text x="736.0" y="344.0" class="data blue colored" text-anchor="middle">704, 705</text>
+<rect x="789" y="321" width="86" height="34" rx="3" class="teal tensor-cell"/>
 <text x="832.0" y="344.0" class="data teal colored" text-anchor="middle">132, 133</text>
+<rect x="885" y="321" width="86" height="34" rx="3" class="copper tensor-cell"/>
 <text x="928.0" y="344.0" class="data copper colored" text-anchor="middle">448, 896</text>
+<rect x="981" y="321" width="86" height="34" rx="3" class="violet tensor-cell"/>
 <text x="1024.0" y="344.0" class="data violet colored" text-anchor="middle">897, 260</text>
 <path d="M736 139C736 165 736 163 736 193" class="route-cutout"/>
 <path d="M736 139C736 165 736 163 736 193" class="blue trace" marker-end="url(#arrow)"/>
