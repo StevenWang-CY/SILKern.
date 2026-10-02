@@ -6,7 +6,9 @@ SILKern localizes indices at the boundary between a sparse selector and a paged
 attention consumer. Its architecture keeps the mathematical contract independent
 of the execution framework, and keeps each backend's memory model explicit.
 
-![One contract with Python, Apple MLX, and CUDA Triton execution paths](../assets/fig-platforms.svg)
+![Sparse-attention boundary and expanded validity, translation, scan, and scatter graph](../assets/fig-platforms.svg)
+
+**Figure 1. Localization at the sparse-attention boundary.** The expanded graph separates physical-address translation from the validity scan that assigns stable destinations and an exact count. The example uses rank 0 of two ranks, interleave 1, and block size 64. This is the compacting contract shared by Python, MLX/Metal, and CUDA/Triton; the graph does not prescribe kernel-launch boundaries.
 
 ## Layers and responsibilities
 

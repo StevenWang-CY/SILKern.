@@ -34,6 +34,8 @@ serves as the specification beyond that accelerator storage limit.
 
 ![The five localization stages with a worked row](../assets/fig-contract.svg)
 
+**Figure 2. A worked localization row.** Ownership removes columns 1 and 3, while column 4 is invalid. The surviving positions translate to physical slots 708, 129, and 451. Prefix-derived destinations preserve their input order; padding follows the three-element valid prefix. Stable compaction does not sort by physical address.
+
 For each input token, in its original column order:
 
 **1. Route the request.** `req_ids[row]` chooses the page-table row. Different

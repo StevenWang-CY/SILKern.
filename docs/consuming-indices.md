@@ -9,6 +9,8 @@ runnable gathers and selected attention.
 
 ![Localization feeds masked K/V gathers and a shared softmax normalization; count prefixes and column masks depend on the output layout](../assets/fig-consumer.svg)
 
+**Figure 5. Consuming localized addresses.** (a) Equal counts can describe different validity layouts. (b) Both gather addresses and gathered K/V values must be masked. (c) A shared maximum and a single normalization combine all selected positions across logical shards; an empty selection returns zero. The example runs on one device and requires populated nonnegative pages, in-bounds slots, and finite, representable arithmetic.
+
 ## Choose the right validity mask
 
 | Localization mode | Layout | Consumer mask |

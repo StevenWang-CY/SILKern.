@@ -8,6 +8,8 @@ boundary by preserving the selector's relative order.
 
 ![Identical input can yield different atomic tile orders; a deterministic scan fixes each destination](../assets/fig-problem.svg)
 
+**Figure 6. Tile order under repeated execution.** The paths and replay arrays are illustrative: atomic reservation can permute whole tile groups, while prefix-derived destinations preserve input order. Both return the same eight values and count. The separate [historical two-B200 record](../evidence/06-order-instability-b200/orders.json) measured 17–20 atomic orders per 20 replays and one stable order.
+
 ## Where the order changes
 
 A tiled converter can compute a local prefix within each tile and reserve space

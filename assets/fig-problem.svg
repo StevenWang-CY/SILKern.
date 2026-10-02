@@ -1,183 +1,178 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 550" width="900" height="550" role="img"
-     aria-label="Three replays of byte-identical input. Panel a: the atomic converter returns three different orders, shaded where positions changed. Panel b: silkern returns the selector's order every time. Both return the same set and count.">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="328" viewBox="0 0 1120 328" role="img" aria-labelledby="problem-title problem-desc">
+  <title id="problem-title">Tile reservation order versus stable prefix order</title>
+  <desc id="problem-desc">Two illustrative routing diagrams use tile groups T0=[704,705], T1=[132,133], T2=[448,896], and T3=[897,260]. In panel a, tile completion-dependent atomic reservations permute complete tile groups. The first replay routes T1,T0,T3,T2; the next two show T0,T2,T1,T3 and T2,T3,T0,T1. Panel b uses input-prefix destinations and emits T0,T1,T2,T3 on all three replays. Both converters preserve the same eight values and exact count; order within each tile group is unchanged. Blue tracks group T0. These paths and replay values are illustrative, not measurements.</desc>
   <style>
-    .canvas { fill: #f5f5f0; }
-    text  { font-family: -apple-system, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif; }
-    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
-    .fh   { fill: #0b0b0b; font-size: 15px; font-weight: 650; }
-    .ph   { fill: #0b0b0b; font-size: 13.5px; font-weight: 650; }
-    .lab  { fill: #0b0b0b; font-size: 12px; }
-    .note { fill: #0b0b0b; font-size: 12.5px; }
-    .noteB{ fill: #0b0b0b; font-size: 12.5px; font-weight: 650; }
-    .mut  { fill: #78776f; font-size: 11.5px; }
-    .mutS { fill: #78776f; font-size: 10.5px; }
-    .val  { fill: #0b0b0b; font-size: 12px; }
-    .drpv { fill: #a5a49d; font-size: 12px; }
-    .axis { stroke: #0b0b0b; stroke-width: 1; }
-    .tick { stroke: #6f6e68; stroke-width: 1; }
-    .grid { stroke: #d9d8d2; stroke-width: 1; }
-    .trk  { fill: #eeedea; }
-    .cell { fill: none; stroke: #9a9992; stroke-width: 1; }
-    .drop { fill: none; stroke: #c6c5be; stroke-width: 1; stroke-dasharray: 3 2.5; }
-    .blue   { fill: #2a78d6; }
-    .orange { fill: #e0762f; }
-    .gray   { fill: #b5b4ad; }
-    .blueS  { stroke: #2a78d6; }
-    .orangeS{ stroke: #e0762f; }
-    .band { fill: #2a78d6; fill-opacity: .06; }
-    .chg  { fill: #e0762f; fill-opacity: .10; }
-    .marg { stroke: #c2453a; stroke-width: 1; stroke-dasharray: 4 3; }
-    .margT{ fill: #c2453a; font-size: 11px; }
-    .sep  { stroke: #dcdbd5; stroke-width: 1; }
+    text { font: 14px Arial, Helvetica, sans-serif; fill: #171717; font-weight: 400; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .small { font-size: 13px; }
+    .muted { fill: #525252; }
+    .blue { fill: #245a96; }
+    .rule { fill: none; stroke: #d4d4d4; stroke-width: 1; }
+    .edge { fill: none; stroke: #737373; stroke-width: 1; }
+    .trace { fill: none; stroke: #245a96; stroke-width: 1; }
+    .cell { fill: none; stroke: #a3a3a3; stroke-width: 1; }
     @media (prefers-color-scheme: dark) {
-      .canvas { fill: #171d1c; }
-      .fh,.ph,.lab,.note,.noteB,.val { fill: #f0f0ee; }
-      .mut,.mutS { fill: #92918b; }
-      .drpv { fill: #6e6d67; }
-      .axis { stroke: #f0f0ee; }
-      .tick { stroke: #8a8983; }
-      .grid { stroke: #2e2e2c; }
-      .trk  { fill: #232322; }
-      .cell { stroke: #6f6e68; }
-      .drop { stroke: #4a4945; }
-      .gray { fill: #55544e; }
-      .blue { fill: #3987e5; } .blueS { stroke: #3987e5; }
-      .orange { fill: #e8853f; } .orangeS { stroke: #e8853f; }
-      .band { fill: #3987e5; fill-opacity: .10; }
-      .chg  { fill: #e8853f; fill-opacity: .14; }
-      .marg { stroke: #e06a5e; } .margT { fill: #e06a5e; }
-      .sep  { stroke: #3a3a37; }
+      text { fill: #e5e5e5; }
+      .muted { fill: #a3a3a3; }
+      .blue { fill: #8eb5de; }
+      .rule { stroke: #404040; }
+      .edge { stroke: #a3a3a3; }
+      .trace { stroke: #8eb5de; }
+      .cell { stroke: #737373; }
     }
   </style>
-  <rect class="canvas" width="900" height="550" rx="20"/>
-  <text class="fh" x="24" y="30">One selection row, byte-identical input, three CUDA-graph replays</text>
-  <text class="mut" x="24" y="50">The rank-local physical prefix each converter hands to the attention kernel.</text>
-  <text class="ph" x="24" y="94">(a)&#160;&#160;Atomic reservation converter</text>
-  <text class="mut" x="24" y="112">one <tspan class="mono" font-size="11">atomic_add</tspan> per 128-column tile, after a tile-local scan</text>
-  <text class="mutS mono" x="100" y="145" text-anchor="end">replay 1</text>
-  <rect class="cell" x="110" y="128" width="46" height="26"/>
-  <text class="val mono" x="133.0" y="145.5" text-anchor="middle">132</text>
-  <rect class="cell" x="162" y="128" width="46" height="26"/>
-  <text class="val mono" x="185.0" y="145.5" text-anchor="middle">133</text>
-  <rect class="cell" x="214" y="128" width="46" height="26"/>
-  <text class="val mono" x="237.0" y="145.5" text-anchor="middle">704</text>
-  <rect class="cell" x="266" y="128" width="46" height="26"/>
-  <text class="val mono" x="289.0" y="145.5" text-anchor="middle">705</text>
-  <rect class="cell" x="318" y="128" width="46" height="26"/>
-  <text class="val mono" x="341.0" y="145.5" text-anchor="middle">897</text>
-  <rect class="cell" x="370" y="128" width="46" height="26"/>
-  <text class="val mono" x="393.0" y="145.5" text-anchor="middle">260</text>
-  <rect class="cell" x="422" y="128" width="46" height="26"/>
-  <text class="val mono" x="445.0" y="145.5" text-anchor="middle">448</text>
-  <rect class="cell" x="474" y="128" width="46" height="26"/>
-  <text class="val mono" x="497.0" y="145.5" text-anchor="middle">896</text>
-  <text class="mutS mono" x="100" y="183" text-anchor="end">replay 2</text>
-  <rect class="cell" x="110" y="166" width="46" height="26"/>
-  <rect class="chg" x="110" y="166" width="46" height="26"/>
-  <text class="val mono" x="133.0" y="183.5" text-anchor="middle">704</text>
-  <rect class="cell" x="162" y="166" width="46" height="26"/>
-  <rect class="chg" x="162" y="166" width="46" height="26"/>
-  <text class="val mono" x="185.0" y="183.5" text-anchor="middle">705</text>
-  <rect class="cell" x="214" y="166" width="46" height="26"/>
-  <rect class="chg" x="214" y="166" width="46" height="26"/>
-  <text class="val mono" x="237.0" y="183.5" text-anchor="middle">448</text>
-  <rect class="cell" x="266" y="166" width="46" height="26"/>
-  <rect class="chg" x="266" y="166" width="46" height="26"/>
-  <text class="val mono" x="289.0" y="183.5" text-anchor="middle">896</text>
-  <rect class="cell" x="318" y="166" width="46" height="26"/>
-  <rect class="chg" x="318" y="166" width="46" height="26"/>
-  <text class="val mono" x="341.0" y="183.5" text-anchor="middle">132</text>
-  <rect class="cell" x="370" y="166" width="46" height="26"/>
-  <rect class="chg" x="370" y="166" width="46" height="26"/>
-  <text class="val mono" x="393.0" y="183.5" text-anchor="middle">133</text>
-  <rect class="cell" x="422" y="166" width="46" height="26"/>
-  <rect class="chg" x="422" y="166" width="46" height="26"/>
-  <text class="val mono" x="445.0" y="183.5" text-anchor="middle">897</text>
-  <rect class="cell" x="474" y="166" width="46" height="26"/>
-  <rect class="chg" x="474" y="166" width="46" height="26"/>
-  <text class="val mono" x="497.0" y="183.5" text-anchor="middle">260</text>
-  <text class="mutS mono" x="100" y="221" text-anchor="end">replay 3</text>
-  <rect class="cell" x="110" y="204" width="46" height="26"/>
-  <rect class="chg" x="110" y="204" width="46" height="26"/>
-  <text class="val mono" x="133.0" y="221.5" text-anchor="middle">448</text>
-  <rect class="cell" x="162" y="204" width="46" height="26"/>
-  <rect class="chg" x="162" y="204" width="46" height="26"/>
-  <text class="val mono" x="185.0" y="221.5" text-anchor="middle">896</text>
-  <rect class="cell" x="214" y="204" width="46" height="26"/>
-  <rect class="chg" x="214" y="204" width="46" height="26"/>
-  <text class="val mono" x="237.0" y="221.5" text-anchor="middle">897</text>
-  <rect class="cell" x="266" y="204" width="46" height="26"/>
-  <rect class="chg" x="266" y="204" width="46" height="26"/>
-  <text class="val mono" x="289.0" y="221.5" text-anchor="middle">260</text>
-  <rect class="cell" x="318" y="204" width="46" height="26"/>
-  <rect class="chg" x="318" y="204" width="46" height="26"/>
-  <text class="val mono" x="341.0" y="221.5" text-anchor="middle">704</text>
-  <rect class="cell" x="370" y="204" width="46" height="26"/>
-  <rect class="chg" x="370" y="204" width="46" height="26"/>
-  <text class="val mono" x="393.0" y="221.5" text-anchor="middle">705</text>
-  <rect class="cell" x="422" y="204" width="46" height="26"/>
-  <rect class="chg" x="422" y="204" width="46" height="26"/>
-  <text class="val mono" x="445.0" y="221.5" text-anchor="middle">132</text>
-  <rect class="cell" x="474" y="204" width="46" height="26"/>
-  <rect class="chg" x="474" y="204" width="46" height="26"/>
-  <text class="val mono" x="497.0" y="221.5" text-anchor="middle">133</text>
-  <text class="noteB" x="110" y="258">Illustrative tile permutations.<tspan class="mut" font-weight="400">&#160;&#160;Archived B200 result: 17&#8211;20 orders per 20 replays.</tspan></text>
-  <text class="ph" x="24" y="300">(b)&#160;&#160;silkern, deterministic localization</text>
-  <text class="mut" x="24" y="318">destinations follow the input prefix &#8212; no atomic reservation</text>
-  <text class="mutS mono" x="100" y="351" text-anchor="end">replay 1</text>
-  <rect class="cell" x="110" y="334" width="46" height="26"/>
-  <text class="val mono" x="133.0" y="351.5" text-anchor="middle">704</text>
-  <rect class="cell" x="162" y="334" width="46" height="26"/>
-  <text class="val mono" x="185.0" y="351.5" text-anchor="middle">705</text>
-  <rect class="cell" x="214" y="334" width="46" height="26"/>
-  <text class="val mono" x="237.0" y="351.5" text-anchor="middle">132</text>
-  <rect class="cell" x="266" y="334" width="46" height="26"/>
-  <text class="val mono" x="289.0" y="351.5" text-anchor="middle">133</text>
-  <rect class="cell" x="318" y="334" width="46" height="26"/>
-  <text class="val mono" x="341.0" y="351.5" text-anchor="middle">448</text>
-  <rect class="cell" x="370" y="334" width="46" height="26"/>
-  <text class="val mono" x="393.0" y="351.5" text-anchor="middle">896</text>
-  <rect class="cell" x="422" y="334" width="46" height="26"/>
-  <text class="val mono" x="445.0" y="351.5" text-anchor="middle">897</text>
-  <rect class="cell" x="474" y="334" width="46" height="26"/>
-  <text class="val mono" x="497.0" y="351.5" text-anchor="middle">260</text>
-  <text class="mutS mono" x="100" y="389" text-anchor="end">replay 2</text>
-  <rect class="cell" x="110" y="372" width="46" height="26"/>
-  <text class="val mono" x="133.0" y="389.5" text-anchor="middle">704</text>
-  <rect class="cell" x="162" y="372" width="46" height="26"/>
-  <text class="val mono" x="185.0" y="389.5" text-anchor="middle">705</text>
-  <rect class="cell" x="214" y="372" width="46" height="26"/>
-  <text class="val mono" x="237.0" y="389.5" text-anchor="middle">132</text>
-  <rect class="cell" x="266" y="372" width="46" height="26"/>
-  <text class="val mono" x="289.0" y="389.5" text-anchor="middle">133</text>
-  <rect class="cell" x="318" y="372" width="46" height="26"/>
-  <text class="val mono" x="341.0" y="389.5" text-anchor="middle">448</text>
-  <rect class="cell" x="370" y="372" width="46" height="26"/>
-  <text class="val mono" x="393.0" y="389.5" text-anchor="middle">896</text>
-  <rect class="cell" x="422" y="372" width="46" height="26"/>
-  <text class="val mono" x="445.0" y="389.5" text-anchor="middle">897</text>
-  <rect class="cell" x="474" y="372" width="46" height="26"/>
-  <text class="val mono" x="497.0" y="389.5" text-anchor="middle">260</text>
-  <text class="mutS mono" x="100" y="427" text-anchor="end">replay 3</text>
-  <rect class="cell" x="110" y="410" width="46" height="26"/>
-  <text class="val mono" x="133.0" y="427.5" text-anchor="middle">704</text>
-  <rect class="cell" x="162" y="410" width="46" height="26"/>
-  <text class="val mono" x="185.0" y="427.5" text-anchor="middle">705</text>
-  <rect class="cell" x="214" y="410" width="46" height="26"/>
-  <text class="val mono" x="237.0" y="427.5" text-anchor="middle">132</text>
-  <rect class="cell" x="266" y="410" width="46" height="26"/>
-  <text class="val mono" x="289.0" y="427.5" text-anchor="middle">133</text>
-  <rect class="cell" x="318" y="410" width="46" height="26"/>
-  <text class="val mono" x="341.0" y="427.5" text-anchor="middle">448</text>
-  <rect class="cell" x="370" y="410" width="46" height="26"/>
-  <text class="val mono" x="393.0" y="427.5" text-anchor="middle">896</text>
-  <rect class="cell" x="422" y="410" width="46" height="26"/>
-  <text class="val mono" x="445.0" y="427.5" text-anchor="middle">897</text>
-  <rect class="cell" x="474" y="410" width="46" height="26"/>
-  <text class="val mono" x="497.0" y="427.5" text-anchor="middle">260</text>
-  <text class="mut" x="540" y="389">= the selector's order, every replay</text>
-  <text class="noteB" x="110" y="464">One stable survivor order.<tspan class="mut" font-weight="400">&#160;&#160;Each destination is determined by the input prefix.</tspan></text>
-  <line class="sep" x1="24" y1="492" x2="876" y2="492"/>
-  <text class="mut" x="24" y="514">Both converters return the same set and the same count; only the order differs. Shaded cells mark positions that changed relative to replay 1.</text>
-  <text class="mut" x="24" y="532">Different consumption order can change floating-point reductions, logits, and token choices; the effect depends on the consumer.</text>
+  <text x="32" y="23">(a) Atomic reservation</text>
+  <text x="32" y="77">Input</text>
+  <text x="170" y="48" class="small mono blue" text-anchor="middle">T0</text>
+  <rect class="trace" x="127" y="56" width="86" height="30"/>
+  <text x="147" y="77" class="mono" text-anchor="middle">704</text>
+  <text x="193" y="77" class="mono" text-anchor="middle">705</text>
+  <text x="268" y="48" class="small mono" text-anchor="middle">T1</text>
+  <rect class="cell" x="225" y="56" width="86" height="30"/>
+  <text x="245" y="77" class="mono" text-anchor="middle">132</text>
+  <text x="291" y="77" class="mono" text-anchor="middle">133</text>
+  <text x="366" y="48" class="small mono" text-anchor="middle">T2</text>
+  <rect class="cell" x="323" y="56" width="86" height="30"/>
+  <text x="343" y="77" class="mono" text-anchor="middle">448</text>
+  <text x="389" y="77" class="mono" text-anchor="middle">896</text>
+  <text x="464" y="48" class="small mono" text-anchor="middle">T3</text>
+  <rect class="cell" x="421" y="56" width="86" height="30"/>
+  <text x="441" y="77" class="mono" text-anchor="middle">897</text>
+  <text x="487" y="77" class="mono" text-anchor="middle">260</text>
+  <path class="trace" d="M170 86C170 113.0 268 113.0 268 140"/>
+  <path class="trace" d="M265 136L268 140L271 136"/>
+  <path class="edge" d="M268 86C268 113.0 170 113.0 170 140"/>
+  <path class="edge" d="M167 136L170 140L173 136"/>
+  <path class="edge" d="M366 86C366 113.0 464 113.0 464 140"/>
+  <path class="edge" d="M461 136L464 140L467 136"/>
+  <path class="edge" d="M464 86C464 113.0 366 113.0 366 140"/>
+  <path class="edge" d="M363 136L366 140L369 136"/>
+  <text x="32" y="184">Replay 1</text>
+  <text x="170" y="156" class="small mono" text-anchor="middle">T1</text>
+  <rect class="cell" x="127" y="163" width="86" height="30"/>
+  <text x="147" y="184" class="mono" text-anchor="middle">132</text>
+  <text x="193" y="184" class="mono" text-anchor="middle">133</text>
+  <text x="268" y="156" class="small mono blue" text-anchor="middle">T0</text>
+  <rect class="trace" x="225" y="163" width="86" height="30"/>
+  <text x="245" y="184" class="mono" text-anchor="middle">704</text>
+  <text x="291" y="184" class="mono" text-anchor="middle">705</text>
+  <text x="366" y="156" class="small mono" text-anchor="middle">T3</text>
+  <rect class="cell" x="323" y="163" width="86" height="30"/>
+  <text x="343" y="184" class="mono" text-anchor="middle">897</text>
+  <text x="389" y="184" class="mono" text-anchor="middle">260</text>
+  <text x="464" y="156" class="small mono" text-anchor="middle">T2</text>
+  <rect class="cell" x="421" y="163" width="86" height="30"/>
+  <text x="441" y="184" class="mono" text-anchor="middle">448</text>
+  <text x="487" y="184" class="mono" text-anchor="middle">896</text>
+  <text x="32" y="241">Replay 2</text>
+  <text x="170" y="213" class="small mono blue" text-anchor="middle">T0</text>
+  <rect class="trace" x="127" y="220" width="86" height="30"/>
+  <text x="147" y="241" class="mono" text-anchor="middle">704</text>
+  <text x="193" y="241" class="mono" text-anchor="middle">705</text>
+  <text x="268" y="213" class="small mono" text-anchor="middle">T2</text>
+  <rect class="cell" x="225" y="220" width="86" height="30"/>
+  <text x="245" y="241" class="mono" text-anchor="middle">448</text>
+  <text x="291" y="241" class="mono" text-anchor="middle">896</text>
+  <text x="366" y="213" class="small mono" text-anchor="middle">T1</text>
+  <rect class="cell" x="323" y="220" width="86" height="30"/>
+  <text x="343" y="241" class="mono" text-anchor="middle">132</text>
+  <text x="389" y="241" class="mono" text-anchor="middle">133</text>
+  <text x="464" y="213" class="small mono" text-anchor="middle">T3</text>
+  <rect class="cell" x="421" y="220" width="86" height="30"/>
+  <text x="441" y="241" class="mono" text-anchor="middle">897</text>
+  <text x="487" y="241" class="mono" text-anchor="middle">260</text>
+  <text x="32" y="298">Replay 3</text>
+  <text x="170" y="270" class="small mono" text-anchor="middle">T2</text>
+  <rect class="cell" x="127" y="277" width="86" height="30"/>
+  <text x="147" y="298" class="mono" text-anchor="middle">448</text>
+  <text x="193" y="298" class="mono" text-anchor="middle">896</text>
+  <text x="268" y="270" class="small mono" text-anchor="middle">T3</text>
+  <rect class="cell" x="225" y="277" width="86" height="30"/>
+  <text x="245" y="298" class="mono" text-anchor="middle">897</text>
+  <text x="291" y="298" class="mono" text-anchor="middle">260</text>
+  <text x="366" y="270" class="small mono blue" text-anchor="middle">T0</text>
+  <rect class="trace" x="323" y="277" width="86" height="30"/>
+  <text x="343" y="298" class="mono" text-anchor="middle">704</text>
+  <text x="389" y="298" class="mono" text-anchor="middle">705</text>
+  <text x="464" y="270" class="small mono" text-anchor="middle">T1</text>
+  <rect class="cell" x="421" y="277" width="86" height="30"/>
+  <text x="441" y="298" class="mono" text-anchor="middle">132</text>
+  <text x="487" y="298" class="mono" text-anchor="middle">133</text>
+  <text x="588" y="23">(b) Stable prefix</text>
+  <text x="588" y="77">Input</text>
+  <text x="726" y="48" class="small mono blue" text-anchor="middle">T0</text>
+  <rect class="trace" x="683" y="56" width="86" height="30"/>
+  <text x="703" y="77" class="mono" text-anchor="middle">704</text>
+  <text x="749" y="77" class="mono" text-anchor="middle">705</text>
+  <text x="824" y="48" class="small mono" text-anchor="middle">T1</text>
+  <rect class="cell" x="781" y="56" width="86" height="30"/>
+  <text x="801" y="77" class="mono" text-anchor="middle">132</text>
+  <text x="847" y="77" class="mono" text-anchor="middle">133</text>
+  <text x="922" y="48" class="small mono" text-anchor="middle">T2</text>
+  <rect class="cell" x="879" y="56" width="86" height="30"/>
+  <text x="899" y="77" class="mono" text-anchor="middle">448</text>
+  <text x="945" y="77" class="mono" text-anchor="middle">896</text>
+  <text x="1020" y="48" class="small mono" text-anchor="middle">T3</text>
+  <rect class="cell" x="977" y="56" width="86" height="30"/>
+  <text x="997" y="77" class="mono" text-anchor="middle">897</text>
+  <text x="1043" y="77" class="mono" text-anchor="middle">260</text>
+  <path class="trace" d="M726 86V140"/>
+  <path class="trace" d="M723 136L726 140L729 136"/>
+  <path class="edge" d="M824 86V140"/>
+  <path class="edge" d="M821 136L824 140L827 136"/>
+  <path class="edge" d="M922 86V140"/>
+  <path class="edge" d="M919 136L922 140L925 136"/>
+  <path class="edge" d="M1020 86V140"/>
+  <path class="edge" d="M1017 136L1020 140L1023 136"/>
+  <text x="588" y="184">Replay 1</text>
+  <text x="726" y="156" class="small mono blue" text-anchor="middle">T0</text>
+  <rect class="trace" x="683" y="163" width="86" height="30"/>
+  <text x="703" y="184" class="mono" text-anchor="middle">704</text>
+  <text x="749" y="184" class="mono" text-anchor="middle">705</text>
+  <text x="824" y="156" class="small mono" text-anchor="middle">T1</text>
+  <rect class="cell" x="781" y="163" width="86" height="30"/>
+  <text x="801" y="184" class="mono" text-anchor="middle">132</text>
+  <text x="847" y="184" class="mono" text-anchor="middle">133</text>
+  <text x="922" y="156" class="small mono" text-anchor="middle">T2</text>
+  <rect class="cell" x="879" y="163" width="86" height="30"/>
+  <text x="899" y="184" class="mono" text-anchor="middle">448</text>
+  <text x="945" y="184" class="mono" text-anchor="middle">896</text>
+  <text x="1020" y="156" class="small mono" text-anchor="middle">T3</text>
+  <rect class="cell" x="977" y="163" width="86" height="30"/>
+  <text x="997" y="184" class="mono" text-anchor="middle">897</text>
+  <text x="1043" y="184" class="mono" text-anchor="middle">260</text>
+  <text x="588" y="241">Replay 2</text>
+  <text x="726" y="213" class="small mono blue" text-anchor="middle">T0</text>
+  <rect class="trace" x="683" y="220" width="86" height="30"/>
+  <text x="703" y="241" class="mono" text-anchor="middle">704</text>
+  <text x="749" y="241" class="mono" text-anchor="middle">705</text>
+  <text x="824" y="213" class="small mono" text-anchor="middle">T1</text>
+  <rect class="cell" x="781" y="220" width="86" height="30"/>
+  <text x="801" y="241" class="mono" text-anchor="middle">132</text>
+  <text x="847" y="241" class="mono" text-anchor="middle">133</text>
+  <text x="922" y="213" class="small mono" text-anchor="middle">T2</text>
+  <rect class="cell" x="879" y="220" width="86" height="30"/>
+  <text x="899" y="241" class="mono" text-anchor="middle">448</text>
+  <text x="945" y="241" class="mono" text-anchor="middle">896</text>
+  <text x="1020" y="213" class="small mono" text-anchor="middle">T3</text>
+  <rect class="cell" x="977" y="220" width="86" height="30"/>
+  <text x="997" y="241" class="mono" text-anchor="middle">897</text>
+  <text x="1043" y="241" class="mono" text-anchor="middle">260</text>
+  <text x="588" y="298">Replay 3</text>
+  <text x="726" y="270" class="small mono blue" text-anchor="middle">T0</text>
+  <rect class="trace" x="683" y="277" width="86" height="30"/>
+  <text x="703" y="298" class="mono" text-anchor="middle">704</text>
+  <text x="749" y="298" class="mono" text-anchor="middle">705</text>
+  <text x="824" y="270" class="small mono" text-anchor="middle">T1</text>
+  <rect class="cell" x="781" y="277" width="86" height="30"/>
+  <text x="801" y="298" class="mono" text-anchor="middle">132</text>
+  <text x="847" y="298" class="mono" text-anchor="middle">133</text>
+  <text x="922" y="270" class="small mono" text-anchor="middle">T2</text>
+  <rect class="cell" x="879" y="277" width="86" height="30"/>
+  <text x="899" y="298" class="mono" text-anchor="middle">448</text>
+  <text x="945" y="298" class="mono" text-anchor="middle">896</text>
+  <text x="1020" y="270" class="small mono" text-anchor="middle">T3</text>
+  <rect class="cell" x="977" y="277" width="86" height="30"/>
+  <text x="997" y="298" class="mono" text-anchor="middle">897</text>
+  <text x="1043" y="298" class="mono" text-anchor="middle">260</text>
 </svg>

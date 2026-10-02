@@ -223,7 +223,9 @@ input checks. Earlier [07](../evidence/07-apple-mlx/) and
 hashes. Differences between checkpoints are descriptive observations, not a
 controlled before/after experiment.
 
-![Compiled MLX and Metal latency for all nine measured geometries](../assets/fig-apple-performance.svg)
+![Compiled MLX and Metal latency comparisons for nine localization geometries and two complete selected-attention consumers](../assets/fig-apple-performance.svg)
+
+**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Points are medians of three process-session medians; annotations give MLX latency divided by Metal latency. (a) Localization alone. (b) The complete selected-attention consumer with two logical shards, fixed caches, and 64-dimensional keys and values. Both panels include dispatch, allocation, execution, and synchronization; their latency axes differ.
 
 All latencies below are microseconds per evaluated functional call. Each value
 is the median of three session medians. Speedup divides compiled MLX latency by

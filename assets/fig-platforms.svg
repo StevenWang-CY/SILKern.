@@ -1,45 +1,97 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="470" viewBox="0 0 1120 470" role="img" aria-labelledby="title desc">
-  <title id="title">One contract. Native execution.</title>
-  <desc id="desc">Global logical token selections are routed, filtered by rank, translated through pages, and stably compacted. A Python oracle, Apple MLX with Metal, and CUDA Triton implement this contract. Python and MLX return new outputs; CUDA writes caller-owned buffers.</desc>
-  <style>
-    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;fill:#262a2a}
-    .canvas{fill:#f5f5f0}.card{fill:#fff;stroke:#dadcd5}.muted{fill:#676f6d}.rule{stroke:#c6cdc8;fill:none;stroke-width:1.5}.blue{fill:#2368bd}.green{fill:#2b7d68}.orange{fill:#b85b30}.body{font-size:15px}.eyebrow{font-size:11px;font-weight:650;letter-spacing:2px}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}.pill{fill:#e9efeb}
-    @media(prefers-color-scheme:dark){text{fill:#eef0eb}.canvas{fill:#171d1c}.card{fill:#202826;stroke:#3b4842}.muted{fill:#abb8b1}.rule{stroke:#53685e}.blue{fill:#7cb2f4}.green{fill:#80c6ae}.orange{fill:#efb08b}.pill{fill:#303e36}}
-  </style>
-  <rect class="canvas" width="1120" height="470" rx="20"/>
-  <text class="eyebrow muted" x="38" y="39">SPARSE SELECTION → PHYSICAL KV SLOTS</text>
-  <text x="38" y="83" font-size="32" font-weight="650" letter-spacing="-.6">One contract. Native execution.</text>
-  <text class="body muted" x="38" y="113">The selector's order survives the trip from global positions to local memory.</text>
-  <rect class="card" x="38" y="140" width="1044" height="70" rx="12"/>
-  <text class="eyebrow muted" x="62" y="166">LOCALIZATION</text>
-  <text x="62" y="189" font-size="17" font-weight="550">Route</text>
-  <text class="muted" x="196" y="188" font-size="20">→</text>
-  <text x="247" y="189" font-size="17" font-weight="550">Filter ownership</text>
-  <text class="muted" x="435" y="188" font-size="20">→</text>
-  <text x="486" y="189" font-size="17" font-weight="550">Translate pages</text>
-  <text class="muted" x="674" y="188" font-size="20">→</text>
-  <text x="725" y="189" font-size="17" font-weight="550">Preserve order</text>
-  <rect class="pill" x="923" y="156" width="135" height="38" rx="19"/>
-  <text x="990" y="180" text-anchor="middle" font-size="13" font-weight="600">exact count</text>
-  <path class="rule" d="M560 210v22M204 254v-22h712v22M560 232v22"/>
-  <rect class="card" x="38" y="254" width="332" height="151" rx="13"/>
-  <rect x="58" y="276" width="5" height="24" rx="2" class="green"/>
-  <text x="76" y="294" font-size="22" font-weight="600">Python</text>
-  <text class="mono muted" x="58" y="323">localize_reference</text>
-  <text class="body" x="58" y="351">The readable oracle</text>
-  <text class="body muted" x="58" y="377">No accelerator dependencies</text>
-  <rect class="card" x="394" y="254" width="332" height="151" rx="13"/>
-  <rect x="414" y="276" width="5" height="24" rx="2" class="blue"/>
-  <text x="432" y="294" font-size="22" font-weight="600">Apple · MLX</text>
-  <text class="mono muted" x="414" y="323">localize_mlx</text>
-  <text class="body" x="414" y="351">Metal kernel + MLX composition</text>
-  <text class="body muted" x="414" y="377">Functional, lazy arrays</text>
-  <rect class="card" x="750" y="254" width="332" height="151" rx="13"/>
-  <rect x="770" y="276" width="5" height="24" rx="2" class="orange"/>
-  <text x="788" y="294" font-size="22" font-weight="600">CUDA · Triton</text>
-  <text class="mono muted" x="770" y="323">rowwise / hierarchical</text>
-  <text class="body" x="770" y="351">Whole-row or bounded tile scans</text>
-  <text class="body muted" x="770" y="377">Caller-owned, fixed buffers</text>
-  <text class="muted" x="38" y="441" font-size="13">Shared semantics. Explicit memory ownership. Platform-specific verification.</text>
-  <text class="eyebrow muted" text-anchor="end" x="1082" y="441">SILKERN</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="404" viewBox="0 0 1120 404" role="img" aria-labelledby="overview-title overview-desc">
+<title id="overview-title">Sparse-index localization at the attention boundary</title>
+<desc id="overview-desc">Left: selected global positions enter SILKern and leave as rank-local slots and exact counts for a masked KV gather and attention consumer. Right: the localization operation is expanded into ownership and bounds predicates, local-coordinate calculation, page translation, a validity prefix sum, and stable scatter. The validity mask determines both destinations and count; translation reads only valid pages and supplies values without reordering them. Output storage starts with minus-one padding. For rank zero with two ranks, interleave one, block size64, request zero and pages11,2,7,5, tokens8,5,130,7,minus one,262 become slots708,129,451,minus one,minus one,minus one and count3. This is the compacting path; single-rank and noncompacting layouts preserve columns. The graph describes semantics shared by Python, MLX/Metal and CUDA/Triton, not a fixed kernel-launch schedule.</desc>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;font-size:14px;fill:#202020}
+.math{font-family:Georgia,"Times New Roman",serif;font-size:15px;font-style:italic}
+.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
+.small{font-size:12px}.muted{fill:#5d5d5d}.blue{fill:#245a96}.node{fill:none;stroke:#555;stroke-width:1}
+.edge{fill:none;stroke:#555;stroke-width:1;marker-end:url(#arrow)}.branch{fill:#555}
+.expand{fill:none;stroke:#8c8c8c;stroke-width:.8;stroke-dasharray:4 4}
+.cell{fill:none;stroke:#8a8a8a;stroke-width:.8}.selected{fill:none;stroke:#245a96;stroke-width:1.2}
+@media(prefers-color-scheme:dark){text{fill:#e6e6e6}.muted{fill:#a6a6a6}.blue{fill:#8eb5de}.node,.edge{stroke:#b5b5b5}.branch{fill:#b5b5b5}.expand,.cell{stroke:#777}.selected{stroke:#8eb5de}}
+</style>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1L7 4L1 7" fill="none" stroke="context-stroke" stroke-width="1"/></marker></defs>
+<text x="126" y="23" class="" text-anchor="middle">Selected global positions</text>
+<rect class="selected" x="36" y="36" width="30" height="30"/>
+<text x="51.0" y="55.0" class="mono blue" text-anchor="middle">8</text>
+<rect class="cell" x="66" y="36" width="30" height="30"/>
+<text x="81.0" y="55.0" class="mono" text-anchor="middle">5</text>
+<rect class="selected" x="96" y="36" width="30" height="30"/>
+<text x="111.0" y="55.0" class="mono blue" text-anchor="middle">130</text>
+<rect class="cell" x="126" y="36" width="30" height="30"/>
+<text x="141.0" y="55.0" class="mono" text-anchor="middle">7</text>
+<rect class="cell" x="156" y="36" width="30" height="30"/>
+<text x="171.0" y="55.0" class="mono muted" text-anchor="middle">−1</text>
+<rect class="selected" x="186" y="36" width="30" height="30"/>
+<text x="201.0" y="55.0" class="mono blue" text-anchor="middle">262</text>
+<path class="edge" d="M126 66V112"/>
+<rect class="selected" x="34" y="114" width="184" height="66"/>
+<text x="126" y="141" class="blue" text-anchor="middle">SILKern</text>
+<text x="126" y="163" class="math" text-anchor="middle">(req, P, t) → (s, n)</text>
+<path class="edge" d="M126 180V226"/>
+<text x="114" y="209" class="math" text-anchor="end">slots s, count n</text>
+<rect class="node" x="26" y="228" width="200" height="46"/>
+<text x="126" y="256" class="" text-anchor="middle">Masked KV gather</text>
+<path class="edge" d="M126 274V310"/>
+<rect class="node" x="26" y="312" width="200" height="42"/>
+<text x="126" y="338" class="" text-anchor="middle">Selected attention</text>
+<path class="expand" d="M218 114L308 28M218 180L308 364"/>
+<path class="expand" d="M308 28H1094V364H308Z"/>
+<text x="544" y="47" class="math" text-anchor="middle">tⱼ</text>
+<path class="edge" d="M544 53V62H444V84"/>
+<path class="edge" d="M544 62H691V84"/>
+<circle class="branch" cx="544" cy="62" r="2"/>
+<text x="942" y="48" class="mono" text-anchor="middle">req = 0; P = [11, 2, 7, 5]</text>
+<path class="edge" d="M950 55V84"/>
+<rect class="node" x="346" y="86" width="196" height="66"/>
+<text x="444" y="110" class="" text-anchor="middle">Ownership &amp; bounds</text>
+<text x="444" y="134" class="math" text-anchor="middle">vⱼ ∈ {0, 1}</text>
+<rect class="node" x="602" y="86" width="178" height="66"/>
+<text x="691" y="110" class="" text-anchor="middle">Deinterleave</text>
+<text x="691" y="134" class="math" text-anchor="middle">tⱼ → ℓⱼ</text>
+<path class="edge" d="M780 119H834"/>
+<text x="805" y="108" class="math" text-anchor="middle">ℓⱼ</text>
+<rect class="node" x="836" y="86" width="238" height="66"/>
+<text x="955" y="108" class="" text-anchor="middle">Masked page translation</text>
+<text x="955" y="130" class="mono" text-anchor="middle">aⱼ = P[ℓⱼ // S]·S + ℓⱼ % S</text>
+<path class="edge" d="M444 152V204"/>
+<text x="428" y="185" class="math" text-anchor="end">vⱼ</text>
+<circle class="branch" cx="444" cy="177" r="2"/>
+<path class="edge" d="M444 177H812V274H834"/>
+<circle class="branch" cx="812" cy="177" r="2"/>
+<path class="edge" d="M812 177V142H834"/>
+<text x="738" y="169" class="small muted" text-anchor="middle">validity predicate</text>
+<rect class="node" x="346" y="206" width="196" height="55"/>
+<text x="444" y="228" class="" text-anchor="middle">Inclusive prefix sum</text>
+<text x="444" y="248" class="math" text-anchor="middle">pⱼ = ∑ₖ≤ⱼ vₖ − 1</text>
+<path class="edge" d="M542 234H677V290H834"/>
+<text x="610" y="224" class="math" text-anchor="middle">destination pⱼ</text>
+<path class="edge" d="M955 152V240"/>
+<text x="969" y="200" class="math" text-anchor="start">physical slot aⱼ</text>
+<text x="836" y="233" class="small muted" text-anchor="start">s initially −1</text>
+<rect class="node" x="836" y="242" width="238" height="62"/>
+<text x="955" y="264" class="" text-anchor="middle">Stable scatter</text>
+<text x="955" y="286" class="math" text-anchor="middle">s[pⱼ] ← aⱼ  if vⱼ</text>
+<path class="edge" d="M444 261V316"/>
+<text x="459" y="287" class="math" text-anchor="start">∑ⱼ vⱼ</text>
+<text x="394" y="343" class="math" text-anchor="middle">n =</text>
+<rect class="node" x="420" y="321" width="48" height="30"/>
+<text x="444" y="342" class="mono blue" text-anchor="middle">3</text>
+<path class="edge" d="M955 304V321"/>
+<text x="850" y="346" class="math" text-anchor="end">s =</text>
+<rect class="selected" x="864" y="323" width="35" height="28"/>
+<text x="881.5" y="341.0" class="mono blue" text-anchor="middle">708</text>
+<rect class="selected" x="899" y="323" width="35" height="28"/>
+<text x="916.5" y="341.0" class="mono blue" text-anchor="middle">129</text>
+<rect class="selected" x="934" y="323" width="35" height="28"/>
+<text x="951.5" y="341.0" class="mono blue" text-anchor="middle">451</text>
+<rect class="cell" x="969" y="323" width="35" height="28"/>
+<text x="986.5" y="341.0" class="mono muted" text-anchor="middle">−1</text>
+<rect class="cell" x="1004" y="323" width="35" height="28"/>
+<text x="1021.5" y="341.0" class="mono muted" text-anchor="middle">−1</text>
+<rect class="cell" x="1039" y="323" width="35" height="28"/>
+<text x="1056.5" y="341.0" class="mono muted" text-anchor="middle">−1</text>
+<text x="126" y="391" class="" text-anchor="middle">(a) Attention boundary</text>
+<text x="701" y="391" class="" text-anchor="middle">(b) Stable localization for one rank</text>
 </svg>
