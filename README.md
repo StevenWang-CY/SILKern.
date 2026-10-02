@@ -7,15 +7,17 @@
 Deterministic sparse-index localization for **Apple silicon / MLX** and **CUDA / Triton**.
 
 [![CI](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml/badge.svg)](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-2a78d6.svg)](pyproject.toml)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-525252.svg)](pyproject.toml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-292824.svg)](LICENSE)
-[![Evidence](https://img.shields.io/badge/Evidence-checksummed-d87741.svg)](evidence/)
+[![Evidence](https://img.shields.io/badge/Evidence-checksummed-525252.svg)](evidence/)
 
 [Get started](#get-started) · [Apple / MLX](docs/apple-mlx.md) · [Use in attention](docs/consuming-indices.md) · [Performance](#performance-with-context) · [Contract](docs/contract.md)
 
 </div>
 
-<img src="assets/fig-platforms.svg" width="100%" alt="Global token selections pass through one localization contract and run on a Python oracle, Apple MLX and Metal, or CUDA and Triton. Every backend preserves survivor order and exact counts; memory ownership is backend specific.">
+<img src="assets/fig-platforms.svg" width="100%" alt="Sparse-attention dataflow with an expanded localization graph: ownership and bounds feed the validity scan; page translation and stable destinations feed scatter, producing rank-local slots and counts.">
+
+**Figure 1. Localization at the sparse-attention boundary.** The expanded graph separates physical-address translation from the validity scan that assigns stable destinations and an exact count. The example uses rank 0 of two ranks, interleave 1, and block size 64. This is the compacting contract shared by Python, MLX/Metal, and CUDA/Triton; the graph does not prescribe kernel-launch boundaries.
 
 **New in 0.2.0 (unreleased):** native Apple/MLX localization, backend-specific
 verification, stronger validation, and an explicit architecture guide.
@@ -83,6 +85,8 @@ assert counts == [3]
 ```
 
 <img src="assets/fig-contract.svg" width="100%" alt="Worked example: rank zero keeps input tokens 8, 130, and 262, deinterleaves to local positions 4, 65, and 131, translates through page blocks 11, 2, and 7, and returns physical slots 708, 129, and 451 followed by minus-one padding; count is three.">
+
+**Figure 2. A worked localization row.** Ownership removes columns 1 and 3, while column 4 is invalid. The surviving positions translate to physical slots 708, 129, and 451. Prefix-derived destinations preserve their input order; padding follows the three-element valid prefix. Stable compaction does not sort by physical address.
 
 **Two deliberate edge cases:** `dcp_size=1` leaves values in their original
 columns, and negative in-range page-table entries are used verbatim and counted.
@@ -161,7 +165,9 @@ On an **Apple M5 Max with MLX 0.32.3**, the compiled custom Metal path achieved
 nine tested batch/width combinations. The eager comparison was 1.76–1.96×.
 Both baselines are retained; the headline compares compiled with compiled.
 
-<img src="assets/fig-apple-performance.svg" width="100%" alt="Apple M5 Max compiled localization latency across nine geometries. Custom Metal is 1.10 to 1.21 times faster than compositional MLX. Each dot is the median of three session medians; timings include dispatch, allocation, execution and evaluation.">
+<img src="assets/fig-apple-performance.svg" width="100%" alt="Compiled localization and complete selected-attention latency on Apple M5 Max. Open gray markers show MLX and filled blue markers show Metal; annotations report MLX divided by Metal latency.">
+
+**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Points are medians of three process-session medians; annotations give MLX latency divided by Metal latency. (a) Localization alone. (b) The complete selected-attention consumer with two logical shards, fixed caches, and 64-dimensional keys and values. Both panels include dispatch, allocation, execution, and synchronization; their latency axes differ.
 
 For batch 8, width 2048, compiled Metal measured **164.20 µs** versus **185.60 µs**
 for compiled MLX. These are synchronized functional calls including Python
@@ -175,8 +181,8 @@ implementations, with 16 repeated evaluations per cell.
 See the [raw sessions and summary](evidence/09-apple-mlx-consumer/),
 [conformance report](evidence/09-apple-mlx-consumer/conformance.json), and
 [full geometry table and reproduction](docs/apple-mlx.md#measurement-and-reproduction).
-The measurement covers localization only; it does not establish an MLX-LM
-integration, multi-device decode, or model-level tokens per second.
+The localization measurements do not establish an MLX-LM integration,
+multi-device decode, or model-level tokens per second.
 
 The complete [selected-attention consumer](docs/consuming-indices.md) also has
 a measured result. Both paths compile localization, safe K/V gathers, masked
@@ -200,7 +206,9 @@ GPU experiments were run for the Apple support and hardening update.** They
 describe their recorded implementation and stack, not a fresh qualification of
 all subsequent changes.
 
-<img src="assets/fig-cost.svg" width="100%" alt="Archived two-H100 results. At 32K, the complete 48-layer converter segment takes 120.0 microseconds for rowwise, 194.4 for atomic, and 239.7 for hierarchical. Complete decode step ratios against atomic are near one except rowwise at 64K, which is about 1.4 percent slower.">
+<img src="assets/fig-cost.svg" width="100%" alt="Archived two-H100 converter latencies and complete-step ratio intervals; the 64K rowwise result exceeds the 1.01 margin.">
+
+**Figure 4. Historical two-H100 measurements.** (a) Pooled median latency for the complete 48-layer converter segment at 32K context. (b) Complete-step ratios relative to atomic, with 98.75% intervals and the prespecified 1.01 margin. The 64K rowwise interval lies above that margin. These archived results are not a new NVIDIA qualification.
 
 | Archived measurement | Result | Interpretation |
 |---|---|---|
@@ -286,8 +294,10 @@ for experiments.
 
 The [wordmark](assets/logo-text.svg), [icon](assets/logo.svg),
 [K mark](assets/logo-k.svg), and [social banner](assets/banner.svg) are
-self-contained SVGs. Technical figures include accessible descriptions and
-support light and dark themes.
+self-contained SVGs. Technical figures use transparent backgrounds, neutral
+typography, and accessible descriptions for light and dark themes. Performance
+figures are regenerated from the checked-in evidence with
+`python tools/render_figures.py` after installing `.[docs]`.
 
 ```bibtex
 @software{silkern2026,

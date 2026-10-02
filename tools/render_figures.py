@@ -16,22 +16,45 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
-from matplotlib.ticker import FuncFormatter, MaxNLocator  # noqa: E402
+from matplotlib.text import Text  # noqa: E402
+from matplotlib.ticker import FormatStrFormatter  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 APPLE_RECORD = Path("evidence/09-apple-mlx-consumer")
+INK = "#171717"
+MUTED = "#525252"
+RULE = "#e5e5e5"
+NEUTRAL = "#737373"
+ACCENT = "#245a96"
+ADVERSE = "#a34e33"
 COLORS = {
-    "#f5f5f0": "paper",
-    "#262a2a": "ink",
-    "#676f6d": "muted",
-    "#dadcd5": "grid",
-    "#c6cdc8": "line",
+    INK: "ink",
+    MUTED: "muted",
+    RULE: "rule",
+    NEUTRAL: "neutral",
+    ACCENT: "accent",
+    ADVERSE: "adverse",
 }
+WIDTH = 1120
 
 
 def _save_svg(fig, filename: str, title: str, description: str) -> None:
+    # Measure the actual glyphs before export; this catches clipped annotations
+    # when labels or evidence values change without rasterizing the SVG's text.
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    for artist in fig.findobj(Text):
+        if artist.get_visible() and artist.get_text():
+            bounds = artist.get_window_extent(renderer)
+            if (
+                bounds.x0 < 0
+                or bounds.y0 < 0
+                or bounds.x1 > fig.bbox.width
+                or bounds.y1 > fig.bbox.height
+            ):
+                raise ValueError(f"Figure text falls outside the canvas: {artist.get_text()!r}")
     path = ROOT / "assets" / filename
-    fig.savefig(path, format="svg", metadata={"Date": None})
+    fig.savefig(path, format="svg", transparent=True, metadata={"Date": None})
     plt.close(fig)
     svg = path.read_text()
     start = svg.index("<svg")
@@ -41,10 +64,11 @@ def _save_svg(fig, filename: str, title: str, description: str) -> None:
     accessibility = (
         f'<title id="figure-title">{escape(title)}</title>'
         f'<desc id="figure-desc">{escape(description)}</desc>'
-        "<style>svg{--paper:#f5f5f0;--ink:#262a2a;--muted:#676f6d;"
-        "--grid:#dadcd5;--line:#c6cdc8}@media(prefers-color-scheme:dark){"
-        "svg{--paper:#171d1c;--ink:#eef0eb;--muted:#abb8b1;"
-        "--grid:#3b4842;--line:#53685e}}</style>"
+        "<style>svg{--ink:#171717;--muted:#525252;--rule:#e5e5e5;"
+        "--neutral:#737373;--accent:#245a96;--adverse:#a34e33}"
+        "@media(prefers-color-scheme:dark){svg{--ink:#e5e5e5;"
+        "--muted:#a3a3a3;--rule:#303030;--neutral:#a3a3a3;"
+        "--accent:#8eb5de;--adverse:#e49c81}}</style>"
     )
     svg = svg[:end] + "\n" + accessibility + svg[end:]
     for color, variable in COLORS.items():
@@ -57,220 +81,250 @@ def _configure() -> None:
     plt.rcParams.update(
         {
             "font.family": ["Arial", "DejaVu Sans"],
-            "font.size": 11,
+            "font.size": 14,
             "svg.fonttype": "none",
             "svg.hashsalt": "silkern-evidence-figures",
+            "text.color": INK,
+            "axes.labelcolor": INK,
+            "axes.edgecolor": NEUTRAL,
+            "axes.linewidth": 0.7,
             "axes.spines.top": False,
             "axes.spines.right": False,
-            "axes.spines.left": False,
-            "axes.spines.bottom": False,
-            "text.color": "#262a2a",
-            "axes.labelcolor": "#676f6d",
-            "xtick.color": "#676f6d",
-            "ytick.color": "#262a2a",
-            "figure.facecolor": "#f5f5f0",
-            "axes.facecolor": "#f5f5f0",
-            "savefig.facecolor": "#f5f5f0",
+            "xtick.color": MUTED,
+            "ytick.color": INK,
+            "xtick.labelsize": 13,
+            "ytick.labelsize": 13,
+            "xtick.major.width": 0.7,
+            "ytick.major.width": 0.7,
+            "figure.facecolor": "none",
+            "axes.facecolor": "none",
+            "savefig.facecolor": "none",
         }
     )
 
 
-def render_cuda() -> None:
-    segments = json.loads((ROOT / "evidence/05-full-decode-canary/segments.json").read_text())
-    analysis = json.loads((ROOT / "evidence/05-full-decode-canary/analysis.json").read_text())
-    fig = plt.figure(figsize=(11.2, 4.9), dpi=100)
-    fig.text(0.04, 0.925, "ARCHIVED NVIDIA EVIDENCE", fontsize=10, color="#676f6d", weight="bold")
-    fig.text(0.04, 0.85, "Measure the converter. Check the consumer.", fontsize=23, weight="bold")
-    fig.text(
-        0.04,
-        0.795,
-        "Two H100s · live DCP-2 · five sessions · complete 48-layer reference executor",
-        fontsize=11,
-        color="#676f6d",
+def _figure(height: int):
+    # One SVG point per layout unit; the README can scale the whole figure.
+    return plt.figure(figsize=(WIDTH / 72, height / 72), dpi=72)
+
+
+def _axis(fig, rectangle):
+    ax = fig.add_axes(rectangle)
+    ax.set_axisbelow(True)
+    ax.grid(axis="x", color=RULE, linewidth=0.7)
+    ax.tick_params(axis="y", length=0, pad=8)
+    ax.tick_params(axis="x", length=4, pad=6)
+    return ax
+
+
+def _dumbbell(ax, cell, y, *, label_offset):
+    native = cell["median_us"]["mlx_compiled"]
+    metal = cell["median_us"]["metal_compiled"]
+    ax.plot([metal, native], [y, y], color=NEUTRAL, linewidth=1.15, zorder=2)
+    ax.plot(
+        native,
+        y,
+        marker="o",
+        markersize=6,
+        markerfacecolor="none",
+        markeredgecolor=NEUTRAL,
+        markeredgewidth=1.2,
+        zorder=3,
     )
-    ax = fig.add_axes([0.17, 0.285, 0.285, 0.38])
-    ax2 = fig.add_axes([0.665, 0.285, 0.285, 0.38])
-    colors = ["#286bb6", "#a3aaa5", "#c7754a"]
-    labels = ["Rowwise", "Atomic", "Hierarchical"]
-    vals = [
-        segments["contexts"]["32768"]["converter." + name]["pooled_median_us"]
-        for name in ["row_stable", "pinned_atomic", "hierarchical_stable"]
-    ]
-    ax.barh([2, 1, 0], vals, color=colors, height=0.38, zorder=3)
-    ax.set_yticks([2, 1, 0], labels)
-    ax.tick_params(axis="y", length=0, pad=10)
-    ax.set_xlim(0, 285)
-    ax.set_xticks([0, 100, 200])
-    ax.grid(axis="x", color="#dadcd5", zorder=0)
-    for y, v in zip([2, 1, 0], vals, strict=True):
-        ax.text(v + 5, y, f"{v:.1f}", va="center", fontsize=10, weight="bold")
-    ax.set_xlabel("µs per converter segment at 32K", labelpad=12, fontsize=10)
-    fig.text(0.04, 0.705, "01  CONVERTER SEGMENT", fontsize=10, weight="bold")
-    fig.text(0.54, 0.705, "02  COMPLETE-STEP RATIO", fontsize=10, weight="bold")
-    rows = [
-        ("row_stable", 32768, "Rowwise · 32K", colors[0]),
-        ("hierarchical_stable", 32768, "Hier. · 32K", colors[2]),
-        ("row_stable", 65536, "Rowwise · 64K", colors[0]),
-        ("hierarchical_stable", 65536, "Hier. · 64K", colors[2]),
-    ]
-    for y, (arm, ctx, _label, color) in zip([3, 2, 1, 0], rows, strict=True):
-        c = analysis["contrasts"][f"{arm}_over_atomic.c{ctx}"]
-        ax2.errorbar(
-            c["point"],
-            y,
-            xerr=[[c["point"] - c["lo"]], [c["hi"] - c["point"]]],
-            fmt="o",
-            color=color,
-            markersize=6,
-            capsize=3,
-            lw=1.7,
-            zorder=3,
-        )
-    ax2.axvline(1.0, color="#676f6d", lw=1)
-    ax2.axvline(1.01, color="#b85b30", lw=1, ls=(0, (3, 3)))
-    ax2.set_yticks([3, 2, 1, 0], [r[2] for r in rows])
-    ax2.tick_params(axis="y", length=0, pad=9)
-    ax2.set_ylim(-0.55, 3.55)
-    ax2.set_xlim(0.993, 1.021)
-    ax2.set_xticks([1, 1.01, 1.02])
-    ax2.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: f"{x:.2f}"))
-    ax2.set_xlabel("Ratio to atomic · 98.75% intervals", labelpad=12, fontsize=10)
-    ax2.text(1.0105, 3.56, "1.01 margin", fontsize=9, color="#b85b30", va="bottom")
-    fig.text(0.04, 0.12, "38.3% lower rowwise segment time at 32K.", fontsize=11, weight="bold")
-    fig.text(0.54, 0.12, "Rowwise at 64K is about 1.4% slower.", fontsize=11, weight="bold")
-    fig.text(
-        0.04,
-        0.055,
-        "Source: evidence/05-full-decode-canary · Historical results; no new NVIDIA experiments for this update.",
-        fontsize=9,
-        color="#676f6d",
-    )
-    _save_svg(
-        fig,
-        "fig-cost.svg",
-        "Archived CUDA converter and complete-step measurements",
-        "At 32K, the complete 48-layer converter segment takes 119.996 microseconds "
-        "rowwise, 194.393 atomic, and 239.727 hierarchical. Whole-step ratios with "
-        "98.75 percent intervals show rowwise at 64K is 1.014006 times atomic, above "
-        "the prespecified 1.01 margin. All other contrasts meet the margin. "
-        "These are historical two-H100 results.",
+    ax.plot(metal, y, marker="o", markersize=6, color=ACCENT, zorder=3)
+    ax.annotate(
+        f"{cell['compiled_ratio']:.2f}×",
+        (native, y),
+        xytext=(label_offset, 0),
+        textcoords="offset points",
+        color=MUTED,
+        fontsize=13,
+        va="center",
     )
 
 
 def render_apple() -> None:
     record = ROOT / APPLE_RECORD
     data = json.loads((record / "summary.json").read_text())
+    consumer = json.loads((record / "consumer-summary.json").read_text())
     first_session = json.loads((record / data["sessions"][0]).read_text())
     metadata = first_session["metadata"]
     device = metadata["device"]["device_name"]
     mlx_version = metadata["versions"]["mlx"]
-    session_count = data["session_count"]
-    geometry_count = len(data["cells"])
     ratios = [cell["compiled_ratio"] for cell in data["cells"]]
-    ratio_range = f"{min(ratios):.2f}–{max(ratios):.2f}×"
-    widths = sorted({cell["geometry"]["width"] for cell in data["cells"]})
-    latencies = [
-        cell["median_us"][arm]
-        for cell in data["cells"]
-        for arm in ("mlx_compiled", "metal_compiled")
-    ]
-    padding = max((max(latencies) - min(latencies)) * 0.2, 1)
-    xlim = (min(latencies) - padding, max(latencies) + padding)
-    fig = plt.figure(figsize=(11.2, 5.6), dpi=100)
-    fig.text(
-        0.04,
-        0.93,
-        "APPLE SILICON · NATIVE LOCALIZATION",
-        fontsize=10,
-        color="#676f6d",
-        weight="bold",
-    )
-    fig.text(0.04, 0.86, f"{ratio_range} over compiled MLX.", fontsize=24, weight="bold")
-    fig.text(
-        0.04,
-        0.807,
-        f"{device} · MLX {mlx_version} · {session_count} process sessions · "
-        f"{geometry_count} geometries · both paths compiled",
-        fontsize=11,
-        color="#676f6d",
-    )
-    handles = [
-        Line2D([0], [0], marker="o", color="#9baba4", lw=0, markersize=7, label="MLX composition"),
-        Line2D([0], [0], marker="o", color="#286bb6", lw=0, markersize=7, label="Custom Metal"),
-    ]
+    fig = _figure(410)
+    ax = _axis(fig, [0.145, 0.16, 0.415, 0.65])
+    ax2 = _axis(fig, [0.735, 0.16, 0.235, 0.65])
+    fig.text(0.3525, 0.965, "(a) Index localization", fontsize=16, ha="center", va="top")
+    fig.text(0.8525, 0.965, "(b) Attention consumer", fontsize=16, ha="center", va="top")
     fig.legend(
-        handles=handles,
-        loc="upper left",
-        bbox_to_anchor=(0.028, 0.763),
-        ncol=2,
+        handles=[
+            Line2D(
+                [],
+                [],
+                marker="o",
+                markersize=6,
+                linestyle="none",
+                markerfacecolor="none",
+                markeredgecolor=NEUTRAL,
+                markeredgewidth=1.2,
+                label="Compiled MLX",
+            ),
+            Line2D(
+                [],
+                [],
+                marker="o",
+                markersize=6,
+                linestyle="none",
+                color=ACCENT,
+                label="Compiled Metal",
+            ),
+        ],
+        loc="upper center",
+        bbox_to_anchor=(0.565, 0.905),
+        ncols=2,
         frameon=False,
-        fontsize=10,
-        handletextpad=0.3,
-        columnspacing=1.6,
+        fontsize=13,
+        handletextpad=0.4,
+        columnspacing=1.4,
+        borderpad=0,
     )
-    column_width = 0.945 / len(widths)
-    for col, width in enumerate(widths):
-        ax = fig.add_axes([0.11 + column_width * col, 0.29, column_width - 0.09, 0.34])
-        ax.set_title(f"WIDTH {width:,}", fontsize=11, loc="left", pad=14, weight="bold")
-        cells = sorted(
-            (c for c in data["cells"] if c["geometry"]["width"] == width),
-            key=lambda c: c["geometry"]["batch"],
-        )
-        positions = list(reversed(range(len(cells))))
-        for y, c in zip(positions, cells, strict=True):
-            native = c["median_us"]["mlx_compiled"]
-            metal = c["median_us"]["metal_compiled"]
-            ax.plot([metal, native], [y, y], color="#c6cdc8", lw=3, zorder=1)
-            ax.scatter([native], [y], color="#9baba4", s=46, zorder=3)
-            ax.scatter([metal], [y], color="#286bb6", s=46, zorder=3)
-            ax.text(
-                (native + metal) / 2,
-                y + 0.19,
-                f"{c['compiled_ratio']:.2f}×",
-                ha="center",
-                fontsize=10,
-                weight="bold",
-            )
-        ax.set_yticks(positions, [f"Batch {c['geometry']['batch']}" for c in cells])
-        ax.tick_params(axis="y", length=0, pad=7)
-        ax.set_xlim(*xlim)
-        ax.set_ylim(-0.45, len(cells) - 0.45)
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
-        ax.grid(axis="x", color="#dadcd5", zorder=0)
-        ax.set_xlabel("µs per evaluated call", labelpad=10, fontsize=10)
-    fig.text(
-        0.04,
-        0.15,
-        "Lower latency is better. Ratio = MLX / Metal; dots are medians of "
-        f"{session_count} session medians.",
-        fontsize=10,
-        color="#676f6d",
+    cells = sorted(data["cells"], key=lambda c: (c["geometry"]["width"], c["geometry"]["batch"]))
+    positions = list(reversed(range(len(cells))))
+    for y, cell in zip(positions, cells, strict=True):
+        _dumbbell(ax, cell, y, label_offset=9)
+    ax.set_yticks(
+        positions, [f"{c['geometry']['batch']} × {c['geometry']['width']:,}" for c in cells]
     )
-    fig.text(
-        0.04,
-        0.102,
-        "Includes Python dispatch, output allocation, execution, and evaluation. Compilation warmup excluded.",
-        fontsize=10,
-        color="#676f6d",
+    ax.set_ylim(-0.6, len(cells) - 0.4)
+    ax.set_xlim(150, 218)
+    ax.set_xticks([150, 160, 170, 180, 190, 200, 210])
+    ax.set_xlabel("Latency (µs; lower is better)", labelpad=10, fontsize=14)
+    ax.set_ylabel("Batch × selection width", labelpad=16, fontsize=14)
+    consumer_cells = consumer["cells"]
+    consumer_positions = list(reversed(range(len(consumer_cells))))
+    for y, cell in zip(consumer_positions, consumer_cells, strict=True):
+        _dumbbell(ax2, cell, y, label_offset=9)
+    ax2.set_yticks(
+        consumer_positions,
+        [f"{c['geometry']['batch']} × {c['geometry']['width']:,}" for c in consumer_cells],
     )
-    fig.text(
-        0.04,
-        0.054,
-        f"Source: {APPLE_RECORD.as_posix()} · Descriptive microbenchmark; "
-        "no confidence interval or model-throughput claim.",
-        fontsize=9,
-        color="#676f6d",
-    )
+    ax2.set_ylim(-0.5, len(consumer_cells) - 0.5)
+    ax2.set_xlim(240, 410)
+    ax2.set_xticks([240, 280, 320, 360, 400])
+    ax2.set_xlabel("Latency (µs; lower is better)", labelpad=10, fontsize=14)
     _save_svg(
         fig,
         "fig-apple-performance.svg",
-        f"{device} localization benchmark",
-        f"Compiled custom Metal achieves a {min(ratios):.2f} to {max(ratios):.2f} "
-        "times speedup relative to compiled compositional MLX across all "
-        f"{geometry_count} measured geometries on {device} with MLX {mlx_version}. "
-        f"Widths: {', '.join(map(str, widths))}. Latencies include "
-        "Python dispatch, output allocation, execution, and synchronization. "
-        f"{session_count} process sessions; primitive microbenchmark, not model performance.",
+        f"{device} compiled localization and selected-attention measurements",
+        f"Panel (a): compiled custom Metal is {min(ratios):.2f} to {max(ratios):.2f} times faster than compiled MLX "
+        f"across {len(data['cells'])} geometries on {device} with MLX {mlx_version}. Geometry labels are batch × selection width. "
+        "Open neutral circles denote MLX and blue circles denote Metal; annotations give the MLX / Metal speedup. "
+        "The localization point-plot axis spans 150 to 218 microseconds. Panel (b) uses a separate 240 to 410 microsecond axis: "
+        "the complete selected-attention consumer speedup is 1.12 times at batch 1 / width 128 and batch 8 / width 2048. "
+        "Points are medians of three process-session medians. Both paths are compiled; timings include dispatch, allocation, "
+        "execution and synchronization, excluding warmup. Consumer page tables and caches are static, with two logical shards "
+        "on one device. Descriptive measurements with no confidence interval; not full-model or distributed performance. "
+        f"Source: {APPLE_RECORD.as_posix()}/summary.json and consumer-summary.json.",
+    )
+
+
+def render_cuda() -> None:
+    segments = json.loads((ROOT / "evidence/05-full-decode-canary/segments.json").read_text())
+    analysis = json.loads((ROOT / "evidence/05-full-decode-canary/analysis.json").read_text())
+    fig = _figure(370)
+    ax = _axis(fig, [0.135, 0.19, 0.32, 0.66])
+    ax2 = _axis(fig, [0.675, 0.19, 0.295, 0.66])
+    fig.text(0.295, 0.965, "(a) Converter · 32K context", fontsize=16, ha="center", va="top")
+    fig.text(0.8225, 0.965, "(b) Complete decode vs atomic", fontsize=16, ha="center", va="top")
+    arms = [
+        ("row_stable", "Rowwise", ACCENT, "o"),
+        ("pinned_atomic", "Atomic", NEUTRAL, "s"),
+        ("hierarchical_stable", "Hierarchical", NEUTRAL, "D"),
+    ]
+    for y, (arm, _label, color, marker) in zip([2, 1, 0], arms, strict=True):
+        value = segments["contexts"]["32768"][f"converter.{arm}"]["pooled_median_us"]
+        ax.plot([0, value], [y, y], color=color, linewidth=1.6, zorder=2)
+        ax.plot(
+            value,
+            y,
+            marker=marker,
+            markersize=6,
+            color=color,
+            markerfacecolor="none" if arm == "hierarchical_stable" else color,
+            markeredgewidth=1.2,
+            zorder=3,
+        )
+        ax.annotate(
+            f"{value:.1f}",
+            (value, y),
+            xytext=(8, 0),
+            textcoords="offset points",
+            va="center",
+            fontsize=13,
+            color=INK,
+        )
+    ax.set_yticks([2, 1, 0], [arm[1] for arm in arms])
+    ax.set_ylim(-0.5, 2.5)
+    ax.set_xlim(0, 275)
+    ax.set_xticks([0, 50, 100, 150, 200, 250])
+    ax.set_xlabel("Converter segment latency (µs)", labelpad=10, fontsize=14)
+    rows = [
+        ("row_stable", 32768, "Rowwise"),
+        ("hierarchical_stable", 32768, "Hierarchical"),
+        ("row_stable", 65536, "Rowwise"),
+        ("hierarchical_stable", 65536, "Hierarchical"),
+    ]
+    margin = analysis["tier1_margin"]
+    for y, (arm, ctx, _label) in zip([3, 2, 1, 0], rows, strict=True):
+        contrast = analysis["contrasts"][f"{arm}_over_atomic.c{ctx}"]
+        color = ADVERSE if contrast["hi"] > margin else ACCENT if arm == "row_stable" else NEUTRAL
+        ax2.errorbar(
+            contrast["point"],
+            y,
+            xerr=[[contrast["point"] - contrast["lo"]], [contrast["hi"] - contrast["point"]]],
+            color=color,
+            marker="o" if arm == "row_stable" else "D",
+            markersize=6,
+            markerfacecolor=color if arm == "row_stable" else "none",
+            markeredgewidth=1.2,
+            linestyle="none",
+            elinewidth=1.2,
+            capsize=3,
+            capthick=1,
+            zorder=3,
+        )
+    ax2.axvline(1.0, color=NEUTRAL, linewidth=0.9)
+    ax2.axvline(margin, color=NEUTRAL, linewidth=0.9, linestyle=(0, (3, 3)))
+    ax2.text(
+        margin,
+        1.015,
+        f"{margin:.2f} margin",
+        transform=ax2.get_xaxis_transform(),
+        color=MUTED,
+        fontsize=12,
+        ha="center",
+        va="bottom",
+    )
+    ax2.set_yticks([3, 2, 1, 0], [f"{r[1] // 1024}K · {r[2]}" for r in rows])
+    ax2.set_ylim(-0.5, 3.5)
+    ax2.set_xlim(0.993, 1.022)
+    ax2.set_xticks([0.995, 1.000, 1.005, 1.010, 1.015, 1.020])
+    ax2.xaxis.set_major_formatter(FormatStrFormatter("%.3f"))
+    ax2.set_xlabel("Complete-step latency ratio", labelpad=10, fontsize=14)
+    _save_svg(
+        fig,
+        "fig-cost.svg",
+        "Archived CUDA converter latency and complete decode cost",
+        "Panel (a): at 32K, the 48-layer converter segment takes 119.996 microseconds rowwise, 194.393 atomic, "
+        "and 239.727 hierarchical; rowwise is 38.3 percent lower than atomic. Lollipop segments use a zero baseline; "
+        "visible labels round to one decimal place. Panel (b): complete-step ratio estimates and 98.75 percent intervals "
+        "are shown against atomic on a 0.993 to 1.022 axis. Solid vertical line: equal latency; dashed line: prespecified 1.01 margin. "
+        "Rust marks rowwise at 64K, which is 1.014006 times atomic and whose interval exceeds the margin. "
+        "All other contrasts meet the margin. Lower latency or ratio is better. Five sessions; panel (a) uses pooled segment medians, "
+        "and panel (b) uses session-level complete-step estimates. These are historical two-H100 live-DCP-2 reference-executor results, "
+        "not serving-runtime performance. No NVIDIA experiments were run for this update. "
+        "Source: evidence/05-full-decode-canary/segments.json and analysis.json.",
     )
 
 
