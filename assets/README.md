@@ -1,7 +1,7 @@
 # Technical figures
 
-The six `fig-*.svg` assets are generated, accessible vector figures. Edit their
-sources and regenerate them; do not edit exported SVGs by hand.
+The six figure families have generated, accessible SVGs for wide and narrow
+pages. Edit their sources and regenerate them; do not edit exports by hand.
 
 ```bash
 python -m pip install -e ".[docs]"
@@ -9,8 +9,9 @@ python tools/render_diagrams.py
 python tools/render_figures.py
 ```
 
-Run these commands from the repository root. They check the worked localization
-outputs against the Python oracle and read existing performance artifacts.
+Run these commands from the repository root. They generate both layouts, check
+worked localization outputs against the Python oracle, and read existing
+performance artifacts.
 They do not run hardware experiments.
 
 | Figure | Source | Content |
@@ -25,19 +26,29 @@ They do not run hardware experiments.
 ## Shared style
 
 [`tools/figure_style.py`](../tools/figure_style.py) defines the font, two text
-sizes, and light/dark palettes. Every figure uses a 1120-unit canvas, 18-unit
+sizes, and light/dark palettes. Wide figures use a 1120-unit canvas, 18-unit
 labels, and 20-unit panel headings. At an 840-pixel README width these display
 at 13.5 and 15 pixels. Only panel letters and selected output values are bold.
 Mathematical subscripts use 75% of the label size and remain attached to their
 parent expressions. Put explanations and measurement scope in the adjacent
 Markdown caption, keeping labels aligned to rows, axes, or objects.
 
-Brackets denote vectors, fine outlines denote operations, and indexed matrix
-rows denote K/V feature vectors. Filled and open bit marks reinforce numeric
+Brackets denote vectors, highlighted cells identify surviving values, fine
+outlines denote operations, and indexed matrix rows denote K/V feature vectors.
+Filled and open bit marks reinforce numeric
 validity. In the consumer figure, solid paths carry values and dashed paths
-carry the mask; junction dots distinguish connected branches from crossings. Color follows
-survivor identity, with short underlines emphasizing selected outputs. Keep the
-canvas transparent and use subtle tints only inside selected memory rows.
+carry the mask; junction dots distinguish connected branches from crossings.
+Color follows survivor identity, with short underlines emphasizing selected
+outputs. Keep the canvas transparent and use subtle tints only inside selected
+tensor cells and memory rows.
+
+README and guide embeds use `<picture>` to select `*-narrow.svg` below a
+768-pixel viewport width. Narrow canvases are 400 or 420 units wide; at a
+325-pixel content width, their main labels remain approximately 14–15 pixels.
+Panels stack vertically, the coordinate table transposes, and the replay
+diagram uses tile glyphs. These are alternate layouts of the same examples and
+measurements, with the same panel letters, scales, and captions. The consumer
+figure is embedded directly in the README under **From slots to attention**.
 
 In latency charts, blue denotes the highlighted implementation and gray the
 comparison. Bar axes start at zero; the three Apple localization panels share
@@ -45,8 +56,8 @@ one scale. The consumer uses a separate scale, and the complete-decode ratio
 chart retains its historical confidence intervals. Styling must never alter
 the recorded measurements or their interpretation.
 
-After regeneration, inspect all figures at README width in both light and dark
-themes. Check connectors as well as text: a line must not cross a label, and
+After regeneration, inspect all figures at desktop and 325-pixel content widths
+in both light and dark themes. Check connectors as well as text: a line must not cross a label, and
 crossing routes must remain distinguishable. Confirm that captions still match
 panel lettering, units, scales, and source evidence.
 

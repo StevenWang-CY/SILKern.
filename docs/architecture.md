@@ -6,7 +6,10 @@ SILKern localizes indices at the boundary between a sparse selector and a paged
 attention consumer. Its architecture keeps the mathematical contract independent
 of the execution framework, and keeps each backend's memory model explicit.
 
-![Three-panel worked example showing rank ownership, page-table translation, and stable prefix compaction](../assets/fig-platforms.svg)
+<picture>
+  <source media="(max-width: 767px)" srcset="../assets/fig-platforms-narrow.svg">
+  <img src="../assets/fig-platforms.svg" width="100%" alt="Three-panel worked example showing rank ownership, page-table translation, and stable prefix compaction">
+</picture>
 
 **Figure 1. From global positions to stable cache addresses.** (a) Rank 0 keeps tokens 8, 130, and 262 and deinterleaves them to local positions 4, 65, and 131. (b) The page table translates these to physical slots 708, 129, and 451. (c) Prefix destinations 0, 1, and 2 preserve selector order; the remaining columns are padding and the count is 3. Only valid destinations are shown. Color tracks each survivor. This worked row uses two ranks, interleave 1, page size 64, and request 0; all retained mappings are in range. K/V gathering remains a consumer operation.
 

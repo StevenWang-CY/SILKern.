@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="864" viewBox="0 0 400 864" role="img" aria-labelledby="title desc">
+<title id="title">Completion-order reservation versus stable prefixes, narrow layout</title>
+<desc id="desc">Each two-cell glyph represents an ordered pair: T0=[704,705], T1=[132,133], T2=[448,896], T3=[897,260]. Three atomic replays permute these tile groups, whereas stable prefixes always preserve T0,T1,T2,T3. These are schematic replays, not new GPU measurements.</desc>
+<style>svg{--ink:#242424;--muted:#636363;--line:#777777;--rule:#d8d8d8;--paper:#ffffff;--comparison:#b9bec3;--blue:#355e8a;--blue-wash:#e8f0f8;--teal:#47786d;--teal-wash:#e7f2ef;--copper:#9d6444;--copper-wash:#f7eddf;--violet:#786791;--violet-wash:#eeebf5}@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--comparison:#778696;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}}text{font-family:'Arial','DejaVu Sans',sans-serif;font-size:18px;font-variant-numeric:tabular-nums;fill:var(--ink)}.heading{font-size:20px;font-weight:400}.panel,.key{font-weight:700}.subhead{font-weight:400}.math{font-style:italic}.muted{fill:var(--muted)}.data{font-weight:400}.emphasis{font-weight:700}
+.rule{fill:none;stroke:var(--rule);stroke-width:1}
+.edge{fill:none;stroke:var(--line);stroke-width:1.1;stroke-linejoin:round;stroke-linecap:round}
+.outline{fill:var(--paper);stroke:var(--ink);stroke-width:1.05}
+.tensor-bracket{fill:none;stroke:var(--line);stroke-width:1.1}
+.control{fill:none;stroke:var(--line);stroke-width:1.1;stroke-dasharray:3 3}
+.junction{fill:var(--line);stroke:none}
+.memory{fill:var(--paper);stroke:var(--line);stroke-width:1}
+.memory-active{fill:var(--wash);stroke:var(--color);stroke-width:1}
+.tensor-cell{fill:var(--wash);stroke:var(--color);stroke-width:1}
+.mask-bit{fill:var(--color);stroke:none}
+.mask-zero{fill:none;stroke:var(--rule);stroke-width:1}
+.math-index{font-size:75%}
+.array-divider{fill:none;stroke:var(--rule);stroke-width:.8}
+.route-cutout{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round}
+.blue{--color:var(--blue);--wash:var(--blue-wash)}
+.teal{--color:var(--teal);--wash:var(--teal-wash)}
+.copper{--color:var(--copper);--wash:var(--copper-wash)}
+.violet{--color:var(--violet);--wash:var(--violet-wash)}
+.colored{fill:var(--color)}
+.trace{fill:none;stroke:var(--color);stroke-width:1.3;stroke-linecap:round}
+</style>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
+<text x="24" y="36" class="heading" text-anchor="start"><tspan class="panel">a</tspan><tspan dx="12">Atomic reservation</tspan></text>
+<text x="24" y="112" class="" text-anchor="start">Input</text>
+<text x="148" y="106" class="blue colored" text-anchor="middle">T0</text>
+<rect x="130" y="117" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<rect x="148" y="117" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<text x="210" y="106" class="teal colored" text-anchor="middle">T1</text>
+<rect x="192" y="117" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<rect x="210" y="117" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<text x="272" y="106" class="copper colored" text-anchor="middle">T2</text>
+<rect x="254" y="117" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<rect x="272" y="117" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<text x="334" y="106" class="violet colored" text-anchor="middle">T3</text>
+<rect x="316" y="117" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<rect x="334" y="117" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<text x="24" y="240" class="" text-anchor="start">Replay 1</text>
+<text x="148" y="234" class="teal colored" text-anchor="middle">T1</text>
+<rect x="130" y="245" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<rect x="148" y="245" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<text x="210" y="234" class="blue colored" text-anchor="middle">T0</text>
+<rect x="192" y="245" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<rect x="210" y="245" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<text x="272" y="234" class="violet colored" text-anchor="middle">T3</text>
+<rect x="254" y="245" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<rect x="272" y="245" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<text x="334" y="234" class="copper colored" text-anchor="middle">T2</text>
+<rect x="316" y="245" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<rect x="334" y="245" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<text x="24" y="308" class="" text-anchor="start">Replay 2</text>
+<text x="148" y="302" class="blue colored" text-anchor="middle">T0</text>
+<rect x="130" y="313" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<rect x="148" y="313" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<text x="210" y="302" class="copper colored" text-anchor="middle">T2</text>
+<rect x="192" y="313" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<rect x="210" y="313" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<text x="272" y="302" class="teal colored" text-anchor="middle">T1</text>
+<rect x="254" y="313" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<rect x="272" y="313" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<text x="334" y="302" class="violet colored" text-anchor="middle">T3</text>
+<rect x="316" y="313" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<rect x="334" y="313" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<text x="24" y="376" class="" text-anchor="start">Replay 3</text>
+<text x="148" y="370" class="copper colored" text-anchor="middle">T2</text>
+<rect x="130" y="381" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<rect x="148" y="381" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<text x="210" y="370" class="violet colored" text-anchor="middle">T3</text>
+<rect x="192" y="381" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<rect x="210" y="381" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<text x="272" y="370" class="blue colored" text-anchor="middle">T0</text>
+<rect x="254" y="381" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<rect x="272" y="381" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<text x="334" y="370" class="teal colored" text-anchor="middle">T1</text>
+<rect x="316" y="381" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<rect x="334" y="381" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<path d="M148 137C148 175 210 171 210 210" class="route-cutout"/>
+<path d="M148 137C148 175 210 171 210 210" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M210 137C210 175 148 171 148 210" class="route-cutout"/>
+<path d="M210 137C210 175 148 171 148 210" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M272 137C272 175 334 171 334 210" class="route-cutout"/>
+<path d="M272 137C272 175 334 171 334 210" class="copper trace" marker-end="url(#arrow)"/>
+<path d="M334 137C334 175 272 171 272 210" class="route-cutout"/>
+<path d="M334 137C334 175 272 171 272 210" class="violet trace" marker-end="url(#arrow)"/>
+<text x="24" y="468" class="heading" text-anchor="start"><tspan class="panel">b</tspan><tspan dx="12">Stable prefix destinations</tspan></text>
+<text x="24" y="544" class="" text-anchor="start">Input</text>
+<text x="148" y="538" class="blue colored" text-anchor="middle">T0</text>
+<rect x="130" y="549" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<rect x="148" y="549" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<text x="210" y="538" class="teal colored" text-anchor="middle">T1</text>
+<rect x="192" y="549" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<rect x="210" y="549" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<text x="272" y="538" class="copper colored" text-anchor="middle">T2</text>
+<rect x="254" y="549" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<rect x="272" y="549" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<text x="334" y="538" class="violet colored" text-anchor="middle">T3</text>
+<rect x="316" y="549" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<rect x="334" y="549" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<text x="24" y="672" class="" text-anchor="start">Replay 1</text>
+<text x="148" y="666" class="blue colored" text-anchor="middle">T0</text>
+<rect x="130" y="677" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<rect x="148" y="677" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<text x="210" y="666" class="teal colored" text-anchor="middle">T1</text>
+<rect x="192" y="677" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<rect x="210" y="677" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<text x="272" y="666" class="copper colored" text-anchor="middle">T2</text>
+<rect x="254" y="677" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<rect x="272" y="677" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<text x="334" y="666" class="violet colored" text-anchor="middle">T3</text>
+<rect x="316" y="677" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<rect x="334" y="677" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<text x="24" y="740" class="" text-anchor="start">Replay 2</text>
+<text x="148" y="734" class="blue colored" text-anchor="middle">T0</text>
+<rect x="130" y="745" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<rect x="148" y="745" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<text x="210" y="734" class="teal colored" text-anchor="middle">T1</text>
+<rect x="192" y="745" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<rect x="210" y="745" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<text x="272" y="734" class="copper colored" text-anchor="middle">T2</text>
+<rect x="254" y="745" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<rect x="272" y="745" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<text x="334" y="734" class="violet colored" text-anchor="middle">T3</text>
+<rect x="316" y="745" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<rect x="334" y="745" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<text x="24" y="808" class="" text-anchor="start">Replay 3</text>
+<text x="148" y="802" class="blue colored" text-anchor="middle">T0</text>
+<rect x="130" y="813" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<rect x="148" y="813" width="17" height="9" rx="1" class="blue tensor-cell"/>
+<text x="210" y="802" class="teal colored" text-anchor="middle">T1</text>
+<rect x="192" y="813" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<rect x="210" y="813" width="17" height="9" rx="1" class="teal tensor-cell"/>
+<text x="272" y="802" class="copper colored" text-anchor="middle">T2</text>
+<rect x="254" y="813" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<rect x="272" y="813" width="17" height="9" rx="1" class="copper tensor-cell"/>
+<text x="334" y="802" class="violet colored" text-anchor="middle">T3</text>
+<rect x="316" y="813" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<rect x="334" y="813" width="17" height="9" rx="1" class="violet tensor-cell"/>
+<path d="M148 569C148 607 148 603 148 642" class="route-cutout"/>
+<path d="M148 569C148 607 148 603 148 642" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M210 569C210 607 210 603 210 642" class="route-cutout"/>
+<path d="M210 569C210 607 210 603 210 642" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M272 569C272 607 272 603 272 642" class="route-cutout"/>
+<path d="M272 569C272 607 272 603 272 642" class="copper trace" marker-end="url(#arrow)"/>
+<path d="M334 569C334 607 334 603 334 642" class="route-cutout"/>
+<path d="M334 569C334 607 334 603 334 642" class="violet trace" marker-end="url(#arrow)"/>
+<path d="M24 416H376" class="rule"/>
+</svg>

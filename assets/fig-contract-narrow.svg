@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="880" viewBox="0 0 400 880" role="img" aria-labelledby="title desc">
+<title id="title">Coordinate translation and output layouts, narrow layout</title>
+<desc id="desc">The same six input columns as the wide figure are shown as table rows: tokens 8,5,130,7,-1,262 have owners 0,1,0,1,invalid,0. Owned tokens map to local positions 4,65,131, page-offset pairs (0,4),(1,1),(2,3), and physical slots 708,129,451. Equations and both output layouts are unchanged.</desc>
+<style>svg{--ink:#242424;--muted:#636363;--line:#777777;--rule:#d8d8d8;--paper:#ffffff;--comparison:#b9bec3;--blue:#355e8a;--blue-wash:#e8f0f8;--teal:#47786d;--teal-wash:#e7f2ef;--copper:#9d6444;--copper-wash:#f7eddf;--violet:#786791;--violet-wash:#eeebf5}@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--comparison:#778696;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}}text{font-family:'Arial','DejaVu Sans',sans-serif;font-size:18px;font-variant-numeric:tabular-nums;fill:var(--ink)}.heading{font-size:20px;font-weight:400}.panel,.key{font-weight:700}.subhead{font-weight:400}.math{font-style:italic}.muted{fill:var(--muted)}.data{font-weight:400}.emphasis{font-weight:700}
+.rule{fill:none;stroke:var(--rule);stroke-width:1}
+.edge{fill:none;stroke:var(--line);stroke-width:1.1;stroke-linejoin:round;stroke-linecap:round}
+.outline{fill:var(--paper);stroke:var(--ink);stroke-width:1.05}
+.tensor-bracket{fill:none;stroke:var(--line);stroke-width:1.1}
+.control{fill:none;stroke:var(--line);stroke-width:1.1;stroke-dasharray:3 3}
+.junction{fill:var(--line);stroke:none}
+.memory{fill:var(--paper);stroke:var(--line);stroke-width:1}
+.memory-active{fill:var(--wash);stroke:var(--color);stroke-width:1}
+.tensor-cell{fill:var(--wash);stroke:var(--color);stroke-width:1}
+.mask-bit{fill:var(--color);stroke:none}
+.mask-zero{fill:none;stroke:var(--rule);stroke-width:1}
+.math-index{font-size:75%}
+.array-divider{fill:none;stroke:var(--rule);stroke-width:.8}
+.route-cutout{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round}
+.blue{--color:var(--blue);--wash:var(--blue-wash)}
+.teal{--color:var(--teal);--wash:var(--teal-wash)}
+.copper{--color:var(--copper);--wash:var(--copper-wash)}
+.violet{--color:var(--violet);--wash:var(--violet-wash)}
+.colored{fill:var(--color)}
+.trace{fill:none;stroke:var(--color);stroke-width:1.3;stroke-linecap:round}
+</style>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
+<text x="24" y="36" class="heading" text-anchor="start"><tspan class="panel">a</tspan><tspan dx="12">Coordinate translation</tspan></text>
+<text x="44" y="91" class="" text-anchor="middle">t</text>
+<text x="110" y="91" class="" text-anchor="middle">Owner</text>
+<text x="172" y="91" class="" text-anchor="middle">ℓ</text>
+<text x="242" y="91" class="" text-anchor="middle">(b, δ)</text>
+<text x="330" y="91" class="" text-anchor="middle">a</text>
+<path d="M24 104H374" class="rule"/>
+<text x="44" y="140" class="blue colored" text-anchor="middle">8</text>
+<text x="110" y="140" class="blue colored" text-anchor="middle">0</text>
+<text x="172" y="140" class="blue colored" text-anchor="middle">4</text>
+<text x="242" y="140" class="blue colored" text-anchor="middle">(0, 4)</text>
+<text x="330" y="140" class="blue colored" text-anchor="middle">708</text>
+<path d="M24 154H374" class="rule"/>
+<text x="44" y="186" class="muted" text-anchor="middle">5</text>
+<text x="110" y="186" class="muted" text-anchor="middle">1</text>
+<text x="172" y="186" class="muted" text-anchor="middle">—</text>
+<text x="242" y="186" class="muted" text-anchor="middle">—</text>
+<text x="330" y="186" class="muted" text-anchor="middle">—</text>
+<path d="M24 200H374" class="rule"/>
+<text x="44" y="232" class="teal colored" text-anchor="middle">130</text>
+<text x="110" y="232" class="teal colored" text-anchor="middle">0</text>
+<text x="172" y="232" class="teal colored" text-anchor="middle">65</text>
+<text x="242" y="232" class="teal colored" text-anchor="middle">(1, 1)</text>
+<text x="330" y="232" class="teal colored" text-anchor="middle">129</text>
+<path d="M24 246H374" class="rule"/>
+<text x="44" y="278" class="muted" text-anchor="middle">7</text>
+<text x="110" y="278" class="muted" text-anchor="middle">1</text>
+<text x="172" y="278" class="muted" text-anchor="middle">—</text>
+<text x="242" y="278" class="muted" text-anchor="middle">—</text>
+<text x="330" y="278" class="muted" text-anchor="middle">—</text>
+<path d="M24 292H374" class="rule"/>
+<text x="44" y="324" class="muted" text-anchor="middle">−1</text>
+<text x="110" y="324" class="muted" text-anchor="middle">—</text>
+<text x="172" y="324" class="muted" text-anchor="middle">—</text>
+<text x="242" y="324" class="muted" text-anchor="middle">—</text>
+<text x="330" y="324" class="muted" text-anchor="middle">—</text>
+<path d="M24 338H374" class="rule"/>
+<text x="44" y="370" class="copper colored" text-anchor="middle">262</text>
+<text x="110" y="370" class="copper colored" text-anchor="middle">0</text>
+<text x="172" y="370" class="copper colored" text-anchor="middle">131</text>
+<text x="242" y="370" class="copper colored" text-anchor="middle">(2, 3)</text>
+<text x="330" y="370" class="copper colored" text-anchor="middle">451</text>
+<path d="M24 384H374" class="rule"/>
+<text x="24" y="439" class="heading" text-anchor="start"><tspan class="panel">b</tspan><tspan dx="12">Equations and layouts</tspan></text>
+<text x="24" y="490" class="" text-anchor="start">owner = ⌊t / I⌋ mod D</text>
+<text x="24" y="528" class="" text-anchor="start">ℓ = ⌊t / (D I)⌋ I + t mod I</text>
+<text x="24" y="566" class="" text-anchor="start">(b, δ) = divmod(ℓ, S)</text>
+<text x="24" y="604" class="" text-anchor="start">a = P[request, b] S + δ</text>
+<path d="M24 634H374" class="rule"/>
+<text x="24" y="681" class="" text-anchor="start">Front compaction · count = 3</text>
+<path d="M30 698H24V738H30M368.0 698H374.0V738H368.0" class="tensor-bracket"/>
+<rect x="29.0" y="701" width="48.333333333333336" height="34" rx="3" class="blue tensor-cell"/>
+<text x="53.16666666666667" y="724.0" class="data blue colored" text-anchor="middle">708</text>
+<rect x="87.33333333333334" y="701" width="48.333333333333336" height="34" rx="3" class="teal tensor-cell"/>
+<text x="111.5" y="724.0" class="data teal colored" text-anchor="middle">129</text>
+<rect x="145.66666666666669" y="701" width="48.333333333333336" height="34" rx="3" class="copper tensor-cell"/>
+<text x="169.83333333333334" y="724.0" class="data copper colored" text-anchor="middle">451</text>
+<text x="228.16666666666669" y="724.0" class="data muted" text-anchor="middle">−1</text>
+<text x="286.5" y="724.0" class="data muted" text-anchor="middle">−1</text>
+<text x="344.83333333333337" y="724.0" class="data muted" text-anchor="middle">−1</text>
+<text x="24" y="802" class="" text-anchor="start">Preserve columns · count = 3</text>
+<path d="M30 819H24V859H30M368.0 819H374.0V859H368.0" class="tensor-bracket"/>
+<rect x="29.0" y="822" width="48.333333333333336" height="34" rx="3" class="blue tensor-cell"/>
+<text x="53.16666666666667" y="845.0" class="data blue colored" text-anchor="middle">708</text>
+<text x="111.5" y="845.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="145.66666666666669" y="822" width="48.333333333333336" height="34" rx="3" class="teal tensor-cell"/>
+<text x="169.83333333333334" y="845.0" class="data teal colored" text-anchor="middle">129</text>
+<text x="228.16666666666669" y="845.0" class="data muted" text-anchor="middle">−1</text>
+<text x="286.5" y="845.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="320.6666666666667" y="822" width="48.333333333333336" height="34" rx="3" class="copper tensor-cell"/>
+<text x="344.83333333333337" y="845.0" class="data copper colored" text-anchor="middle">451</text>
+</svg>

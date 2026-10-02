@@ -32,7 +32,10 @@ serves as the specification beyond that accelerator storage limit.
 
 ## Five stages, one stable result
 
-![Worked localization coordinates and compacted versus column-preserving output layouts](../assets/fig-contract.svg)
+<picture>
+  <source media="(max-width: 767px)" srcset="../assets/fig-contract-narrow.svg">
+  <img src="../assets/fig-contract.svg" width="100%" alt="Worked localization coordinates and compacted versus column-preserving output layouts">
+</picture>
 
 **Figure 2. A worked localization row.** (a) Columns 0, 2, and 5 survive ownership filtering and become physical slots 708, 129, and 451. The example uses rank 0, two ranks (`D = 2`), interleave `I = 1`, page size `S = 64`, and request-0 page table `[11, 2, 7, 5]`. (b) The equations apply to nonnegative tokens; the table is read only for an owned, in-range mapping. Both layouts have count 3, but only front compaction has a valid three-element prefix.
 

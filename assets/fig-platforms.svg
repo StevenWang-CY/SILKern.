@@ -10,6 +10,7 @@
 .junction{fill:var(--line);stroke:none}
 .memory{fill:var(--paper);stroke:var(--line);stroke-width:1}
 .memory-active{fill:var(--wash);stroke:var(--color);stroke-width:1}
+.tensor-cell{fill:var(--wash);stroke:var(--color);stroke-width:1}
 .mask-bit{fill:var(--color);stroke:none}
 .mask-zero{fill:none;stroke:var(--rule);stroke-width:1}
 .math-index{font-size:75%}
@@ -23,27 +24,33 @@
 .trace{fill:none;stroke:var(--color);stroke-width:1.3;stroke-linecap:round}
 </style>
 <defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
-<path d="M351 16V524M736 16V430M736 482V524" class="rule"/>
+<path d="M351 16V524M736 16V430M736 482V524" class="rule wide-only"/>
 <text x="24" y="36" class="heading" text-anchor="start"><tspan class="panel">a</tspan><tspan dx="12">Ownership and coordinates</tspan></text>
 <text x="375" y="36" class="heading" text-anchor="start"><tspan class="panel">b</tspan><tspan dx="12">Paged addresses</tspan></text>
 <text x="760" y="36" class="heading" text-anchor="start"><tspan class="panel">c</tspan><tspan dx="12">Stable compaction</tspan></text>
 <text x="24" y="84" class="" text-anchor="start">Global positions</text>
 <text x="24" y="130" class="math" text-anchor="start">t</text>
 <path d="M91 104H85V144H91M322.0 104H328.0V144H322.0" class="tensor-bracket"/>
+<rect x="90.0" y="107" width="30.5" height="34" rx="3" class="blue tensor-cell"/>
 <text x="105.25" y="130.0" class="data blue colored" text-anchor="middle">8</text>
 <text x="145.75" y="130.0" class="data muted" text-anchor="middle">5</text>
+<rect x="171.0" y="107" width="30.5" height="34" rx="3" class="teal tensor-cell"/>
 <text x="186.25" y="130.0" class="data teal colored" text-anchor="middle">130</text>
 <text x="226.75" y="130.0" class="data muted" text-anchor="middle">7</text>
 <text x="267.25" y="130.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="292.5" y="107" width="30.5" height="34" rx="3" class="copper tensor-cell"/>
 <text x="307.75" y="130.0" class="data copper colored" text-anchor="middle">262</text>
 <path d="M334 124H341V407H333" class="edge" marker-end="url(#arrow)"/>
 <text x="24" y="218" class="" text-anchor="start">Owner</text>
 <path d="M91 192H85V232H91M322.0 192H328.0V232H322.0" class="tensor-bracket"/>
+<rect x="90.0" y="195" width="30.5" height="34" rx="3" class="blue tensor-cell"/>
 <text x="105.25" y="218.0" class="data blue colored" text-anchor="middle">0</text>
 <text x="145.75" y="218.0" class="data muted" text-anchor="middle">1</text>
+<rect x="171.0" y="195" width="30.5" height="34" rx="3" class="teal tensor-cell"/>
 <text x="186.25" y="218.0" class="data teal colored" text-anchor="middle">0</text>
 <text x="226.75" y="218.0" class="data muted" text-anchor="middle">1</text>
 <text x="267.25" y="218.0" class="data muted" text-anchor="middle">—</text>
+<rect x="292.5" y="195" width="30.5" height="34" rx="3" class="copper tensor-cell"/>
 <text x="307.75" y="218.0" class="data copper colored" text-anchor="middle">0</text>
 <path d="M105.25 150V186" class="blue trace" marker-end="url(#arrow)"/>
 <path d="M145.75 150V186" class="edge" marker-end="url(#arrow)"/>
@@ -73,23 +80,32 @@
 <path d="M193 429V442" class="edge" marker-end="url(#arrow)"/>
 <text x="24" y="474" class="math" text-anchor="start">ℓ</text>
 <path d="M91 448H85V488H91M322.0 448H328.0V488H322.0" class="tensor-bracket"/>
+<rect x="90.0" y="451" width="30.5" height="34" rx="3" class="blue tensor-cell"/>
 <text x="105.25" y="474.0" class="data blue colored" text-anchor="middle">4</text>
 <text x="145.75" y="474.0" class="data muted" text-anchor="middle">—</text>
+<rect x="171.0" y="451" width="30.5" height="34" rx="3" class="teal tensor-cell"/>
 <text x="186.25" y="474.0" class="data teal colored" text-anchor="middle">65</text>
 <text x="226.75" y="474.0" class="data muted" text-anchor="middle">—</text>
 <text x="267.25" y="474.0" class="data muted" text-anchor="middle">—</text>
+<rect x="292.5" y="451" width="30.5" height="34" rx="3" class="copper tensor-cell"/>
 <text x="307.75" y="474.0" class="data copper colored" text-anchor="middle">131</text>
 <text x="375" y="84" class="" text-anchor="start">Request page table</text>
 <text x="375" y="136" class="math" text-anchor="start">b</text>
 <path d="M430 110H424V150H430M678 110H684V150H678" class="tensor-bracket"/>
+<rect x="429" y="113" width="55" height="34" rx="3" class="blue tensor-cell"/>
 <text x="456.5" y="136.0" class="data blue colored" text-anchor="middle">0</text>
+<rect x="494" y="113" width="55" height="34" rx="3" class="teal tensor-cell"/>
 <text x="521.5" y="136.0" class="data teal colored" text-anchor="middle">1</text>
+<rect x="559" y="113" width="55" height="34" rx="3" class="copper tensor-cell"/>
 <text x="586.5" y="136.0" class="data copper colored" text-anchor="middle">2</text>
 <text x="651.5" y="136.0" class="data muted" text-anchor="middle">3</text>
 <text x="375" y="200" class="" text-anchor="start">P[b]</text>
 <path d="M430 174H424V214H430M678 174H684V214H678" class="tensor-bracket"/>
+<rect x="429" y="177" width="55" height="34" rx="3" class="blue tensor-cell"/>
 <text x="456.5" y="200.0" class="data blue colored" text-anchor="middle">11</text>
+<rect x="494" y="177" width="55" height="34" rx="3" class="teal tensor-cell"/>
 <text x="521.5" y="200.0" class="data teal colored" text-anchor="middle">2</text>
+<rect x="559" y="177" width="55" height="34" rx="3" class="copper tensor-cell"/>
 <text x="586.5" y="200.0" class="data copper colored" text-anchor="middle">7</text>
 <text x="651.5" y="200.0" class="data muted" text-anchor="middle">5</text>
 <path d="M456.5 155V168" class="blue trace" marker-end="url(#arrow)"/>
@@ -97,8 +113,11 @@
 <path d="M586.5 155V168" class="copper trace" marker-end="url(#arrow)"/>
 <text x="375" y="272" class="" text-anchor="start">(b, δ) = divmod(ℓ, S)</text>
 <path d="M381 294H375V334H381M705 294H711V334H705" class="tensor-bracket"/>
+<rect x="380" y="297" width="102" height="34" rx="3" class="blue tensor-cell"/>
 <text x="431.0" y="320.0" class="data blue colored" text-anchor="middle">(0, 4)</text>
+<rect x="492" y="297" width="102" height="34" rx="3" class="teal tensor-cell"/>
 <text x="543.0" y="320.0" class="data teal colored" text-anchor="middle">(1, 1)</text>
+<rect x="604" y="297" width="102" height="34" rx="3" class="copper tensor-cell"/>
 <text x="655.0" y="320.0" class="data copper colored" text-anchor="middle">(2, 3)</text>
 <path d="M431.0 340V365" class="blue trace" marker-end="url(#arrow)"/>
 <path d="M543.0 340V365" class="teal trace" marker-end="url(#arrow)"/>
@@ -111,11 +130,14 @@
 <path d="M663.25 420V442" class="copper trace" marker-end="url(#arrow)"/>
 <text x="375" y="474" class="math" text-anchor="start">a</text>
 <path d="M430 448H424V488H430M679.0 448H685.0V488H679.0" class="tensor-bracket"/>
+<rect x="429.0" y="451" width="33.5" height="34" rx="3" class="blue tensor-cell"/>
 <text x="445.75" y="474.0" class="data blue colored" text-anchor="middle">708</text>
 <text x="489.25" y="474.0" class="data muted" text-anchor="middle">—</text>
+<rect x="516.0" y="451" width="33.5" height="34" rx="3" class="teal tensor-cell"/>
 <text x="532.75" y="474.0" class="data teal colored" text-anchor="middle">129</text>
 <text x="576.25" y="474.0" class="data muted" text-anchor="middle">—</text>
 <text x="619.75" y="474.0" class="data muted" text-anchor="middle">—</text>
+<rect x="646.5" y="451" width="33.5" height="34" rx="3" class="copper tensor-cell"/>
 <text x="663.25" y="474.0" class="data copper colored" text-anchor="middle">451</text>
 <text x="760" y="84" class="" text-anchor="start">Validity and prefix destinations</text>
 <text x="760" y="130" class="math" text-anchor="start">v</text>
@@ -137,11 +159,14 @@
 <path d="M944 236V254" class="edge" marker-end="url(#arrow)"/>
 <text x="760" y="286" class="math" text-anchor="start">p</text>
 <path d="M806 260H800V300H806M1082 260H1088V300H1082" class="tensor-bracket"/>
+<rect x="805" y="263" width="38" height="34" rx="3" class="blue tensor-cell"/>
 <text x="824.0" y="286.0" class="data blue colored" text-anchor="middle">0</text>
 <text x="872.0" y="286.0" class="data muted" text-anchor="middle">—</text>
+<rect x="901" y="263" width="38" height="34" rx="3" class="teal tensor-cell"/>
 <text x="920.0" y="286.0" class="data teal colored" text-anchor="middle">1</text>
 <text x="968.0" y="286.0" class="data muted" text-anchor="middle">—</text>
 <text x="1016.0" y="286.0" class="data muted" text-anchor="middle">—</text>
+<rect x="1045" y="263" width="38" height="34" rx="3" class="copper tensor-cell"/>
 <text x="1064.0" y="286.0" class="data copper colored" text-anchor="middle">2</text>
 <path d="M824.0 306C824.0 367 824.0 373 824.0 442" class="route-cutout"/>
 <path d="M824.0 306C824.0 367 824.0 373 824.0 442" class="blue trace" marker-end="url(#arrow)"/>
@@ -150,12 +175,15 @@
 <path d="M1064.0 306C1064.0 367 920.0 373 920.0 442" class="route-cutout"/>
 <path d="M1064.0 306C1064.0 367 920.0 373 920.0 442" class="copper trace" marker-end="url(#arrow)"/>
 <text x="1030" y="400" class="" text-anchor="middle">s[p<tspan class="math-index" baseline-shift="sub">j</tspan>] ← a<tspan class="math-index" baseline-shift="sub">j</tspan></text>
-<path d="M691 468H794" class="edge" marker-end="url(#arrow)"/>
+<path d="M691 468H794" class="edge wide-only" marker-end="url(#arrow)"/>
 <path d="M806 448H800V488H806M1082 448H1088V488H1082" class="tensor-bracket"/>
+<rect x="805" y="451" width="38" height="34" rx="3" class="blue tensor-cell"/>
 <path d="M810 486h28" class="blue trace"/>
 <text x="824.0" y="474.0" class="data blue colored emphasis" text-anchor="middle">708</text>
+<rect x="853" y="451" width="38" height="34" rx="3" class="teal tensor-cell"/>
 <path d="M858 486h28" class="teal trace"/>
 <text x="872.0" y="474.0" class="data teal colored emphasis" text-anchor="middle">129</text>
+<rect x="901" y="451" width="38" height="34" rx="3" class="copper tensor-cell"/>
 <path d="M906 486h28" class="copper trace"/>
 <text x="920.0" y="474.0" class="data copper colored emphasis" text-anchor="middle">451</text>
 <text x="968.0" y="474.0" class="data muted" text-anchor="middle">−1</text>
