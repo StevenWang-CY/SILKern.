@@ -1,19 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="464" viewBox="0 0 1120 464" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="516" viewBox="0 0 1120 516" role="img" aria-labelledby="title desc">
 <title id="title">Layout-aware masking, paged gathering and a shared softmax</title>
-<desc id="desc">Panel a compares a compact row [14,12,-1,-1], mask [1,1,0,0], with a column-preserving row [14,-1,12,-1], mask [1,0,1,0]. Both counts are 2. Panel b substitutes address 0 for invalid positions, gathers K and V, then selects zero for invalid gathered values; unused cache slot 0 may contain NaN and must be masked after gathering. A 16-slot schematic highlights cache entries 12 and 14. Panel c computes one maximum across all logical shards and selected positions, zeroes invalid weights, and combines the sums of weights and weighted values with a single division. An empty selection returns zero. Valid arithmetic must be finite and representable; the diagram is a one-device consumer, not a distributed runtime.</desc>
-<style>text{font-family:Arial,Helvetica,sans-serif;font-size:16px;font-variant-numeric:tabular-nums;fill:var(--ink)}
-svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#fff;--neutral:#f1f3f5;--blue:#32669b;--blue-wash:#e8f0f8;--teal:#287c72;--teal-wash:#e7f2ef;--copper:#a16a3b;--copper-wash:#f7eddf;--violet:#786a9e;--violet-wash:#eeebf5}
-.heading{font-size:19px;font-weight:600}.subhead{font-size:16px;font-weight:600}
-.small{font-size:13px}.label{font-size:14px}.muted{fill:var(--muted)}
-.mono{font-family:Menlo,Consolas,monospace;font-size:15px}
-.mono.small{font-size:13px}.data{font-size:16px;font-weight:500}.data.knockout{font-weight:600}
-.math{font-family:Georgia,'Times New Roman',serif;font-size:17px;font-style:italic}
+<desc id="desc">Panel a compares compact slots [14,12,-1,-1] with mask [1,1,0,0] to preserved columns [14,-1,12,-1] with mask [1,0,1,0]. Both counts are 2. Panel b substitutes address zero for invalid positions, gathers K/V, then selects zero for invalid gathered values. Unused cache slot zero may contain NaN, so both masks are needed. A 16-slot grid highlights entries 12 and 14. Panel c masks invalid logits to negative infinity, computes one maximum over all logical shards and positions, and selects zero for invalid weights. An empty selection sets the maximum to zero. Sums N of weighted values and Z of weights are combined in one division; if Z=0, the output is zero. Valid arithmetic must be finite and representable. This illustrates a one-device consumer, not a distributed runtime.</desc>
+<style>svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#ffffff;--neutral:#f1f3f5;--comparison:#b5bfca;--blue:#32669b;--blue-wash:#e8f0f8;--teal:#287c72;--teal-wash:#e7f2ef;--copper:#a16a3b;--copper-wash:#f7eddf;--violet:#786a9e;--violet-wash:#eeebf5;--knockout:#ffffff}@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--neutral:#1b232c;--comparison:#778696;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338;--knockout:#111820}}text{font-family:'Arial','DejaVu Sans',sans-serif;font-size:18px;font-variant-numeric:tabular-nums;fill:var(--ink)}.heading{font-size:22px;font-weight:700}.subhead{font-weight:700}.muted{fill:var(--muted)}.data{font-weight:400}.data.knockout{font-weight:700}
 .rule{fill:none;stroke:var(--rule);stroke-width:1}
 .edge{fill:none;stroke:var(--line);stroke-width:1.25;stroke-linejoin:round;stroke-linecap:round}
 .outline{fill:var(--paper);stroke:var(--line);stroke-width:1.2}
-.node{fill:var(--neutral);stroke:var(--line);stroke-width:1}
-.grid-cell{fill:var(--neutral);stroke:var(--rule);stroke-width:.7}
-.grid-frame{fill:none;stroke:var(--line);stroke-width:1}
+.grid-frame,.array-frame{fill:none;stroke:var(--line);stroke-width:1}
+.wash{fill:var(--wash);stroke:none}.plain{fill:var(--paper);stroke:none}
+.array-divider{fill:none;stroke:var(--rule);stroke-width:.8}
+.port{fill:var(--paper);stroke:var(--color);stroke-width:1.25}
 .route-cutout{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round}
 .blue{--color:var(--blue);--wash:var(--blue-wash)}
 .teal{--color:var(--teal);--wash:var(--teal-wash)}
@@ -22,131 +17,120 @@ svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#fff;--n
 .colored{fill:var(--color)}.tile{fill:var(--wash);stroke:var(--color);stroke-width:1.25}
 .trace{fill:none;stroke:var(--color);stroke-width:1.7;stroke-linecap:round}
 .solid{fill:var(--color);stroke:var(--color);stroke-width:1}
-.knockout{fill:#fff}.dash{stroke-dasharray:3 4}
-@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--neutral:#1b232c;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}.knockout{fill:#111820}}
+.knockout{fill:var(--knockout)}
 </style>
 <defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
-<path d="M351 12V450M728 12V450" class="rule"/>
-<text x="22" y="28" class="heading" text-anchor="start">a  Layout defines validity</text>
-<text x="374" y="28" class="heading" text-anchor="start">b  Mask addresses and values</text>
-<text x="752" y="28" class="heading" text-anchor="start">c  One shared normalization</text>
-<text x="22" y="70" class="subhead" text-anchor="start">Front compaction</text>
-<text x="326" y="70" class="small mono muted" text-anchor="end">n = 2</text>
-<text x="24" y="115" class="math" text-anchor="start">s</text>
-<text x="24" y="159" class="math" text-anchor="start">v</text>
-<rect x="69" y="93" width="57" height="34" rx="2" class="blue tile"/>
-<text x="97.5" y="115.0" class="data blue colored" text-anchor="middle">14</text>
-<text x="97" y="159" class="mono blue colored" text-anchor="middle">1</text>
-<rect x="133" y="93" width="57" height="34" rx="2" class="teal tile"/>
-<text x="161.5" y="115.0" class="data teal colored" text-anchor="middle">12</text>
-<text x="161" y="159" class="mono teal colored" text-anchor="middle">1</text>
-<rect x="197" y="93" width="57" height="34" rx="2" class="node"/>
-<text x="225.5" y="115.0" class="data muted" text-anchor="middle">−1</text>
-<text x="225" y="159" class="mono muted" text-anchor="middle">0</text>
-<rect x="261" y="93" width="57" height="34" rx="2" class="node"/>
-<text x="289.5" y="115.0" class="data muted" text-anchor="middle">−1</text>
-<text x="289" y="159" class="mono muted" text-anchor="middle">0</text>
-<text x="193" y="196" class="math" text-anchor="middle">vⱼ = [j &lt; n]</text>
-<text x="22" y="239" class="subhead" text-anchor="start">Column preserving</text>
-<text x="326" y="239" class="small mono muted" text-anchor="end">n = 2</text>
-<text x="24" y="284" class="math" text-anchor="start">s</text>
-<text x="24" y="328" class="math" text-anchor="start">v</text>
-<rect x="69" y="262" width="57" height="34" rx="2" class="blue tile"/>
-<text x="97.5" y="284.0" class="data blue colored" text-anchor="middle">14</text>
-<text x="97" y="328" class="mono blue colored" text-anchor="middle">1</text>
-<rect x="133" y="262" width="57" height="34" rx="2" class="node"/>
-<text x="161.5" y="284.0" class="data muted" text-anchor="middle">−1</text>
-<text x="161" y="328" class="mono muted" text-anchor="middle">0</text>
-<rect x="197" y="262" width="57" height="34" rx="2" class="teal tile"/>
-<text x="225.5" y="284.0" class="data teal colored" text-anchor="middle">12</text>
-<text x="225" y="328" class="mono teal colored" text-anchor="middle">1</text>
-<rect x="261" y="262" width="57" height="34" rx="2" class="node"/>
-<text x="289.5" y="284.0" class="data muted" text-anchor="middle">−1</text>
-<text x="289" y="328" class="mono muted" text-anchor="middle">0</text>
-<text x="193" y="365" class="math" text-anchor="middle">vⱼ = input-column validity</text>
-<path d="M22 216H326" class="rule"/>
-<rect x="34" y="396" width="30" height="22" rx="2" class="outline"/>
-<rect x="31" y="399" width="30" height="22" rx="2" class="outline"/>
-<rect x="28" y="402" width="30" height="22" rx="2" class="outline"/>
-<path d="M38 402v22M48 402v22M28 413h30" class="rule"/>
-<text x="78" y="411" class="label muted" text-anchor="start">Equal counts can have</text>
-<text x="78" y="432" class="label muted" text-anchor="start">different valid positions.</text>
-<text x="378" y="79" class="math" text-anchor="start">s</text>
-<text x="418" y="79" class="mono" text-anchor="start">[14, −1, 12, −1]</text>
-<text x="378" y="109" class="math" text-anchor="start">v</text>
-<text x="418" y="109" class="mono blue colored" text-anchor="start">[ 1,  0,  1,  0]</text>
-<path d="M402 72H408V155H426M544 119V138" class="edge" marker-end="url(#arrow)"/>
-<rect x="426" y="139" width="238" height="34" rx="3" class="blue tile"/>
-<text x="545" y="161" class="mono" text-anchor="middle">where(v, s, 0)</text>
-<path d="M545 173V190" class="edge" marker-end="url(#arrow)"/>
-<rect x="418" y="194" width="57" height="30" rx="2" class="blue tile"/>
-<text x="446.5" y="214.0" class="data blue colored" text-anchor="middle">14</text>
-<rect x="482" y="194" width="57" height="30" rx="2" class="node"/>
-<text x="510.5" y="214.0" class="data muted" text-anchor="middle">0</text>
-<rect x="546" y="194" width="57" height="30" rx="2" class="teal tile"/>
-<text x="574.5" y="214.0" class="data teal colored" text-anchor="middle">12</text>
-<rect x="610" y="194" width="57" height="30" rx="2" class="node"/>
-<text x="638.5" y="214.0" class="data muted" text-anchor="middle">0</text>
-<path d="M545 226V259" class="edge" marker-end="url(#arrow)"/>
-<rect x="451" y="260" width="177" height="33" rx="3" class="node"/>
-<text x="539" y="282" class="subhead" text-anchor="middle">gather K / V</text>
-<rect x="659" y="253" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="670" y="253" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="681" y="253" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="692" y="253" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="659" y="264" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="670" y="264" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="681" y="264" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="692" y="264" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="659" y="275" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="670" y="275" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="681" y="275" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="692" y="275" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="659" y="286" width="11" height="11" rx="0" class="teal solid"/>
-<rect x="670" y="286" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="681" y="286" width="11" height="11" rx="0" class="teal solid"/>
-<rect x="692" y="286" width="11" height="11" rx="0" class="grid-cell"/>
-<rect x="659" y="253" width="44" height="44" rx="0" class="grid-frame"/>
-<text x="703" y="240" class="small muted" text-anchor="end">KV cache</text>
-<path d="M655 277H632" class="edge" marker-end="url(#arrow)"/>
-<path d="M539 293V310" class="edge" marker-end="url(#arrow)"/>
-<text x="546" y="332" class="math" text-anchor="middle">[x₁₄, x₀, x₁₂, x₀]</text>
-<path d="M545 341V356M393 106V374H426" class="edge" marker-end="url(#arrow)"/>
-<rect x="426" y="357" width="238" height="34" rx="3" class="teal tile"/>
-<text x="545" y="379" class="mono" text-anchor="middle">where(v, x, 0)</text>
-<path d="M545 391V407" class="edge" marker-end="url(#arrow)"/>
-<text x="545" y="430" class="math" text-anchor="middle">[x₁₄, 0, x₁₂, 0]</text>
-<text x="545" y="455" class="small muted" text-anchor="middle">x ∈ {K, V}; unused x₀ may be NaN.</text>
-<rect x="768" y="55" width="30" height="22" rx="2" class="outline"/>
-<rect x="765" y="58" width="30" height="22" rx="2" class="outline"/>
-<rect x="762" y="61" width="30" height="22" rx="2" class="outline"/>
-<path d="M772 61v22M782 61v22M762 72h30" class="rule"/>
-<text x="945" y="75" class="math" text-anchor="middle">zᵣⱼ = q · Kᵣⱼ / √d</text>
-<text x="945" y="99" class="small muted" text-anchor="middle">invalid zᵣⱼ ← −∞</text>
-<path d="M944 107V130M784 113V228H802" class="edge" marker-end="url(#arrow)"/>
-<path d="M784 113H944" class="edge"/>
-<rect x="850" y="131" width="188" height="35" rx="3" class="blue tile"/>
-<text x="944" y="155" class="math" text-anchor="middle">m = maxᵣ,ⱼ zᵣⱼ</text>
-<path d="M944 166V209" class="edge" marker-end="url(#arrow)"/>
-<text x="1037" y="192" class="small muted" text-anchor="end">empty: m ← 0</text>
-<rect x="803" y="210" width="292" height="38" rx="3" class="node"/>
-<text x="949" y="235" class="math" text-anchor="middle">wᵣⱼ = vᵣⱼ ? exp(zᵣⱼ − m) : 0</text>
-<path d="M949 248V265H845V279M949 265H1045V322M789 295H829" class="edge" marker-end="url(#arrow)"/>
-<text x="764" y="298" class="math" text-anchor="start">Vᵣⱼ</text>
-<circle cx="845" cy="295" r="15" class="teal tile"/>
-<text x="845" y="301" class="math" text-anchor="middle">×</text>
-<path d="M845 310V322" class="edge" marker-end="url(#arrow)"/>
-<circle cx="845" cy="340" r="18" class="teal tile"/>
-<text x="845" y="347" class="math" text-anchor="middle">Σ</text>
-<circle cx="1045" cy="340" r="18" class="teal tile"/>
-<text x="1045" y="347" class="math" text-anchor="middle">Σ</text>
-<text x="945" y="336" class="small muted" text-anchor="middle">all shards</text>
-<text x="945" y="355" class="small muted" text-anchor="middle">all positions</text>
-<path d="M845 358V392H927M1045 358V392H963" class="edge" marker-end="url(#arrow)"/>
-<text x="857" y="383" class="math" text-anchor="start">N</text>
-<text x="1018" y="383" class="math" text-anchor="start">Z</text>
-<circle cx="945" cy="392" r="17" class="blue tile"/>
-<text x="945" y="398" class="math" text-anchor="middle">÷</text>
-<path d="M945 409V427" class="edge" marker-end="url(#arrow)"/>
-<text x="945" y="454" class="math" text-anchor="middle">y = N / Z if Z &gt; 0; otherwise 0</text>
+<path d="M351 16V496M728 16V496" class="rule"/>
+<text x="24" y="36" class="heading" text-anchor="start">a  Respect the layout</text>
+<text x="375" y="36" class="heading" text-anchor="start">b  Mask the gather</text>
+<text x="752" y="36" class="heading" text-anchor="start">c  Normalize together</text>
+<text x="24" y="90" class="subhead" text-anchor="start">Front compaction · n = 2</text>
+<text x="24" y="146" class="" text-anchor="start">Slots</text>
+<text x="24" y="196" class="" text-anchor="start">Mask</text>
+<defs><clipPath id="array-1"><rect x="85" y="120" width="242.0" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-1)">
+<rect x="85" y="120" width="242.0" height="40" rx="0" class="plain"/>
+<rect x="85.0" y="120" width="60.5" height="40" rx="0" class="blue wash"/>
+<text x="115.25" y="146.0" class="data blue colored" text-anchor="middle">14</text>
+<rect x="145.5" y="120" width="60.5" height="40" rx="0" class="teal wash"/>
+<path d="M145.5 120v40" class="array-divider"/>
+<text x="175.75" y="146.0" class="data teal colored" text-anchor="middle">12</text>
+<path d="M206.0 120v40" class="array-divider"/>
+<text x="236.25" y="146.0" class="data muted" text-anchor="middle">−1</text>
+<path d="M266.5 120v40" class="array-divider"/>
+<text x="296.75" y="146.0" class="data muted" text-anchor="middle">−1</text>
+</g>
+<rect x="85" y="120" width="242.0" height="40" rx="6" class="array-frame"/>
+<text x="115.25" y="196" class="blue colored" text-anchor="middle">1</text>
+<text x="175.75" y="196" class="teal colored" text-anchor="middle">1</text>
+<text x="236.25" y="196" class="muted" text-anchor="middle">0</text>
+<text x="296.75" y="196" class="muted" text-anchor="middle">0</text>
+<text x="201" y="241" class="" text-anchor="middle">vⱼ = [j &lt; n]</text>
+<text x="24" y="300" class="subhead" text-anchor="start">Preserve columns · n = 2</text>
+<text x="24" y="356" class="" text-anchor="start">Slots</text>
+<text x="24" y="406" class="" text-anchor="start">Mask</text>
+<defs><clipPath id="array-2"><rect x="85" y="330" width="242.0" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-2)">
+<rect x="85" y="330" width="242.0" height="40" rx="0" class="plain"/>
+<rect x="85.0" y="330" width="60.5" height="40" rx="0" class="blue wash"/>
+<text x="115.25" y="356.0" class="data blue colored" text-anchor="middle">14</text>
+<path d="M145.5 330v40" class="array-divider"/>
+<text x="175.75" y="356.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="206.0" y="330" width="60.5" height="40" rx="0" class="teal wash"/>
+<path d="M206.0 330v40" class="array-divider"/>
+<text x="236.25" y="356.0" class="data teal colored" text-anchor="middle">12</text>
+<path d="M266.5 330v40" class="array-divider"/>
+<text x="296.75" y="356.0" class="data muted" text-anchor="middle">−1</text>
+</g>
+<rect x="85" y="330" width="242.0" height="40" rx="6" class="array-frame"/>
+<text x="115.25" y="406" class="blue colored" text-anchor="middle">1</text>
+<text x="175.75" y="406" class="muted" text-anchor="middle">0</text>
+<text x="236.25" y="406" class="teal colored" text-anchor="middle">1</text>
+<text x="296.75" y="406" class="muted" text-anchor="middle">0</text>
+<text x="201" y="451" class="" text-anchor="middle">vⱼ = input-column validity</text>
+<path d="M24 267H327" class="rule"/>
+<text x="378" y="90" class="" text-anchor="start">s</text>
+<text x="418" y="90" class="" text-anchor="start">[14, −1, 12, −1]</text>
+<text x="378" y="124" class="" text-anchor="start">v</text>
+<text x="418" y="124" class="blue colored" text-anchor="start">[1, 0, 1, 0]</text>
+<path d="M403 84H408V176H426" class="edge" marker-end="url(#arrow)"/>
+<path d="M545 133V150" class="edge" marker-end="url(#arrow)"/>
+<path d="M438 154H652L664 175.0L652 196H438L426 175.0Z" class="blue tile"/>
+<text x="545.0" y="181.0" class="" text-anchor="middle">where(v, s, 0)</text>
+<path d="M545 198V216" class="edge" marker-end="url(#arrow)"/>
+<defs><clipPath id="array-3"><rect x="417" y="221" width="256" height="36" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-3)">
+<rect x="417" y="221" width="256" height="36" rx="0" class="plain"/>
+<rect x="417" y="221" width="64" height="36" rx="0" class="blue wash"/>
+<text x="449.0" y="245.0" class="data blue colored" text-anchor="middle">14</text>
+<path d="M481 221v36" class="array-divider"/>
+<text x="513.0" y="245.0" class="data muted" text-anchor="middle">0</text>
+<rect x="545" y="221" width="64" height="36" rx="0" class="teal wash"/>
+<path d="M545 221v36" class="array-divider"/>
+<text x="577.0" y="245.0" class="data teal colored" text-anchor="middle">12</text>
+<path d="M609 221v36" class="array-divider"/>
+<text x="641.0" y="245.0" class="data muted" text-anchor="middle">0</text>
+</g>
+<rect x="417" y="221" width="256" height="36" rx="6" class="array-frame"/>
+<path d="M545 261V289" class="edge" marker-end="url(#arrow)"/>
+<rect x="451" y="293" width="177" height="40" rx="7" class="outline"/>
+<text x="539" y="319" class="subhead" text-anchor="middle">Gather K / V</text>
+<rect x="664" y="286" width="44" height="44" rx="4" class="outline"/>
+<rect x="659" y="291" width="44" height="44" rx="4" class="plain"/>
+<path d="M659 302h44" class="array-divider"/>
+<path d="M659 313h44" class="array-divider"/>
+<path d="M659 324h44" class="array-divider"/>
+<path d="M670 291v44" class="array-divider"/>
+<path d="M681 291v44" class="array-divider"/>
+<path d="M692 291v44" class="array-divider"/>
+<rect x="660" y="325" width="9" height="9" rx="1" class="teal solid"/>
+<rect x="682" y="325" width="9" height="9" rx="1" class="teal solid"/>
+<rect x="659" y="291" width="44" height="44" rx="4" class="grid-frame"/>
+<path d="M655 313H632" class="edge" marker-end="url(#arrow)"/>
+<path d="M539 337V355" class="edge" marker-end="url(#arrow)"/>
+<text x="545" y="383" class="" text-anchor="middle">[x₁₄, x₀, x₁₂, x₀]</text>
+<path d="M545 395V413" class="edge" marker-end="url(#arrow)"/>
+<path d="M398 118V439H422" class="edge" marker-end="url(#arrow)"/>
+<path d="M438 417H652L664 438.0L652 459H438L426 438.0Z" class="teal tile"/>
+<text x="545.0" y="444.0" class="" text-anchor="middle">where(v, x, 0)</text>
+<path d="M545 463V477" class="edge" marker-end="url(#arrow)"/>
+<text x="545" y="502" class="" text-anchor="middle">[x₁₄, 0, x₁₂, 0]</text>
+<text x="924" y="90" class="" text-anchor="middle">zᵣⱼ = q · Kᵣⱼ / √d</text>
+<text x="924" y="124" class="muted" text-anchor="middle">Invalid zᵣⱼ ← −∞</text>
+<path d="M924 137V159" class="edge" marker-end="url(#arrow)"/>
+<rect x="799" y="164" width="250" height="42" rx="7" class="blue tile"/>
+<text x="924.0" y="191.0" class="" text-anchor="middle">m = maxᵣ,ⱼ zᵣⱼ</text>
+<path d="M924 210V248" class="edge" marker-end="url(#arrow)"/>
+<path d="M764 253H1084L1096 274.0L1084 295H764L752 274.0Z" class="blue tile"/>
+<text x="924.0" y="280.0" class="" text-anchor="middle">wᵣⱼ = vᵣⱼ ? exp(zᵣⱼ − m) : 0</text>
+<path d="M924 299V324H829V351" class="edge" marker-end="url(#arrow)"/>
+<path d="M924 324H1019V351" class="edge" marker-end="url(#arrow)"/>
+<rect x="757" y="356" width="144" height="42" rx="7" class="teal tile"/>
+<text x="829.0" y="383.0" class="" text-anchor="middle">N = Σᵣ,ⱼ wᵣⱼ Vᵣⱼ</text>
+<rect x="947" y="356" width="144" height="42" rx="7" class="teal tile"/>
+<text x="1019.0" y="383.0" class="" text-anchor="middle">Z = Σᵣ,ⱼ wᵣⱼ</text>
+<path d="M829 402V426H924V449M1019 402V426H924" class="edge"/>
+<path d="M924 439V449" class="edge" marker-end="url(#arrow)"/>
+<rect x="764" y="454" width="320" height="46" rx="23" class="blue tile"/>
+<text x="924" y="483" class="" text-anchor="middle">y = N / Z; 0 if Z = 0</text>
 </svg>

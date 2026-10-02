@@ -1,19 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="514" viewBox="0 0 1120 514" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="432" viewBox="0 0 1120 432" role="img" aria-labelledby="title desc">
 <title id="title">Coordinate translation and the two output layouts</title>
-<desc id="desc">The worked row uses two ranks, rank zero, interleave one, page size 64 and pages 11, 2, 7,5. Columns 0, 2, 5 survive: tokens 8, 130, 262 become local positions 4, 65, 131, logical page and offset pairs (0, 4), (1, 1), (2, 3), then physical slots 708, 129, 451. Validity is 1, 0, 1, 0, 0, 1 and the surviving scan destinations are0,1,2. Front compaction returns 708,129,451,-1,-1,-1. Disabling compaction returns 708,-1,129,-1,-1,451. Both counts are 3; only the compacted row has a valid count-length prefix. Single-rank calls also preserve columns, with their own coordinate translation. General ownership, deinterleaving and page formulas appear at right.</desc>
-<style>text{font-family:Arial,Helvetica,sans-serif;font-size:16px;font-variant-numeric:tabular-nums;fill:var(--ink)}
-svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#fff;--neutral:#f1f3f5;--blue:#32669b;--blue-wash:#e8f0f8;--teal:#287c72;--teal-wash:#e7f2ef;--copper:#a16a3b;--copper-wash:#f7eddf;--violet:#786a9e;--violet-wash:#eeebf5}
-.heading{font-size:19px;font-weight:600}.subhead{font-size:16px;font-weight:600}
-.small{font-size:13px}.label{font-size:14px}.muted{fill:var(--muted)}
-.mono{font-family:Menlo,Consolas,monospace;font-size:15px}
-.mono.small{font-size:13px}.data{font-size:16px;font-weight:500}.data.knockout{font-weight:600}
-.math{font-family:Georgia,'Times New Roman',serif;font-size:17px;font-style:italic}
+<desc id="desc">For D=2, rank=0, I=1, S=64, request zero and P=[11,2,7,5], tokens 8,130,262 survive at columns 0,2,5. Their local positions 4,65,131 give page-offset pairs (0,4),(1,1),(2,3) and physical slots 708,129,451. The other tokens belong to rank one or are negative. General formulas for nonnegative t appear at right. P is read only for an owned, in-range mapping. Front compaction returns [708,129,451,-1,-1,-1]; with compaction off the result is [708,-1,129,-1,-1,451]. Both counts are 3, but only the compacted row has a valid count-length prefix. Single-rank calls also preserve columns, with their own coordinate translation.</desc>
+<style>svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#ffffff;--neutral:#f1f3f5;--comparison:#b5bfca;--blue:#32669b;--blue-wash:#e8f0f8;--teal:#287c72;--teal-wash:#e7f2ef;--copper:#a16a3b;--copper-wash:#f7eddf;--violet:#786a9e;--violet-wash:#eeebf5;--knockout:#ffffff}@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--neutral:#1b232c;--comparison:#778696;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338;--knockout:#111820}}text{font-family:'Arial','DejaVu Sans',sans-serif;font-size:18px;font-variant-numeric:tabular-nums;fill:var(--ink)}.heading{font-size:22px;font-weight:700}.subhead{font-weight:700}.muted{fill:var(--muted)}.data{font-weight:400}.data.knockout{font-weight:700}
 .rule{fill:none;stroke:var(--rule);stroke-width:1}
 .edge{fill:none;stroke:var(--line);stroke-width:1.25;stroke-linejoin:round;stroke-linecap:round}
 .outline{fill:var(--paper);stroke:var(--line);stroke-width:1.2}
-.node{fill:var(--neutral);stroke:var(--line);stroke-width:1}
-.grid-cell{fill:var(--neutral);stroke:var(--rule);stroke-width:.7}
-.grid-frame{fill:none;stroke:var(--line);stroke-width:1}
+.grid-frame,.array-frame{fill:none;stroke:var(--line);stroke-width:1}
+.wash{fill:var(--wash);stroke:none}.plain{fill:var(--paper);stroke:none}
+.array-divider{fill:none;stroke:var(--rule);stroke-width:.8}
+.port{fill:var(--paper);stroke:var(--color);stroke-width:1.25}
 .route-cutout{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round}
 .blue{--color:var(--blue);--wash:var(--blue-wash)}
 .teal{--color:var(--teal);--wash:var(--teal-wash)}
@@ -22,179 +17,167 @@ svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#fff;--n
 .colored{fill:var(--color)}.tile{fill:var(--wash);stroke:var(--color);stroke-width:1.25}
 .trace{fill:none;stroke:var(--color);stroke-width:1.7;stroke-linecap:round}
 .solid{fill:var(--color);stroke:var(--color);stroke-width:1}
-.knockout{fill:#fff}.dash{stroke-dasharray:3 4}
-@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--neutral:#1b232c;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}.knockout{fill:#111820}}
+.knockout{fill:var(--knockout)}
 </style>
 <defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
-<text x="22" y="28" class="heading" text-anchor="start">a  A complete row, in selector order</text>
-<text x="22" y="53" class="label muted" text-anchor="start">D = 2 · rank = 0 · I = 1 · S = 64 · P = [11, 2, 7, 5]</text>
-<path d="M22 68H686M716 10V496" class="rule"/>
-<text x="22" y="94" class="small muted" text-anchor="start">Input column</text>
-<text x="260" y="94" class="small mono muted" text-anchor="middle">0</text>
-<text x="335" y="94" class="small mono muted" text-anchor="middle">1</text>
-<text x="410" y="94" class="small mono muted" text-anchor="middle">2</text>
-<text x="485" y="94" class="small mono muted" text-anchor="middle">3</text>
-<text x="560" y="94" class="small mono muted" text-anchor="middle">4</text>
-<text x="635" y="94" class="small mono muted" text-anchor="middle">5</text>
-<text x="22" y="130" class="label" text-anchor="start">Global position  t</text>
-<rect x="230" y="107" width="60" height="34" rx="2" class="blue tile"/>
-<text x="260.0" y="129.0" class="data blue colored" text-anchor="middle">8</text>
-<path d="M260 142v11" class="blue trace" marker-end="url(#arrow)"/>
-<rect x="305" y="107" width="60" height="34" rx="2" class="node"/>
-<text x="335.0" y="129.0" class="data" text-anchor="middle">5</text>
-<rect x="380" y="107" width="60" height="34" rx="2" class="teal tile"/>
-<text x="410.0" y="129.0" class="data teal colored" text-anchor="middle">130</text>
-<path d="M410 142v11" class="teal trace" marker-end="url(#arrow)"/>
-<rect x="455" y="107" width="60" height="34" rx="2" class="node"/>
-<text x="485.0" y="129.0" class="data" text-anchor="middle">7</text>
-<rect x="530" y="107" width="60" height="34" rx="2" class="node"/>
-<text x="560.0" y="129.0" class="data muted" text-anchor="middle">−1</text>
-<rect x="605" y="107" width="60" height="34" rx="2" class="copper tile"/>
-<text x="635.0" y="129.0" class="data copper colored" text-anchor="middle">262</text>
-<path d="M635 142v11" class="copper trace" marker-end="url(#arrow)"/>
-<text x="22" y="180" class="label" text-anchor="start">Owner</text>
-<rect x="230" y="157" width="60" height="34" rx="2" class="blue tile"/>
-<text x="260.0" y="179.0" class="data blue colored" text-anchor="middle">0</text>
-<path d="M260 192v11" class="blue trace" marker-end="url(#arrow)"/>
-<rect x="305" y="157" width="60" height="34" rx="2" class="node"/>
-<text x="335.0" y="179.0" class="data" text-anchor="middle">1</text>
-<rect x="380" y="157" width="60" height="34" rx="2" class="teal tile"/>
-<text x="410.0" y="179.0" class="data teal colored" text-anchor="middle">0</text>
-<path d="M410 192v11" class="teal trace" marker-end="url(#arrow)"/>
-<rect x="455" y="157" width="60" height="34" rx="2" class="node"/>
-<text x="485.0" y="179.0" class="data" text-anchor="middle">1</text>
-<rect x="530" y="157" width="60" height="34" rx="2" class="node"/>
-<text x="560.0" y="179.0" class="data muted" text-anchor="middle">—</text>
-<rect x="605" y="157" width="60" height="34" rx="2" class="copper tile"/>
-<text x="635.0" y="179.0" class="data copper colored" text-anchor="middle">0</text>
-<path d="M635 192v11" class="copper trace" marker-end="url(#arrow)"/>
-<text x="22" y="230" class="label" text-anchor="start">Local position  ℓ</text>
-<rect x="230" y="207" width="60" height="34" rx="2" class="blue tile"/>
-<text x="260.0" y="229.0" class="data blue colored" text-anchor="middle">4</text>
-<path d="M260 242v11" class="blue trace" marker-end="url(#arrow)"/>
-<rect x="305" y="207" width="60" height="34" rx="2" class="node"/>
-<text x="335.0" y="229.0" class="data muted" text-anchor="middle">—</text>
-<rect x="380" y="207" width="60" height="34" rx="2" class="teal tile"/>
-<text x="410.0" y="229.0" class="data teal colored" text-anchor="middle">65</text>
-<path d="M410 242v11" class="teal trace" marker-end="url(#arrow)"/>
-<rect x="455" y="207" width="60" height="34" rx="2" class="node"/>
-<text x="485.0" y="229.0" class="data muted" text-anchor="middle">—</text>
-<rect x="530" y="207" width="60" height="34" rx="2" class="node"/>
-<text x="560.0" y="229.0" class="data muted" text-anchor="middle">—</text>
-<rect x="605" y="207" width="60" height="34" rx="2" class="copper tile"/>
-<text x="635.0" y="229.0" class="data copper colored" text-anchor="middle">131</text>
-<path d="M635 242v11" class="copper trace" marker-end="url(#arrow)"/>
-<text x="22" y="280" class="label" text-anchor="start">(logical page, offset)</text>
-<rect x="230" y="257" width="60" height="34" rx="2" class="blue tile"/>
-<text x="260.0" y="279.0" class="data blue colored" text-anchor="middle">0, 4</text>
-<path d="M260 292v11" class="blue trace" marker-end="url(#arrow)"/>
-<rect x="305" y="257" width="60" height="34" rx="2" class="node"/>
-<text x="335.0" y="279.0" class="data muted" text-anchor="middle">—</text>
-<rect x="380" y="257" width="60" height="34" rx="2" class="teal tile"/>
-<text x="410.0" y="279.0" class="data teal colored" text-anchor="middle">1, 1</text>
-<path d="M410 292v11" class="teal trace" marker-end="url(#arrow)"/>
-<rect x="455" y="257" width="60" height="34" rx="2" class="node"/>
-<text x="485.0" y="279.0" class="data muted" text-anchor="middle">—</text>
-<rect x="530" y="257" width="60" height="34" rx="2" class="node"/>
-<text x="560.0" y="279.0" class="data muted" text-anchor="middle">—</text>
-<rect x="605" y="257" width="60" height="34" rx="2" class="copper tile"/>
-<text x="635.0" y="279.0" class="data copper colored" text-anchor="middle">2, 3</text>
-<path d="M635 292v11" class="copper trace" marker-end="url(#arrow)"/>
-<text x="22" y="330" class="label" text-anchor="start">Physical slot  a</text>
-<rect x="230" y="307" width="60" height="34" rx="2" class="blue solid"/>
-<text x="260.0" y="329.0" class="data blue knockout" text-anchor="middle">708</text>
-<rect x="305" y="307" width="60" height="34" rx="2" class="node"/>
-<text x="335.0" y="329.0" class="data muted" text-anchor="middle">—</text>
-<rect x="380" y="307" width="60" height="34" rx="2" class="teal solid"/>
-<text x="410.0" y="329.0" class="data teal knockout" text-anchor="middle">129</text>
-<rect x="455" y="307" width="60" height="34" rx="2" class="node"/>
-<text x="485.0" y="329.0" class="data muted" text-anchor="middle">—</text>
-<rect x="530" y="307" width="60" height="34" rx="2" class="node"/>
-<text x="560.0" y="329.0" class="data muted" text-anchor="middle">—</text>
-<rect x="605" y="307" width="60" height="34" rx="2" class="copper solid"/>
-<text x="635.0" y="329.0" class="data copper knockout" text-anchor="middle">451</text>
-<path d="M22 356H686" class="rule"/>
-<text x="22" y="384" class="label" text-anchor="start">Validity  v</text>
-<text x="22" y="415" class="mono" text-anchor="start">cumsum(v) − 1</text>
-<text x="260" y="384" class="mono blue colored" text-anchor="middle">1</text>
-<text x="260" y="415" class="mono blue colored" text-anchor="middle">0</text>
-<text x="335" y="384" class="mono muted" text-anchor="middle">0</text>
-<text x="335" y="415" class="mono muted" text-anchor="middle">—</text>
-<text x="410" y="384" class="mono teal colored" text-anchor="middle">1</text>
-<text x="410" y="415" class="mono teal colored" text-anchor="middle">1</text>
-<text x="485" y="384" class="mono muted" text-anchor="middle">0</text>
-<text x="485" y="415" class="mono muted" text-anchor="middle">—</text>
-<text x="560" y="384" class="mono muted" text-anchor="middle">0</text>
-<text x="560" y="415" class="mono muted" text-anchor="middle">—</text>
-<text x="635" y="384" class="mono copper colored" text-anchor="middle">1</text>
-<text x="635" y="415" class="mono copper colored" text-anchor="middle">2</text>
-<path d="M260 424C260 438 260 437 260 450" class="route-cutout"/>
-<path d="M260 424C260 438 260 437 260 450" class="blue trace" marker-end="url(#arrow)"/>
-<path d="M410 424C410 438 335 437 335 450" class="route-cutout"/>
-<path d="M410 424C410 438 335 437 335 450" class="teal trace" marker-end="url(#arrow)"/>
-<path d="M635 424C635 438 410 437 410 450" class="route-cutout"/>
-<path d="M635 424C635 438 410 437 410 450" class="copper trace" marker-end="url(#arrow)"/>
-<text x="22" y="476" class="subhead" text-anchor="start">Compacted output</text>
-<rect x="230" y="453" width="60" height="34" rx="2" class="blue solid"/>
-<text x="260.0" y="475.0" class="data blue knockout" text-anchor="middle">708</text>
-<rect x="305" y="453" width="60" height="34" rx="2" class="teal solid"/>
-<text x="335.0" y="475.0" class="data teal knockout" text-anchor="middle">129</text>
-<rect x="380" y="453" width="60" height="34" rx="2" class="copper solid"/>
-<text x="410.0" y="475.0" class="data copper knockout" text-anchor="middle">451</text>
-<rect x="455" y="453" width="60" height="34" rx="2" class="node"/>
-<text x="485.0" y="475.0" class="data muted" text-anchor="middle">−1</text>
-<rect x="530" y="453" width="60" height="34" rx="2" class="node"/>
-<text x="560.0" y="475.0" class="data muted" text-anchor="middle">−1</text>
-<rect x="605" y="453" width="60" height="34" rx="2" class="node"/>
-<text x="635.0" y="475.0" class="data muted" text-anchor="middle">−1</text>
-<text x="447" y="507" class="small muted" text-anchor="middle">count = 3 · stable filter, not a sort</text>
-<text x="742" y="28" class="heading" text-anchor="start">b  Coordinates and layout</text>
-<text x="742" y="66" class="small muted" text-anchor="start">For nonnegative t</text>
-<text x="742" y="94" class="math" text-anchor="start">owner = ⌊t / I⌋ mod D</text>
-<text x="742" y="127" class="math" text-anchor="start">ℓ = ⌊t / (D I)⌋ I + t mod I</text>
-<text x="742" y="160" class="math" text-anchor="start">(b, δ) = divmod(ℓ, S)</text>
-<text x="742" y="193" class="math" text-anchor="start">a = P[request, b] S + δ</text>
-<text x="742" y="221" class="small muted" text-anchor="start">Read P only for an owned, in-range mapping.</text>
-<path d="M742 239H1098" class="rule"/>
-<text x="742" y="260" class="subhead" text-anchor="start">Front compaction · count = 3</text>
-<rect x="743" y="277" width="52" height="32" rx="2" class="blue tile"/>
-<text x="769.0" y="298.0" class="data blue colored" text-anchor="middle">708</text>
-<text x="769" y="330" class="mono muted" text-anchor="middle">1</text>
-<rect x="802" y="277" width="52" height="32" rx="2" class="teal tile"/>
-<text x="828.0" y="298.0" class="data teal colored" text-anchor="middle">129</text>
-<text x="828" y="330" class="mono muted" text-anchor="middle">1</text>
-<rect x="861" y="277" width="52" height="32" rx="2" class="copper tile"/>
-<text x="887.0" y="298.0" class="data copper colored" text-anchor="middle">451</text>
-<text x="887" y="330" class="mono muted" text-anchor="middle">1</text>
-<rect x="920" y="277" width="52" height="32" rx="2" class="node"/>
-<text x="946.0" y="298.0" class="data muted" text-anchor="middle">−1</text>
-<text x="946" y="330" class="mono muted" text-anchor="middle">0</text>
-<rect x="979" y="277" width="52" height="32" rx="2" class="node"/>
-<text x="1005.0" y="298.0" class="data muted" text-anchor="middle">−1</text>
-<text x="1005" y="330" class="mono muted" text-anchor="middle">0</text>
-<rect x="1038" y="277" width="52" height="32" rx="2" class="node"/>
-<text x="1064.0" y="298.0" class="data muted" text-anchor="middle">−1</text>
-<text x="1064" y="330" class="mono muted" text-anchor="middle">0</text>
-<text x="742" y="348" class="small muted" text-anchor="start">validity mask</text>
-<text x="742" y="363" class="subhead" text-anchor="start">Compaction off · count = 3</text>
-<rect x="743" y="380" width="52" height="32" rx="2" class="blue tile"/>
-<text x="769.0" y="401.0" class="data blue colored" text-anchor="middle">708</text>
-<text x="769" y="433" class="mono muted" text-anchor="middle">1</text>
-<rect x="802" y="380" width="52" height="32" rx="2" class="node"/>
-<text x="828.0" y="401.0" class="data muted" text-anchor="middle">−1</text>
-<text x="828" y="433" class="mono muted" text-anchor="middle">0</text>
-<rect x="861" y="380" width="52" height="32" rx="2" class="teal tile"/>
-<text x="887.0" y="401.0" class="data teal colored" text-anchor="middle">129</text>
-<text x="887" y="433" class="mono muted" text-anchor="middle">1</text>
-<rect x="920" y="380" width="52" height="32" rx="2" class="node"/>
-<text x="946.0" y="401.0" class="data muted" text-anchor="middle">−1</text>
-<text x="946" y="433" class="mono muted" text-anchor="middle">0</text>
-<rect x="979" y="380" width="52" height="32" rx="2" class="node"/>
-<text x="1005.0" y="401.0" class="data muted" text-anchor="middle">−1</text>
-<text x="1005" y="433" class="mono muted" text-anchor="middle">0</text>
-<rect x="1038" y="380" width="52" height="32" rx="2" class="copper tile"/>
-<text x="1064.0" y="401.0" class="data copper colored" text-anchor="middle">451</text>
-<text x="1064" y="433" class="mono muted" text-anchor="middle">1</text>
-<text x="742" y="451" class="small muted" text-anchor="start">validity mask</text>
-<text x="742" y="488" class="small muted" text-anchor="start">Single-rank calls also preserve input columns.</text>
+<text x="24" y="36" class="heading" text-anchor="start">a  Coordinate translation</text>
+<text x="740" y="36" class="heading" text-anchor="start">b  Equations and layouts</text>
+<path d="M708 16V412" class="rule"/>
+<text x="24" y="106" class="" text-anchor="start">Global position  t</text>
+<defs><clipPath id="array-1"><rect x="230" y="80" width="450" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-1)">
+<rect x="230" y="80" width="450" height="40" rx="0" class="plain"/>
+<rect x="230" y="80" width="75" height="40" rx="0" class="blue wash"/>
+<text x="267.5" y="106.0" class="data blue colored" text-anchor="middle">8</text>
+<path d="M305 80v40" class="array-divider"/>
+<text x="342.5" y="106.0" class="data muted" text-anchor="middle">5</text>
+<rect x="380" y="80" width="75" height="40" rx="0" class="teal wash"/>
+<path d="M380 80v40" class="array-divider"/>
+<text x="417.5" y="106.0" class="data teal colored" text-anchor="middle">130</text>
+<path d="M455 80v40" class="array-divider"/>
+<text x="492.5" y="106.0" class="data muted" text-anchor="middle">7</text>
+<path d="M530 80v40" class="array-divider"/>
+<text x="567.5" y="106.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="605" y="80" width="75" height="40" rx="0" class="copper wash"/>
+<path d="M605 80v40" class="array-divider"/>
+<text x="642.5" y="106.0" class="data copper colored" text-anchor="middle">262</text>
+</g>
+<rect x="230" y="80" width="450" height="40" rx="6" class="array-frame"/>
+<path d="M267.5 122v21" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M417.5 122v21" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M642.5 122v21" class="copper trace" marker-end="url(#arrow)"/>
+<text x="24" y="174" class="" text-anchor="start">Owner</text>
+<defs><clipPath id="array-2"><rect x="230" y="148" width="450" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-2)">
+<rect x="230" y="148" width="450" height="40" rx="0" class="plain"/>
+<rect x="230" y="148" width="75" height="40" rx="0" class="blue wash"/>
+<text x="267.5" y="174.0" class="data blue colored" text-anchor="middle">0</text>
+<path d="M305 148v40" class="array-divider"/>
+<text x="342.5" y="174.0" class="data muted" text-anchor="middle">1</text>
+<rect x="380" y="148" width="75" height="40" rx="0" class="teal wash"/>
+<path d="M380 148v40" class="array-divider"/>
+<text x="417.5" y="174.0" class="data teal colored" text-anchor="middle">0</text>
+<path d="M455 148v40" class="array-divider"/>
+<text x="492.5" y="174.0" class="data muted" text-anchor="middle">1</text>
+<path d="M530 148v40" class="array-divider"/>
+<text x="567.5" y="174.0" class="data muted" text-anchor="middle">—</text>
+<rect x="605" y="148" width="75" height="40" rx="0" class="copper wash"/>
+<path d="M605 148v40" class="array-divider"/>
+<text x="642.5" y="174.0" class="data copper colored" text-anchor="middle">0</text>
+</g>
+<rect x="230" y="148" width="450" height="40" rx="6" class="array-frame"/>
+<path d="M267.5 190v21" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M417.5 190v21" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M642.5 190v21" class="copper trace" marker-end="url(#arrow)"/>
+<text x="24" y="242" class="" text-anchor="start">Local position  ℓ</text>
+<defs><clipPath id="array-3"><rect x="230" y="216" width="450" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-3)">
+<rect x="230" y="216" width="450" height="40" rx="0" class="plain"/>
+<rect x="230" y="216" width="75" height="40" rx="0" class="blue wash"/>
+<text x="267.5" y="242.0" class="data blue colored" text-anchor="middle">4</text>
+<path d="M305 216v40" class="array-divider"/>
+<text x="342.5" y="242.0" class="data muted" text-anchor="middle">—</text>
+<rect x="380" y="216" width="75" height="40" rx="0" class="teal wash"/>
+<path d="M380 216v40" class="array-divider"/>
+<text x="417.5" y="242.0" class="data teal colored" text-anchor="middle">65</text>
+<path d="M455 216v40" class="array-divider"/>
+<text x="492.5" y="242.0" class="data muted" text-anchor="middle">—</text>
+<path d="M530 216v40" class="array-divider"/>
+<text x="567.5" y="242.0" class="data muted" text-anchor="middle">—</text>
+<rect x="605" y="216" width="75" height="40" rx="0" class="copper wash"/>
+<path d="M605 216v40" class="array-divider"/>
+<text x="642.5" y="242.0" class="data copper colored" text-anchor="middle">131</text>
+</g>
+<rect x="230" y="216" width="450" height="40" rx="6" class="array-frame"/>
+<path d="M267.5 258v21" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M417.5 258v21" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M642.5 258v21" class="copper trace" marker-end="url(#arrow)"/>
+<text x="24" y="310" class="" text-anchor="start">Page, offset</text>
+<defs><clipPath id="array-4"><rect x="230" y="284" width="450" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-4)">
+<rect x="230" y="284" width="450" height="40" rx="0" class="plain"/>
+<rect x="230" y="284" width="75" height="40" rx="0" class="blue wash"/>
+<text x="267.5" y="310.0" class="data blue colored" text-anchor="middle">0, 4</text>
+<path d="M305 284v40" class="array-divider"/>
+<text x="342.5" y="310.0" class="data muted" text-anchor="middle">—</text>
+<rect x="380" y="284" width="75" height="40" rx="0" class="teal wash"/>
+<path d="M380 284v40" class="array-divider"/>
+<text x="417.5" y="310.0" class="data teal colored" text-anchor="middle">1, 1</text>
+<path d="M455 284v40" class="array-divider"/>
+<text x="492.5" y="310.0" class="data muted" text-anchor="middle">—</text>
+<path d="M530 284v40" class="array-divider"/>
+<text x="567.5" y="310.0" class="data muted" text-anchor="middle">—</text>
+<rect x="605" y="284" width="75" height="40" rx="0" class="copper wash"/>
+<path d="M605 284v40" class="array-divider"/>
+<text x="642.5" y="310.0" class="data copper colored" text-anchor="middle">2, 3</text>
+</g>
+<rect x="230" y="284" width="450" height="40" rx="6" class="array-frame"/>
+<path d="M267.5 326v21" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M417.5 326v21" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M642.5 326v21" class="copper trace" marker-end="url(#arrow)"/>
+<text x="24" y="378" class="" text-anchor="start">Physical slot  a</text>
+<defs><clipPath id="array-5"><rect x="230" y="352" width="450" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-5)">
+<rect x="230" y="352" width="450" height="40" rx="0" class="plain"/>
+<rect x="230" y="352" width="75" height="40" rx="0" class="blue solid"/>
+<text x="267.5" y="378.0" class="data blue knockout" text-anchor="middle">708</text>
+<path d="M305 352v40" class="array-divider"/>
+<text x="342.5" y="378.0" class="data muted" text-anchor="middle">—</text>
+<rect x="380" y="352" width="75" height="40" rx="0" class="teal solid"/>
+<path d="M380 352v40" class="array-divider"/>
+<text x="417.5" y="378.0" class="data teal knockout" text-anchor="middle">129</text>
+<path d="M455 352v40" class="array-divider"/>
+<text x="492.5" y="378.0" class="data muted" text-anchor="middle">—</text>
+<path d="M530 352v40" class="array-divider"/>
+<text x="567.5" y="378.0" class="data muted" text-anchor="middle">—</text>
+<rect x="605" y="352" width="75" height="40" rx="0" class="copper solid"/>
+<path d="M605 352v40" class="array-divider"/>
+<text x="642.5" y="378.0" class="data copper knockout" text-anchor="middle">451</text>
+</g>
+<rect x="230" y="352" width="450" height="40" rx="6" class="array-frame"/>
+<text x="740" y="90" class="" text-anchor="start">owner = ⌊t / I⌋ mod D</text>
+<text x="740" y="128" class="" text-anchor="start">ℓ = ⌊t / (D I)⌋ I + t mod I</text>
+<text x="740" y="166" class="" text-anchor="start">(b, δ) = divmod(ℓ, S)</text>
+<text x="740" y="204" class="" text-anchor="start">a = P[request, b] S + δ</text>
+<path d="M740 230H1096" class="rule"/>
+<text x="740" y="264" class="subhead" text-anchor="start">Front compaction · count = 3</text>
+<defs><clipPath id="array-6"><rect x="740" y="280" width="356.0" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-6)">
+<rect x="740" y="280" width="356.0" height="40" rx="0" class="plain"/>
+<rect x="740.0" y="280" width="59.333333333333336" height="40" rx="0" class="blue wash"/>
+<text x="769.6666666666666" y="306.0" class="data blue colored" text-anchor="middle">708</text>
+<rect x="799.3333333333334" y="280" width="59.333333333333336" height="40" rx="0" class="teal wash"/>
+<path d="M799.3333333333334 280v40" class="array-divider"/>
+<text x="829.0" y="306.0" class="data teal colored" text-anchor="middle">129</text>
+<rect x="858.6666666666666" y="280" width="59.333333333333336" height="40" rx="0" class="copper wash"/>
+<path d="M858.6666666666666 280v40" class="array-divider"/>
+<text x="888.3333333333334" y="306.0" class="data copper colored" text-anchor="middle">451</text>
+<path d="M918.0 280v40" class="array-divider"/>
+<text x="947.6666666666667" y="306.0" class="data muted" text-anchor="middle">−1</text>
+<path d="M977.3333333333334 280v40" class="array-divider"/>
+<text x="1007.0" y="306.0" class="data muted" text-anchor="middle">−1</text>
+<path d="M1036.6666666666667 280v40" class="array-divider"/>
+<text x="1066.3333333333335" y="306.0" class="data muted" text-anchor="middle">−1</text>
+</g>
+<rect x="740" y="280" width="356.0" height="40" rx="6" class="array-frame"/>
+<text x="740" y="360" class="subhead" text-anchor="start">Preserve columns · count = 3</text>
+<defs><clipPath id="array-7"><rect x="740" y="376" width="356.0" height="40" rx="6"/></clipPath></defs>
+<g clip-path="url(#array-7)">
+<rect x="740" y="376" width="356.0" height="40" rx="0" class="plain"/>
+<rect x="740.0" y="376" width="59.333333333333336" height="40" rx="0" class="blue wash"/>
+<text x="769.6666666666666" y="402.0" class="data blue colored" text-anchor="middle">708</text>
+<path d="M799.3333333333334 376v40" class="array-divider"/>
+<text x="829.0" y="402.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="858.6666666666666" y="376" width="59.333333333333336" height="40" rx="0" class="teal wash"/>
+<path d="M858.6666666666666 376v40" class="array-divider"/>
+<text x="888.3333333333334" y="402.0" class="data teal colored" text-anchor="middle">129</text>
+<path d="M918.0 376v40" class="array-divider"/>
+<text x="947.6666666666667" y="402.0" class="data muted" text-anchor="middle">−1</text>
+<path d="M977.3333333333334 376v40" class="array-divider"/>
+<text x="1007.0" y="402.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="1036.6666666666667" y="376" width="59.333333333333336" height="40" rx="0" class="copper wash"/>
+<path d="M1036.6666666666667 376v40" class="array-divider"/>
+<text x="1066.3333333333335" y="402.0" class="data copper colored" text-anchor="middle">451</text>
+</g>
+<rect x="740" y="376" width="356.0" height="40" rx="6" class="array-frame"/>
 </svg>

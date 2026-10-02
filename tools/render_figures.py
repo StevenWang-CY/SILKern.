@@ -12,6 +12,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 import matplotlib
+from figure_style import FONT_FAMILIES, HEADING, LABEL, LIGHT, THEME_CSS, WIDTH
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -21,23 +22,16 @@ from matplotlib.ticker import FormatStrFormatter  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 APPLE_RECORD = Path("evidence/09-apple-mlx-consumer")
-INK = "#202832"
-MUTED = "#58616c"
-RULE = "#d4dbe1"
-NEUTRAL = "#84909b"
-ACCENT = "#32669b"
-ADVERSE = "#a16a3b"
-COMPARISON = "#b5bfca"
+INK = LIGHT["ink"]
+MUTED = LIGHT["muted"]
+RULE = LIGHT["rule"]
+NEUTRAL = LIGHT["line"]
+ACCENT = LIGHT["blue"]
+ADVERSE = LIGHT["copper"]
+COMPARISON = LIGHT["comparison"]
 COLORS = {
-    INK: "ink",
-    MUTED: "muted",
-    RULE: "rule",
-    NEUTRAL: "neutral",
-    ACCENT: "accent",
-    ADVERSE: "adverse",
-    COMPARISON: "comparison",
+    LIGHT[name]: name for name in ("ink", "muted", "rule", "line", "blue", "copper", "comparison")
 }
-WIDTH = 1120
 
 
 def _save_svg(fig, filename: str, title: str, description: str) -> None:
@@ -66,11 +60,7 @@ def _save_svg(fig, filename: str, title: str, description: str) -> None:
     accessibility = (
         f'<title id="figure-title">{escape(title)}</title>'
         f'<desc id="figure-desc">{escape(description)}</desc>'
-        "<style>svg{--ink:#202832;--muted:#58616c;--rule:#d4dbe1;"
-        "--neutral:#84909b;--accent:#32669b;--adverse:#a16a3b;--comparison:#b5bfca}"
-        "@media(prefers-color-scheme:dark){svg{--ink:#e5e5e5;"
-        "--muted:#a3a3a3;--rule:#303030;--neutral:#a3a3a3;"
-        "--accent:#8ab7e6;--adverse:#dfb17e;--comparison:#778696}}</style>"
+        f"<style>{THEME_CSS}text{{font-variant-numeric:tabular-nums}}</style>"
     )
     svg = svg[:end] + "\n" + accessibility + svg[end:]
     for color, variable in COLORS.items():
@@ -82,8 +72,8 @@ def _save_svg(fig, filename: str, title: str, description: str) -> None:
 def _configure() -> None:
     plt.rcParams.update(
         {
-            "font.family": ["Arial", "DejaVu Sans"],
-            "font.size": 14,
+            "font.family": list(FONT_FAMILIES),
+            "font.size": LABEL,
             "svg.fonttype": "none",
             "svg.hashsalt": "silkern-evidence-figures",
             "text.color": INK,
@@ -94,8 +84,8 @@ def _configure() -> None:
             "axes.spines.right": False,
             "xtick.color": MUTED,
             "ytick.color": INK,
-            "xtick.labelsize": 13,
-            "ytick.labelsize": 13,
+            "xtick.labelsize": LABEL,
+            "ytick.labelsize": LABEL,
             "xtick.major.width": 0.7,
             "ytick.major.width": 0.7,
             "figure.facecolor": "none",
@@ -119,21 +109,22 @@ def _axis(fig, rectangle):
     return ax
 
 
-def _bar_panel(fig, rectangle, cells, *, title, limit, ticks, labels, show_y=True):
+def _bar_panel(fig, rectangle, cells, *, limit, ticks, labels):
     ax = fig.add_axes(rectangle)
     ax.set_axisbelow(True)
-    ax.grid(axis="y", color=RULE, linewidth=0.6)
+    ax.grid(axis="y", color=RULE, linewidth=0.7)
     ax.spines["left"].set_visible(False)
-    ax.tick_params(axis="y", length=0, pad=7, labelleft=show_y)
+    ax.tick_params(axis="y", length=0, pad=10)
     ax.tick_params(axis="x", length=0, pad=10)
-    x = list(range(len(cells)))
+    # All four panels use the same physical bar width, including the two-group consumer.
+    positions = list(range(3)) if len(cells) == 3 else [0.4, 1.6]
     for arm, offset, color in (
-        ("mlx_compiled", -0.19, COMPARISON),
-        ("metal_compiled", 0.19, ACCENT),
+        ("mlx_compiled", -0.205, COMPARISON),
+        ("metal_compiled", 0.205, ACCENT),
     ):
         heights = [cell["median_us"][arm] for cell in cells]
         bars = ax.bar(
-            [v + offset for v in x],
+            [v + offset for v in positions],
             heights,
             width=0.34,
             color=color,
@@ -141,18 +132,13 @@ def _bar_panel(fig, rectangle, cells, *, title, limit, ticks, labels, show_y=Tru
             linewidth=0.45,
             zorder=3,
         )
-        ax.bar_label(bars, labels=[f"{v:.1f}" for v in heights], padding=5, color=INK, fontsize=12)
-    ax.set_xticks(
-        x,
-        [
-            f"{label}\n{cell['compiled_ratio']:.2f}×"
-            for label, cell in zip(labels, cells, strict=True)
-        ],
-    )
+        ax.bar_label(
+            bars, labels=[f"{v:.1f}" for v in heights], padding=6, color=INK, fontsize=LABEL
+        )
+    ax.set_xticks(positions, labels)
     ax.set_yticks(ticks)
     ax.set_ylim(0, limit)
-    ax.set_xlim(-0.62, len(cells) - 0.38)
-    ax.set_title(title, fontsize=15, color=INK, pad=16)
+    ax.set_xlim(-0.6, 2.6)
     return ax
 
 
@@ -165,73 +151,79 @@ def render_apple() -> None:
     device = metadata["device"]["device_name"]
     mlx_version = metadata["versions"]["mlx"]
     ratios = [cell["compiled_ratio"] for cell in data["cells"]]
-    fig = _figure(414)
-    fig.text(0.022, 0.965, "a  Index localization", fontsize=18, weight="bold", va="top")
-    fig.text(0.765, 0.965, "b  Attention consumer", fontsize=18, weight="bold", va="top")
+    height = 744
+    fig = _figure(height)
+    fig.text(24 / WIDTH, 1 - 30 / height, "Latency (µs)", fontsize=LABEL)
     fig.legend(
         handles=[
-            Patch(facecolor=COMPARISON, label="Compiled MLX"),
-            Patch(facecolor=ACCENT, label="Compiled Metal"),
+            Patch(facecolor=COMPARISON, edgecolor=INK, linewidth=0.45, label="Compiled MLX"),
+            Patch(facecolor=ACCENT, edgecolor=INK, linewidth=0.45, label="Compiled Metal"),
         ],
-        loc="upper center",
-        bbox_to_anchor=(0.49, 0.975),
+        loc="upper right",
+        bbox_to_anchor=(1096 / WIDTH, 1 - 10 / height),
         ncols=2,
         frameon=False,
-        fontsize=13,
+        fontsize=LABEL,
         handlelength=1.2,
         handleheight=1,
-        handletextpad=0.5,
+        handletextpad=0.55,
         columnspacing=1.5,
         borderpad=0,
+        borderaxespad=0,
     )
-    for index, width in enumerate((128, 2048, 4096)):
-        cells = sorted(
-            (c for c in data["cells"] if c["geometry"]["width"] == width),
-            key=lambda c: c["geometry"]["batch"],
-        )
-        ax = _bar_panel(
-            fig,
-            [0.065 + index * 0.224, 0.205, 0.193, 0.58],
-            cells,
-            title=f"Selection width {width:,}",
-            limit=235,
-            ticks=[0, 50, 100, 150, 200],
-            labels=[str(c["geometry"]["batch"]) for c in cells],
-            show_y=index == 0,
-        )
-        if index == 0:
-            ax.set_ylabel("Latency (µs)", labelpad=12, fontsize=14)
-    fig.text(
-        0.382, 0.035, "Batch size · speedup (MLX / Metal)", fontsize=13, color=MUTED, ha="center"
-    )
-    ax = _bar_panel(
-        fig,
-        [0.794, 0.205, 0.183, 0.58],
-        consumer["cells"],
-        title="Complete selected attention",
-        limit=440,
-        ticks=[0, 100, 200, 300, 400],
-        labels=[
-            f"{c['geometry']['batch']} × {c['geometry']['width']:,}" for c in consumer["cells"]
-        ],
-    )
-    fig.text(0.89, 0.035, "Batch × width · speedup", fontsize=13, color=MUTED, ha="center")
     fig.add_artist(
         plt.Line2D(
-            [0.745, 0.745], [0.12, 0.91], transform=fig.transFigure, color=RULE, linewidth=0.9
+            [24 / WIDTH, 1096 / WIDTH],
+            [1 - 51 / height] * 2,
+            transform=fig.transFigure,
+            color=RULE,
+            linewidth=0.8,
         )
     )
+    for index, width in enumerate((128, 2048, 4096, None)):
+        x, y = (80 + (index % 2) * 570), (122 + (index // 2) * 336)
+        is_consumer = width is None
+        cells = (
+            consumer["cells"]
+            if is_consumer
+            else sorted(
+                (c for c in data["cells"] if c["geometry"]["width"] == width),
+                key=lambda c: c["geometry"]["batch"],
+            )
+        )
+        title = (
+            "d  Selected attention"
+            if is_consumer
+            else f"{'abc'[index]}  Localization · width {width:,}"
+        )
+        fig.text((x - 56) / WIDTH, 1 - (y - 32) / height, title, fontsize=HEADING, weight="bold")
+        ax = _bar_panel(
+            fig,
+            [x / WIDTH, 1 - (y + 207) / height, 428 / WIDTH, 207 / height],
+            cells,
+            limit=440 if is_consumer else 240,
+            ticks=[0, 100, 200, 300, 400] if is_consumer else [0, 50, 100, 150, 200],
+            labels=[
+                f"{c['geometry']['batch']} × {c['geometry']['width']:,}"
+                if is_consumer
+                else str(c["geometry"]["batch"])
+                for c in cells
+            ],
+        )
+        ax.set_xlabel(
+            "Batch × selection width" if is_consumer else "Batch size", labelpad=14, fontsize=LABEL
+        )
     _save_svg(
         fig,
         "fig-apple-performance.svg",
         f"{device} compiled localization and selected-attention measurements",
         f"Grouped bars compare compiled compositional MLX in gray with compiled custom Metal in blue on {device}, MLX {mlx_version}. "
-        f"Panel a contains three equal-scale facets at selection widths 128, 2048, 4096, each with batches 1, 8, 32. "
+        "Four panels form a two-by-two grid. Panels a, b, c are localization at widths 128, 2048, 4096, "
+        "with batch sizes 1, 8, 32 and identical zero-based 0–240 microsecond scales. "
         f"Metal is {min(ratios):.2f} to {max(ratios):.2f} times faster across the nine localization geometries. "
-        "All bar axes start at zero: localization uses 0–235 microseconds and consumer uses 0–440 microseconds. "
-        "Direct labels give latency to one decimal place; labels beneath each batch give MLX / Metal speedup to two decimals. "
-        "Panel b covers two complete selected-attention consumers: batch 1 / width 128 and batch 8 / width 2048. "
-        "Each has two logical shards on one device, fixed caches, and 64-dimensional keys and values. "
+        "Panel d covers complete selected attention at batch 1 / width 128 and batch 8 / width 2048 "
+        "on a separate zero-based 0–440 microsecond scale. Each consumer uses two logical shards on one device, "
+        "fixed caches and 64-dimensional keys and values. Direct labels give latency to one decimal place. "
         "Bars are medians of three process-session medians; timings include dispatch, allocation, execution and synchronization. "
         "Warmup and first-use compilation are excluded. No confidence intervals are implied. These are not full-model or distributed results. "
         f"Source: {APPLE_RECORD.as_posix()}/summary.json and consumer-summary.json.",
@@ -241,25 +233,25 @@ def render_apple() -> None:
 def render_cuda() -> None:
     segments = json.loads((ROOT / "evidence/05-full-decode-canary/segments.json").read_text())
     analysis = json.loads((ROOT / "evidence/05-full-decode-canary/analysis.json").read_text())
-    fig = _figure(370)
-    ax = _axis(fig, [0.135, 0.19, 0.32, 0.66])
-    ax2 = _axis(fig, [0.675, 0.19, 0.295, 0.66])
+    fig = _figure(422)
+    ax = _axis(fig, [0.165, 0.21, 0.292, 0.56])
+    ax2 = _axis(fig, [0.689, 0.21, 0.285, 0.56])
     fig.text(
-        0.295,
-        0.965,
+        0.022,
+        0.955,
         "a  Converter · 32K context",
-        fontsize=18,
+        fontsize=HEADING,
         weight="bold",
-        ha="center",
+        ha="left",
         va="top",
     )
     fig.text(
-        0.8225,
-        0.965,
+        0.559,
+        0.955,
         "b  Complete decode vs atomic",
-        fontsize=18,
+        fontsize=HEADING,
         weight="bold",
-        ha="center",
+        ha="left",
         va="top",
     )
     arms = [
@@ -276,14 +268,14 @@ def render_cuda() -> None:
             xytext=(8, 0),
             textcoords="offset points",
             va="center",
-            fontsize=13,
+            fontsize=LABEL,
             color=INK,
         )
     ax.set_yticks([2, 1, 0], [arm[1] for arm in arms])
     ax.set_ylim(-0.5, 2.5)
     ax.set_xlim(0, 275)
     ax.set_xticks([0, 50, 100, 150, 200, 250])
-    ax.set_xlabel("Converter segment latency (µs)", labelpad=10, fontsize=14)
+    ax.set_xlabel("Converter latency (µs)", labelpad=10, fontsize=LABEL)
     rows = [
         ("row_stable", 32768, "Rowwise"),
         ("hierarchical_stable", 32768, "Hierarchical"),
@@ -300,11 +292,11 @@ def render_cuda() -> None:
             xerr=[[contrast["point"] - contrast["lo"]], [contrast["hi"] - contrast["point"]]],
             color=color,
             marker="o" if arm == "row_stable" else "D",
-            markersize=6,
+            markersize=8,
             markerfacecolor=color if arm == "row_stable" else "none",
             markeredgewidth=1.2,
             linestyle="none",
-            elinewidth=1.2,
+            elinewidth=1.5,
             capsize=3,
             capthick=1,
             zorder=3,
@@ -317,16 +309,16 @@ def render_cuda() -> None:
         f"{margin:.2f} margin",
         transform=ax2.get_xaxis_transform(),
         color=MUTED,
-        fontsize=12,
+        fontsize=LABEL,
         ha="center",
         va="bottom",
     )
     ax2.set_yticks([3, 2, 1, 0], [f"{r[1] // 1024}K · {r[2]}" for r in rows])
     ax2.set_ylim(-0.5, 3.5)
     ax2.set_xlim(0.993, 1.022)
-    ax2.set_xticks([0.995, 1.000, 1.005, 1.010, 1.015, 1.020])
-    ax2.xaxis.set_major_formatter(FormatStrFormatter("%.3f"))
-    ax2.set_xlabel("Complete-step latency ratio", labelpad=10, fontsize=14)
+    ax2.set_xticks([1.00, 1.01, 1.02])
+    ax2.xaxis.set_major_formatter(FormatStrFormatter("%.2f"))
+    ax2.set_xlabel("Complete-step latency ratio", labelpad=10, fontsize=LABEL)
     _save_svg(
         fig,
         "fig-cost.svg",
