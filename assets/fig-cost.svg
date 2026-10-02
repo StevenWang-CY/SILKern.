@@ -2,7 +2,7 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
   "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns:xlink="http://www.w3.org/1999/xlink" width="1120pt" height="422pt" viewBox="0 0 1120 422" xmlns="http://www.w3.org/2000/svg" version="1.1" role="img" aria-labelledby="figure-title figure-desc">
-<title id="figure-title">Archived CUDA converter latency and complete decode cost</title><desc id="figure-desc">Panel (a): at 32K, the 48-layer converter segment takes 119.996 microseconds rowwise, 194.393 atomic, and 239.727 hierarchical; rowwise is 38.3 percent lower than atomic. Horizontal bars use a zero baseline; visible labels round to one decimal place. Panel (b): complete-step ratio estimates and 98.75 percent intervals are shown against atomic on a 0.993 to 1.022 axis. Solid vertical line: equal latency; dashed line: prespecified 1.01 margin. Rust marks rowwise at 64K, which is 1.014006 times atomic and whose interval exceeds the margin. All other contrasts meet the margin. Lower latency or ratio is better. Five sessions; panel (a) uses pooled segment medians, and panel (b) uses session-level complete-step estimates. These are historical two-H100 live-DCP-2 reference-executor results, not serving-runtime performance. No NVIDIA experiments were run for this update. Source: evidence/05-full-decode-canary/segments.json and analysis.json.</desc><style>svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#ffffff;--neutral:#f1f3f5;--comparison:#b5bfca;--blue:#32669b;--blue-wash:#e8f0f8;--teal:#287c72;--teal-wash:#e7f2ef;--copper:#a16a3b;--copper-wash:#f7eddf;--violet:#786a9e;--violet-wash:#eeebf5;--knockout:#ffffff}@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--neutral:#1b232c;--comparison:#778696;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338;--knockout:#111820}}text{font-variant-numeric:tabular-nums}</style>
+<title id="figure-title">Archived CUDA converter latency and complete decode cost</title><desc id="figure-desc">Panel (a): at 32K, the 48-layer converter segment takes 119.996 microseconds rowwise, 194.393 atomic, and 239.727 hierarchical; rowwise is 38.3 percent lower than atomic. Horizontal bars use a zero baseline; visible labels round to one decimal place. Panel (b): complete-step ratio estimates and 98.75 percent intervals are shown against atomic on a 0.993 to 1.022 axis. Solid vertical line: equal latency; dashed line: prespecified 1.01 margin. Rust marks rowwise at 64K, which is 1.014006 times atomic and whose interval exceeds the margin. All other contrasts meet the margin. Lower latency or ratio is better. Five sessions; panel (a) uses pooled segment medians, and panel (b) uses session-level complete-step estimates. These are historical two-H100 live-DCP-2 reference-executor results, not serving-runtime performance. No NVIDIA experiments were run for this update. Source: evidence/05-full-decode-canary/segments.json and analysis.json.</desc><style>svg{--ink:#242424;--muted:#636363;--line:#777777;--rule:#d8d8d8;--paper:#ffffff;--comparison:#b9bec3;--blue:#355e8a;--blue-wash:#e8f0f8;--teal:#47786d;--teal-wash:#e7f2ef;--copper:#9d6444;--copper-wash:#f7eddf;--violet:#786791;--violet-wash:#eeebf5}@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--comparison:#778696;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}}text{font-variant-numeric:tabular-nums}</style>
  <metadata>
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
@@ -48,12 +48,12 @@ L 184.8 97.06
      </g>
      <g id="line2d_2">
       <defs>
-       <path id="m5f1428f217" d="M 0 0
+       <path id="m8b19024e19" d="M 0 0
 L 0 4
 " style="stroke: var(--muted); stroke-width: 0.7"/>
       </defs>
       <g>
-       <use xlink:href="#m5f1428f217" x="184.8" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
+       <use xlink:href="#m8b19024e19" x="184.8" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
       </g>
      </g>
      <g id="text_1">
@@ -68,7 +68,7 @@ L 244.261818 97.06
      </g>
      <g id="line2d_4">
       <g>
-       <use xlink:href="#m5f1428f217" x="244.261818" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
+       <use xlink:href="#m8b19024e19" x="244.261818" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
       </g>
      </g>
      <g id="text_2">
@@ -83,7 +83,7 @@ L 303.723636 97.06
      </g>
      <g id="line2d_6">
       <g>
-       <use xlink:href="#m5f1428f217" x="303.723636" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
+       <use xlink:href="#m8b19024e19" x="303.723636" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
       </g>
      </g>
      <g id="text_3">
@@ -98,7 +98,7 @@ L 363.185455 97.06
      </g>
      <g id="line2d_8">
       <g>
-       <use xlink:href="#m5f1428f217" x="363.185455" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
+       <use xlink:href="#m8b19024e19" x="363.185455" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
       </g>
      </g>
      <g id="text_4">
@@ -113,7 +113,7 @@ L 422.647273 97.06
      </g>
      <g id="line2d_10">
       <g>
-       <use xlink:href="#m5f1428f217" x="422.647273" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
+       <use xlink:href="#m8b19024e19" x="422.647273" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
       </g>
      </g>
      <g id="text_5">
@@ -128,7 +128,7 @@ L 482.109091 97.06
      </g>
      <g id="line2d_12">
       <g>
-       <use xlink:href="#m5f1428f217" x="482.109091" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
+       <use xlink:href="#m8b19024e19" x="482.109091" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
       </g>
      </g>
      <g id="text_6">
@@ -222,7 +222,7 @@ L 848.728276 97.06
      </g>
      <g id="line2d_17">
       <g>
-       <use xlink:href="#m5f1428f217" x="848.728276" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
+       <use xlink:href="#m8b19024e19" x="848.728276" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
       </g>
      </g>
      <g id="text_14">
@@ -237,7 +237,7 @@ L 958.797241 97.06
      </g>
      <g id="line2d_19">
       <g>
-       <use xlink:href="#m5f1428f217" x="958.797241" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
+       <use xlink:href="#m8b19024e19" x="958.797241" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
       </g>
      </g>
      <g id="text_15">
@@ -252,7 +252,7 @@ L 1068.866207 97.06
      </g>
      <g id="line2d_21">
       <g>
-       <use xlink:href="#m5f1428f217" x="1068.866207" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
+       <use xlink:href="#m8b19024e19" x="1068.866207" y="333.38" style="fill: var(--muted); stroke: var(--muted); stroke-width: 0.7"/>
       </g>
      </g>
      <g id="text_16">
@@ -316,17 +316,17 @@ L 878.405307 126.6
    </g>
    <g id="line2d_28">
     <defs>
-     <path id="md4eb90e3a8" d="M 0 3
+     <path id="ma9019c04ab" d="M 0 3
 L 0 -3
 " style="stroke: var(--blue); stroke-width: 1.2"/>
     </defs>
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#md4eb90e3a8" x="819.815903" y="126.6" style="fill: var(--blue); stroke: var(--blue); stroke-width: 1.2"/>
+     <use xlink:href="#ma9019c04ab" x="819.815903" y="126.6" style="fill: var(--blue); stroke: var(--blue); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="line2d_29">
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#md4eb90e3a8" x="878.405307" y="126.6" style="fill: var(--blue); stroke: var(--blue); stroke-width: 1.2"/>
+     <use xlink:href="#ma9019c04ab" x="878.405307" y="126.6" style="fill: var(--blue); stroke: var(--blue); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="LineCollection_2">
@@ -336,17 +336,17 @@ L 885.802743 185.68
    </g>
    <g id="line2d_30">
     <defs>
-     <path id="m3cfc892565" d="M 0 3
+     <path id="mb8c34bd3ba" d="M 0 3
 L 0 -3
 " style="stroke: var(--line); stroke-width: 1.2"/>
     </defs>
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#m3cfc892565" x="824.514233" y="185.68" style="fill: var(--line); stroke: var(--line); stroke-width: 1.2"/>
+     <use xlink:href="#mb8c34bd3ba" x="824.514233" y="185.68" style="fill: var(--line); stroke: var(--line); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="line2d_31">
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#m3cfc892565" x="885.802743" y="185.68" style="fill: var(--line); stroke: var(--line); stroke-width: 1.2"/>
+     <use xlink:href="#mb8c34bd3ba" x="885.802743" y="185.68" style="fill: var(--line); stroke: var(--line); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="LineCollection_3">
@@ -356,17 +356,17 @@ L 1043.549871 244.76
    </g>
    <g id="line2d_32">
     <defs>
-     <path id="mbaccad6965" d="M 0 3
+     <path id="mc1022da5d2" d="M 0 3
 L 0 -3
 " style="stroke: var(--copper); stroke-width: 1.2"/>
     </defs>
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#mbaccad6965" x="962.380628" y="244.76" style="fill: var(--copper); stroke: var(--copper); stroke-width: 1.2"/>
+     <use xlink:href="#mc1022da5d2" x="962.380628" y="244.76" style="fill: var(--copper); stroke: var(--copper); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="line2d_33">
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#mbaccad6965" x="1043.549871" y="244.76" style="fill: var(--copper); stroke: var(--copper); stroke-width: 1.2"/>
+     <use xlink:href="#mc1022da5d2" x="1043.549871" y="244.76" style="fill: var(--copper); stroke: var(--copper); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="LineCollection_4">
@@ -376,12 +376,12 @@ L 943.910644 303.84
    </g>
    <g id="line2d_34">
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#m3cfc892565" x="801.946906" y="303.84" style="fill: var(--line); stroke: var(--line); stroke-width: 1.2"/>
+     <use xlink:href="#mb8c34bd3ba" x="801.946906" y="303.84" style="fill: var(--line); stroke: var(--line); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="line2d_35">
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#m3cfc892565" x="943.910644" y="303.84" style="fill: var(--line); stroke: var(--line); stroke-width: 1.2"/>
+     <use xlink:href="#mb8c34bd3ba" x="943.910644" y="303.84" style="fill: var(--line); stroke: var(--line); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="text_22">
@@ -389,7 +389,7 @@ L 943.910644 303.84
    </g>
    <g id="line2d_36">
     <defs>
-     <path id="mc86c8bba83" d="M 0 4
+     <path id="m5e2cd65330" d="M 0 4
 C 1.060812 4 2.078319 3.578535 2.828427 2.828427
 C 3.578535 2.078319 4 1.060812 4 0
 C 4 -1.060812 3.578535 -2.078319 2.828427 -2.828427
@@ -402,12 +402,12 @@ z
 " style="stroke: var(--blue); stroke-width: 1.2"/>
     </defs>
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#mc86c8bba83" x="849.071622" y="126.6" style="fill: var(--blue); stroke: var(--blue); stroke-width: 1.2"/>
+     <use xlink:href="#m5e2cd65330" x="849.071622" y="126.6" style="fill: var(--blue); stroke: var(--blue); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="line2d_37">
     <defs>
-     <path id="ma7b4db123a" d="M -0 5.656854
+     <path id="m4c9388ffc4" d="M -0 5.656854
 L 5.656854 0
 L 0 -5.656854
 L -5.656854 -0
@@ -415,12 +415,12 @@ z
 " style="stroke: var(--line); stroke-width: 1.2; stroke-linejoin: miter"/>
     </defs>
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#ma7b4db123a" x="855.115854" y="185.68" style="fill-opacity: 0; stroke: var(--line); stroke-width: 1.2; stroke-linejoin: miter"/>
+     <use xlink:href="#m4c9388ffc4" x="855.115854" y="185.68" style="fill-opacity: 0; stroke: var(--line); stroke-width: 1.2; stroke-linejoin: miter"/>
     </g>
    </g>
    <g id="line2d_38">
     <defs>
-     <path id="mab8387c6a8" d="M 0 4
+     <path id="me0bf6e1169" d="M 0 4
 C 1.060812 4 2.078319 3.578535 2.828427 2.828427
 C 3.578535 2.078319 4 1.060812 4 0
 C 4 -1.060812 3.578535 -2.078319 2.828427 -2.828427
@@ -433,20 +433,26 @@ z
 " style="stroke: var(--copper); stroke-width: 1.2"/>
     </defs>
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#mab8387c6a8" x="1002.891462" y="244.76" style="fill: var(--copper); stroke: var(--copper); stroke-width: 1.2"/>
+     <use xlink:href="#me0bf6e1169" x="1002.891462" y="244.76" style="fill: var(--copper); stroke: var(--copper); stroke-width: 1.2"/>
     </g>
    </g>
    <g id="line2d_39">
     <g clip-path="url(#p6c2446226e)">
-     <use xlink:href="#ma7b4db123a" x="872.700399" y="303.84" style="fill-opacity: 0; stroke: var(--line); stroke-width: 1.2; stroke-linejoin: miter"/>
+     <use xlink:href="#m4c9388ffc4" x="872.700399" y="303.84" style="fill-opacity: 0; stroke: var(--line); stroke-width: 1.2; stroke-linejoin: miter"/>
     </g>
    </g>
   </g>
   <g id="text_23">
-   <text style="font-weight: 700; font-size: 22px; font-family: 'Arial', 'DejaVu Sans'; text-anchor: start; fill: var(--ink)" x="24.64" y="35.006602" transform="rotate(-0 24.64 35.006602)">a  Converter · 32K context</text>
+   <text style="font-weight: 700; font-size: 20px; font-family: 'Arial', 'DejaVu Sans'; text-anchor: start; fill: var(--ink)" x="24" y="36" transform="rotate(-0 24 36)">a</text>
   </g>
   <g id="text_24">
-   <text style="font-weight: 700; font-size: 22px; font-family: 'Arial', 'DejaVu Sans'; text-anchor: start; fill: var(--ink)" x="626.08" y="35.006602" transform="rotate(-0 626.08 35.006602)">b  Complete decode vs atomic</text>
+   <text style="font-size: 20px; font-family: 'Arial', 'DejaVu Sans'; text-anchor: start; fill: var(--ink)" x="48" y="36" transform="rotate(-0 48 36)">Converter, 32K context</text>
+  </g>
+  <g id="text_25">
+   <text style="font-weight: 700; font-size: 20px; font-family: 'Arial', 'DejaVu Sans'; text-anchor: start; fill: var(--ink)" x="626" y="36" transform="rotate(-0 626 36)">b</text>
+  </g>
+  <g id="text_26">
+   <text style="font-size: 20px; font-family: 'Arial', 'DejaVu Sans'; text-anchor: start; fill: var(--ink)" x="650" y="36" transform="rotate(-0 650 36)">Complete decode vs atomic</text>
   </g>
  </g>
  <defs>

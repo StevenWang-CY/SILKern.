@@ -9,7 +9,7 @@ runnable gathers and selected attention.
 
 ![Localization feeds masked K/V gathers and a shared softmax normalization; count prefixes and column masks depend on the output layout](../assets/fig-consumer.svg)
 
-**Figure 5. Consuming localized addresses.** (a) Equal counts can describe different validity layouts. (b) Mask both gather addresses and gathered K/V values: an unused cache entry may contain NaN. Angled gates select values with `where`; paired grids represent K/V storage. (c) The maximum and both sums cover every selected position across logical shards. An empty selection uses `m = 0` and returns zero. The example runs on one device and requires populated nonnegative pages, in-bounds slots, and finite, representable arithmetic.
+**Figure 5. Consuming localized addresses.** (a) Filled and open marks reinforce the numeric validity mask; equal counts can describe different layouts. (b) Dashed paths carry the mask to both address selection and post-gather masking. K/V matrices show placeholder row 0 and selected rows 12 and 14; each row glyph is a schematic feature vector. The placeholder may contain NaN. (c) The maximum and both sums cover every logical shard and selected position. An empty selection uses `m = 0` and returns zero. This one-device consumer requires populated nonnegative pages, in-bounds slots, and finite, representable arithmetic.
 
 ## Choose the right validity mask
 
