@@ -15,9 +15,9 @@ Deterministic sparse-index localization for **Apple silicon / MLX** and **CUDA /
 
 </div>
 
-<img src="assets/fig-platforms.svg" width="100%" alt="Sparse-attention dataflow with an expanded localization graph: ownership and bounds feed the validity scan; page translation and stable destinations feed scatter, producing rank-local slots and counts.">
+<img src="assets/fig-platforms.svg" width="100%" alt="Worked localization with colored token paths, a logical-to-physical page table, and 64-slot cache tiles showing selected KV addresses.">
 
-**Figure 1. Localization at the sparse-attention boundary.** The expanded graph separates physical-address translation from the validity scan that assigns stable destinations and an exact count. The example uses rank 0 of two ranks, interleave 1, and block size 64. This is the compacting contract shared by Python, MLX/Metal, and CUDA/Triton; the graph does not prescribe kernel-launch boundaries.
+**Figure 1. Localization at the sparse-attention boundary.** Color follows each surviving token through ownership filtering, address translation, and stable scatter. The page-table view resolves logical pages into three 64-slot cache tiles; highlighted cells show the selected K/V addresses. The example uses rank 0 of two ranks, interleave 1, and page size 64. Output follows selector order even when physical pages are nonmonotonic. Backends share this compacting result with distinct memory ownership.
 
 **New in 0.2.0 (unreleased):** native Apple/MLX localization, backend-specific
 verification, stronger validation, and an explicit architecture guide.
@@ -86,7 +86,7 @@ assert counts == [3]
 
 <img src="assets/fig-contract.svg" width="100%" alt="Worked example: rank zero keeps input tokens 8, 130, and 262, deinterleaves to local positions 4, 65, and 131, translates through page blocks 11, 2, and 7, and returns physical slots 708, 129, and 451 followed by minus-one padding; count is three.">
 
-**Figure 2. A worked localization row.** Ownership removes columns 1 and 3, while column 4 is invalid. The surviving positions translate to physical slots 708, 129, and 451. Prefix-derived destinations preserve their input order; padding follows the three-element valid prefix. Stable compaction does not sort by physical address.
+**Figure 2. A worked localization row.** Columns 0, 2, and 5 translate to physical slots 708, 129, and 451. Prefix-derived destinations preserve their input order and leave a padded tail. The right panel gives the general coordinate equations and compares compacted and column-preserving layouts: both have count 3, but only one has a valid three-element prefix.
 
 **Two deliberate edge cases:** `dcp_size=1` leaves values in their original
 columns, and negative in-range page-table entries are used verbatim and counted.
@@ -165,9 +165,9 @@ On an **Apple M5 Max with MLX 0.32.3**, the compiled custom Metal path achieved
 nine tested batch/width combinations. The eager comparison was 1.76–1.96×.
 Both baselines are retained; the headline compares compiled with compiled.
 
-<img src="assets/fig-apple-performance.svg" width="100%" alt="Compiled localization and complete selected-attention latency on Apple M5 Max. Open gray markers show MLX and filled blue markers show Metal; annotations report MLX divided by Metal latency.">
+<img src="assets/fig-apple-performance.svg" width="100%" alt="Compiled localization and complete selected-attention latency on Apple M5 Max. Gray bars show MLX and blue bars show Metal; direct labels give latency and speedup.">
 
-**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Points are medians of three process-session medians; annotations give MLX latency divided by Metal latency. (a) Localization alone. (b) The complete selected-attention consumer with two logical shards, fixed caches, and 64-dimensional keys and values. Both panels include dispatch, allocation, execution, and synchronization; their latency axes differ.
+**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Gray bars show MLX and blue bars show Metal; values above bars are microseconds, and ratios below each group divide MLX latency by Metal latency. (a) Localization, grouped by selection width on a shared scale. (b) Complete selected attention with two logical shards, fixed caches, and 64-dimensional keys and values. Bars start at zero and show medians of three process-session medians, including dispatch, allocation, execution, and synchronization. The consumer uses a separate latency scale.
 
 For batch 8, width 2048, compiled Metal measured **164.20 µs** versus **185.60 µs**
 for compiled MLX. These are synchronized functional calls including Python
@@ -297,7 +297,9 @@ The [wordmark](assets/logo-text.svg), [icon](assets/logo.svg),
 self-contained SVGs. Technical figures use transparent backgrounds, neutral
 typography, and accessible descriptions for light and dark themes. Performance
 figures are regenerated from the checked-in evidence with
-`python tools/render_figures.py` after installing `.[docs]`.
+`python tools/render_figures.py`; `python tools/render_diagrams.py` regenerates
+the explanatory diagrams and checks their worked outputs against the Python
+oracle. Install the editable checkout with `pip install -e ".[docs]"` first.
 
 ```bibtex
 @software{silkern2026,
