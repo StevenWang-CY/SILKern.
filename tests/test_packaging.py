@@ -11,15 +11,18 @@ from __future__ import annotations
 import ast
 import pathlib
 import re
+import subprocess
+import sys
 import tomllib
 from importlib import import_module
+from urllib.parse import urlsplit
 
 import pytest
 
 import silkern
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SOURCE_DIRS = ("tests", "bench")
+SOURCE_DIRS = ("tests", "bench", "examples")
 
 
 def _silkern_imports(path: pathlib.Path) -> list[tuple[str, str]]:
@@ -46,7 +49,10 @@ def test_every_name_the_suite_imports_from_silkern_still_exists() -> None:
     for directory in SOURCE_DIRS:
         for path in sorted((ROOT / directory).rglob("*.py")):
             for module, name in _silkern_imports(path):
-                imported = import_module(module)
+                # Match ``from package import submodule`` semantics too. A
+                # submodule need not already be bound on its package; relying
+                # on that makes this test depend on earlier test collection.
+                imported = __import__(module, fromlist=[name])
                 assert hasattr(imported, name), (
                     f"{path.relative_to(ROOT)} imports {name!r} from {module}, "
                     f"which no longer defines it"
@@ -64,10 +70,11 @@ def test_public_surface_is_declared_and_resolvable() -> None:
 @pytest.mark.parametrize(
     "name",
     ["silkern.contract", "silkern.errors", "silkern.kernels", "silkern.verify",
-     "silkern.workspace", "silkern.integrations", "silkern.integrations.vllm"],
+     "silkern.workspace", "silkern.integrations", "silkern.integrations.vllm",
+     "silkern.mlx", "silkern.mlx_verify"],
 )
 def test_every_module_imports_without_a_gpu_stack(name: str) -> None:
-    """The pure-Python promise: no module reaches for torch or triton at import."""
+    """All modules import when optional runtimes are absent, including guarded Triton."""
     import_module(name)
 
 
@@ -83,3 +90,39 @@ def test_version_is_the_same_in_every_place_that_states_it() -> None:
 def test_typing_marker_ships_with_the_package() -> None:
     """PEP 561: without this file the annotations are invisible to consumers."""
     assert (pathlib.Path(silkern.__file__).parent / "py.typed").is_file()
+
+
+def test_distribution_description_links_work_without_the_checkout() -> None:
+    """Index descriptions cannot resolve repository-relative files or images."""
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    description = (ROOT / pyproject["project"]["readme"]).read_text()
+    targets = re.findall(r"\]\(([^\s)]+)\)", description)
+    targets += re.findall(r'''\b(?:src|href)=["']([^"']+)["']''', description)
+    assert targets, "the package description should link to its complete documentation"
+    assert all(urlsplit(target).scheme == "https" for target in targets), targets
+
+
+def test_base_import_and_oracle_do_not_load_optional_backends() -> None:
+    result = subprocess.run(
+        [sys.executable, "-c", """
+import importlib.abc
+import sys
+class BlockOptional(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split('.')[0] in ('mlx', 'torch', 'triton'):
+            raise ModuleNotFoundError(fullname)
+sys.meta_path.insert(0, BlockOptional())
+import silkern
+assert silkern.localize_reference([0], [[3]], [[0, 1]],
+    block_size=2, dcp_size=2, dcp_rank=0) == ([[6, -1]], [1])
+assert not any(name.split('.')[0] in ('mlx', 'torch', 'triton') for name in sys.modules)
+try:
+    silkern.localize_mlx(None, None, None, block_size=2, dcp_size=2, dcp_rank=0)
+except silkern.LocalizationError as exc:
+    assert 'silkern[mlx]' in str(exc)
+else:
+    raise AssertionError('missing MLX must raise an actionable error')
+"""],
+        check=False, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr

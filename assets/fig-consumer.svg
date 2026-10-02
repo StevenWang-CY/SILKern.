@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="500" viewBox="0 0 1120 500" role="img" aria-labelledby="title desc">
+  <title id="title">From selected tokens to safe attention</title>
+  <desc id="desc">Global selections are localized per rank, gathered with masks, and combined with a shared softmax maximum before one normalization. Multi-rank compacted outputs use a count prefix. Single-rank or non-compacting outputs preserve holes and require column validity. Empty selections return zeros. Logical shards execute on one device.</desc>
+  <style>
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;fill:#262a2a}
+    .canvas{fill:#f5f5f0}.card{fill:#fff;stroke:#dadcd5}.muted{fill:#676f6d}.rule{stroke:#8e9a93;fill:none;stroke-width:1.5}.arrow{fill:#8e9a93}.blue{fill:#2368bd}.green{fill:#2b7d68}.pill{fill:#e9efeb}.heading{font-size:17px;font-weight:600}.body{font-size:13px}.eyebrow{font-size:11px;font-weight:650;letter-spacing:1.5px}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px}
+    @media(prefers-color-scheme:dark){text{fill:#eef0eb}.canvas{fill:#171d1c}.card{fill:#202826;stroke:#3b4842}.muted{fill:#abb8b1}.rule{stroke:#82988a}.arrow{fill:#82988a}.blue{fill:#7cb2f4}.green{fill:#80c6ae}.pill{fill:#303e36}}
+  </style>
+  <defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path class="arrow" d="M0 0 10 5 0 10Z"/></marker></defs>
+  <rect class="canvas" width="1120" height="500" rx="20"/>
+  <text class="eyebrow muted" x="38" y="39">CONSUMER WIRING · LOGICAL SHARDS ON ONE DEVICE</text>
+  <text x="38" y="83" font-size="32" font-weight="650" letter-spacing="-.5">From selected tokens to safe attention.</text>
+  <text class="muted" x="38" y="113" font-size="15">Preserve order, mask padding, and normalize over the complete selected set.</text>
+  <rect class="card" x="38" y="148" width="170" height="106" rx="12"/>
+  <text class="eyebrow blue" x="54" y="172">01 · SELECT</text>
+  <text class="heading" x="54" y="199">Global tokens</text>
+  <text class="mono muted" x="54" y="227">[7, 0, 14, …]</text>
+  <path class="rule" marker-end="url(#arrowhead)" d="M213 201h23"/>
+  <rect class="card" x="242" y="148" width="170" height="106" rx="12"/>
+  <text class="eyebrow blue" x="258" y="172">02 · LOCALIZE</text>
+  <text class="heading" x="258" y="199">Per-rank slots</text>
+  <text class="body muted" x="258" y="227">Exact counts + layout</text>
+  <path class="rule" marker-end="url(#arrowhead)" d="M417 201h23"/>
+  <rect class="card" x="446" y="148" width="190" height="106" rx="12"/>
+  <text class="eyebrow blue" x="462" y="172">03 · GATHER</text>
+  <text class="heading" x="462" y="199">Masked K/V</text>
+  <text class="body muted" x="462" y="221">Legal gather addresses</text>
+  <text class="body muted" x="462" y="240">Mask keys and values</text>
+  <path class="rule" marker-end="url(#arrowhead)" d="M641 201h23"/>
+  <rect class="card" x="670" y="148" width="218" height="106" rx="12"/>
+  <text class="eyebrow blue" x="686" y="172">04 · COMBINE</text>
+  <text class="heading" x="686" y="199">Shared-max softmax</text>
+  <text class="body muted" x="686" y="221">Sum weights and</text>
+  <text class="body muted" x="686" y="240">weighted values across ranks</text>
+  <path class="rule" marker-end="url(#arrowhead)" d="M893 201h23"/>
+  <rect class="card" x="922" y="148" width="160" height="106" rx="12"/>
+  <text class="eyebrow green" x="938" y="172">05 · OUTPUT</text>
+  <text class="heading" x="938" y="199">Divide once</text>
+  <text class="body muted" x="938" y="221">Empty selection?</text>
+  <text class="body muted" x="938" y="240">Return zeros.</text>
+  <path class="rule" d="M327 254v21h214v-21"/>
+  <rect class="pill" x="305" y="280" width="473" height="27" rx="13"/>
+  <text class="eyebrow muted" x="541" y="298" text-anchor="middle">CHOOSE THE MASK BEFORE THE GATHER</text>
+  <path class="rule" marker-end="url(#arrowhead)" d="M420 307v9H286v14"/>
+  <path class="rule" marker-end="url(#arrowhead)" d="M660 307v9H820v14"/>
+  <rect class="card" x="38" y="334" width="496" height="100" rx="12"/>
+  <text class="eyebrow blue" x="58" y="359">DCP &gt; 1 · COMPACTED PREFIX</text>
+  <text class="mono" x="58" y="388">valid = column &lt; count</text>
+  <text class="body muted" x="58" y="414">The count locates every survivor before padded positions.</text>
+  <rect class="card" x="558" y="334" width="524" height="100" rx="12"/>
+  <text class="eyebrow green" x="578" y="359">DCP = 1 · OR COMPACTION DISABLED</text>
+  <text class="mono" x="578" y="388">[14, -1, 12, -1] · count = 2</text>
+  <text class="body muted" x="578" y="414">Holes remain: derive column validity from the inputs.</text>
+  <text class="muted" x="38" y="469" font-size="12">Cache precondition: populated nonnegative pages, in-bounds slots, and representable finite attention arithmetic.</text>
+  <text class="eyebrow muted" text-anchor="end" x="1082" y="469">SILKERN</text>
+</svg>

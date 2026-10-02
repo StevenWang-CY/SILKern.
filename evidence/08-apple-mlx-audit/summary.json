@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "aggregation": "Per-arm median of each session median; ratios divide these aggregated latencies. Descriptive, no confidence interval.",
+  "sessions": [
+    "benchmark-session-1.json",
+    "benchmark-session-2.json",
+    "benchmark-session-3.json"
+  ],
+  "session_count": 3,
+  "cells": [
+    {
+      "geometry": {
+        "width": 128,
+        "batch": 1,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "median_us": {
+        "mlx": 292.29125999999997,
+        "metal": 136.19,
+        "mlx_compiled": 190.45166,
+        "metal_compiled": 138.64083
+      },
+      "eager_ratio": 2.1462020706366105,
+      "compiled_ratio": 1.3737054228541477
+    },
+    {
+      "geometry": {
+        "width": 128,
+        "batch": 8,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "median_us": {
+        "mlx": 303.04417,
+        "metal": 138.52749,
+        "mlx_compiled": 185.17374999999998,
+        "metal_compiled": 129.13375
+      },
+      "eager_ratio": 2.1876103436220493,
+      "compiled_ratio": 1.4339686565285992
+    },
+    {
+      "geometry": {
+        "width": 128,
+        "batch": 32,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "median_us": {
+        "mlx": 307.20959,
+        "metal": 133.3425,
+        "mlx_compiled": 188.72208,
+        "metal_compiled": 130.50666999999999
+      },
+      "eager_ratio": 2.3039135309447474,
+      "compiled_ratio": 1.446072296534729
+    },
+    {
+      "geometry": {
+        "width": 2048,
+        "batch": 1,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "median_us": {
+        "mlx": 303.13333,
+        "metal": 139.63459,
+        "mlx_compiled": 181.45416999999998,
+        "metal_compiled": 125.11334
+      },
+      "eager_ratio": 2.170904286681402,
+      "compiled_ratio": 1.4503183273662104
+    },
+    {
+      "geometry": {
+        "width": 2048,
+        "batch": 8,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "median_us": {
+        "mlx": 304.15458,
+        "metal": 143.99625,
+        "mlx_compiled": 184.25666999999999,
+        "metal_compiled": 128.5725
+      },
+      "eager_ratio": 2.112239589572645,
+      "compiled_ratio": 1.4330954908709095
+    },
+    {
+      "geometry": {
+        "width": 2048,
+        "batch": 32,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "median_us": {
+        "mlx": 319.52333,
+        "metal": 135.23332,
+        "mlx_compiled": 188.50417,
+        "metal_compiled": 130.83458000000002
+      },
+      "eager_ratio": 2.362755939142809,
+      "compiled_ratio": 1.4407824750918294
+    },
+    {
+      "geometry": {
+        "width": 4096,
+        "batch": 1,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "median_us": {
+        "mlx": 294.45833000000005,
+        "metal": 141.23083,
+        "mlx_compiled": 182.13166999999999,
+        "metal_compiled": 140.3225
+      },
+      "eager_ratio": 2.084943705280214,
+      "compiled_ratio": 1.2979505781325162
+    },
+    {
+      "geometry": {
+        "width": 4096,
+        "batch": 8,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "median_us": {
+        "mlx": 312.09834,
+        "metal": 140.33458000000002,
+        "mlx_compiled": 185.30666,
+        "metal_compiled": 137.43334
+      },
+      "eager_ratio": 2.2239589130490858,
+      "compiled_ratio": 1.348338474492434
+    },
+    {
+      "geometry": {
+        "width": 4096,
+        "batch": 32,
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0,
+        "dcp_interleave": 1,
+        "compact_valid_to_front": true
+      },
+      "median_us": {
+        "mlx": 334.15959,
+        "metal": 149.50376,
+        "mlx_compiled": 196.31125,
+        "metal_compiled": 138.30959000000001
+      },
+      "eager_ratio": 2.235124989498592,
+      "compiled_ratio": 1.4193610869643962
+    }
+  ],
+  "eager_ratio_range": [
+    2.084943705280214,
+    2.362755939142809
+  ],
+  "compiled_ratio_range": [
+    1.2979505781325162,
+    1.4503183273662104
+  ]
+}

@@ -13,6 +13,18 @@ from silkern import (
 )
 
 
+def test_reference_normalizes_integral_geometry_before_divisibility_check() -> None:
+    class PromotingInteger(int):
+        def __mod__(self, other):
+            # Mixed np.uint64/np.int64 promotes to float64 and can report an
+            # even remainder for an odd value above float64's exact range.
+            return 0.0
+
+    with pytest.raises(LocalizationError, match="divisible"):
+        localize_reference([0], [[0]], [[0]], block_size=PromotingInteger(2**63 + 1),
+                           dcp_size=1, dcp_rank=0, dcp_interleave=2)
+
+
 def test_reference_routes_requests_and_nonidentity_blocks() -> None:
     rows = [
         [0, 1, 2, 3, 8, 9, -1, 99],
@@ -215,6 +227,33 @@ def test_reference_rejects_bad_request_routing() -> None:
         )
 
 
+@pytest.mark.parametrize("value", [True, False, 0.5, 0.0, "0", None])
+@pytest.mark.parametrize("field", ["req_ids", "block_table", "rows"])
+def test_reference_rejects_lossy_index_coercion(field: str, value: object) -> None:
+    inputs = {"req_ids": [0], "block_table": [[0]], "rows": [[0]]}
+    inputs[field] = [value] if field == "req_ids" else [[value]]
+    with pytest.raises(LocalizationError, match=f"{field} must contain integers"):
+        localize_reference(**inputs, block_size=4, dcp_size=2, dcp_rank=0)
+
+
+def test_reference_validates_unselected_page_entries() -> None:
+    with pytest.raises(LocalizationError, match="block_table must contain integers"):
+        localize_reference(
+            [0], [[0], [1.5]], [[0]], block_size=4, dcp_size=2, dcp_rank=0
+        )
+
+
+def test_reference_keeps_arbitrary_precision_integer_semantics() -> None:
+    # Accelerated backends document representability preconditions separately;
+    # the normative mathematical oracle does not wrap signed int32 arithmetic.
+    huge = 2**80
+    out, counts = localize_reference(
+        [0], [[huge]], [[0, 2]], block_size=4, dcp_size=2, dcp_rank=0
+    )
+    assert out == [[huge * 4, huge * 4 + 1]]
+    assert counts == [2]
+
+
 def test_reference_rejects_row_count_mismatch() -> None:
     with pytest.raises(LocalizationError, match="one request id per row"):
         localize_reference(
@@ -279,6 +318,8 @@ def test_workspace_shapes_cover_partial_tile() -> None:
         (1, 1.5, 128),
         (1, MAX_ROW_WIDTH + 1, 128),
         (1, 128, 32),
+        (2**31, 1, 128),
+        (2**31 // MAX_ROW_WIDTH, MAX_ROW_WIDTH, 128),
     ],
 )
 def test_workspace_shapes_reject_invalid_configuration(

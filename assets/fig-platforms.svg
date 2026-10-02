@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="470" viewBox="0 0 1120 470" role="img" aria-labelledby="title desc">
+  <title id="title">One contract. Native execution.</title>
+  <desc id="desc">Global logical token selections are routed, filtered by rank, translated through pages, and stably compacted. A Python oracle, Apple MLX with Metal, and CUDA Triton implement this contract. Python and MLX return new outputs; CUDA writes caller-owned buffers.</desc>
+  <style>
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;fill:#262a2a}
+    .canvas{fill:#f5f5f0}.card{fill:#fff;stroke:#dadcd5}.muted{fill:#676f6d}.rule{stroke:#c6cdc8;fill:none;stroke-width:1.5}.blue{fill:#2368bd}.green{fill:#2b7d68}.orange{fill:#b85b30}.body{font-size:15px}.eyebrow{font-size:11px;font-weight:650;letter-spacing:2px}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}.pill{fill:#e9efeb}
+    @media(prefers-color-scheme:dark){text{fill:#eef0eb}.canvas{fill:#171d1c}.card{fill:#202826;stroke:#3b4842}.muted{fill:#abb8b1}.rule{stroke:#53685e}.blue{fill:#7cb2f4}.green{fill:#80c6ae}.orange{fill:#efb08b}.pill{fill:#303e36}}
+  </style>
+  <rect class="canvas" width="1120" height="470" rx="20"/>
+  <text class="eyebrow muted" x="38" y="39">SPARSE SELECTION → PHYSICAL KV SLOTS</text>
+  <text x="38" y="83" font-size="32" font-weight="650" letter-spacing="-.6">One contract. Native execution.</text>
+  <text class="body muted" x="38" y="113">The selector's order survives the trip from global positions to local memory.</text>
+  <rect class="card" x="38" y="140" width="1044" height="70" rx="12"/>
+  <text class="eyebrow muted" x="62" y="166">LOCALIZATION</text>
+  <text x="62" y="189" font-size="17" font-weight="550">Route</text>
+  <text class="muted" x="196" y="188" font-size="20">→</text>
+  <text x="247" y="189" font-size="17" font-weight="550">Filter ownership</text>
+  <text class="muted" x="435" y="188" font-size="20">→</text>
+  <text x="486" y="189" font-size="17" font-weight="550">Translate pages</text>
+  <text class="muted" x="674" y="188" font-size="20">→</text>
+  <text x="725" y="189" font-size="17" font-weight="550">Preserve order</text>
+  <rect class="pill" x="923" y="156" width="135" height="38" rx="19"/>
+  <text x="990" y="180" text-anchor="middle" font-size="13" font-weight="600">exact count</text>
+  <path class="rule" d="M560 210v22M204 254v-22h712v22M560 232v22"/>
+  <rect class="card" x="38" y="254" width="332" height="151" rx="13"/>
+  <rect x="58" y="276" width="5" height="24" rx="2" class="green"/>
+  <text x="76" y="294" font-size="22" font-weight="600">Python</text>
+  <text class="mono muted" x="58" y="323">localize_reference</text>
+  <text class="body" x="58" y="351">The readable oracle</text>
+  <text class="body muted" x="58" y="377">No accelerator dependencies</text>
+  <rect class="card" x="394" y="254" width="332" height="151" rx="13"/>
+  <rect x="414" y="276" width="5" height="24" rx="2" class="blue"/>
+  <text x="432" y="294" font-size="22" font-weight="600">Apple · MLX</text>
+  <text class="mono muted" x="414" y="323">localize_mlx</text>
+  <text class="body" x="414" y="351">Metal kernel + MLX composition</text>
+  <text class="body muted" x="414" y="377">Functional, lazy arrays</text>
+  <rect class="card" x="750" y="254" width="332" height="151" rx="13"/>
+  <rect x="770" y="276" width="5" height="24" rx="2" class="orange"/>
+  <text x="788" y="294" font-size="22" font-weight="600">CUDA · Triton</text>
+  <text class="mono muted" x="770" y="323">rowwise / hierarchical</text>
+  <text class="body" x="770" y="351">Whole-row or bounded tile scans</text>
+  <text class="body muted" x="770" y="377">Caller-owned, fixed buffers</text>
+  <text class="muted" x="38" y="441" font-size="13">Shared semantics. Explicit memory ownership. Platform-specific verification.</text>
+  <text class="eyebrow muted" text-anchor="end" x="1082" y="441">SILKERN</text>
+</svg>

@@ -2,21 +2,24 @@
 
 The upstream wrapper this targets calls
 ``triton_filter_and_convert_dcp_index`` with an allocation-owning API: it
-returns freshly allocated tensors. That is fine in eager mode and fatal under
-CUDA-graph capture, so this module supplies the same callable surface while
-keeping every output and scratch buffer caller-owned and fixed-address.
+returns freshly allocated tensors. This module supplies the same callable
+surface while registering fixed output and scratch buffers before capture, so
+downstream consumers can bind their addresses explicitly. Capture support for
+allocation-owning APIs depends on the surrounding framework's allocator.
 
 The lifecycle is two-phase on purpose:
 
 1. :meth:`WorkspaceAdapter.prepare` -- once, before warmup or capture. Allocates
    the output, counts, and (hierarchical only) workspace buffers and records the
-   address/shape/stride/dtype/device signature of every input.
-2. :meth:`WorkspaceAdapter.__call__` -- on every step, including inside a
-   replayed graph. Allocates nothing. If the call geometry or any input binding
-   differs from what was registered, it **raises** rather than reallocating.
+   address/shape/stride/dtype/device/lazy-negation signature of every input.
+2. :meth:`WorkspaceAdapter.__call__` -- during eager execution and graph
+   capture. Allocates no device buffers. If the call geometry or any input
+   binding differs from what was registered, it **raises** rather than
+   reallocating. Graph replay executes recorded operations without Python
+   validation; bindings must stay unchanged for the graph's lifetime.
 
-That last sentence is the design: a silent fallback inside a captured graph
-would write to a stale address. Failing closed is the only safe behavior.
+Changed bindings can invalidate a captured consumer's address assumptions.
+The adapter rejects that drift before dispatch rather than reallocating.
 
 Installing this does not modify any upstream file --
 :func:`install_converter` swaps the module attribute for the duration of a
@@ -33,7 +36,11 @@ from typing import Any, Literal
 
 from silkern.contract import DEFAULT_TILE_SIZE, SUPPORTED_TILE_SIZES
 from silkern.errors import LocalizationError
-from silkern.kernels import localize_hierarchical, localize_rowwise
+from silkern.kernels import (
+    _validate_disjoint_storage,
+    localize_hierarchical,
+    localize_rowwise,
+)
 from silkern.workspace import workspace_shapes
 
 Arm = Literal["row_stable", "hierarchical_stable"]
@@ -160,10 +167,11 @@ def _tensor_signature(tensor: Any) -> tuple[Any, ...]:
             tuple(tensor.stride()),
             str(tensor.dtype),
             str(tensor.device),
+            bool(tensor.is_neg()),
         )
-    except (AttributeError, TypeError) as exc:
+    except (AttributeError, TypeError, ValueError, RuntimeError) as exc:
         raise AdapterError(
-            "expected a tensor exposing data_ptr/shape/stride/dtype/device, "
+            "expected a tensor exposing data_ptr/shape/stride/dtype/device/is_neg, "
             f"got {type(tensor).__name__}"
         ) from exc
 
@@ -174,9 +182,11 @@ class _Binding:
     req_ids: tuple[Any, ...]
     block_table: tuple[Any, ...]
     token_indices: tuple[Any, ...]
+    input_refs: tuple[Any, Any, Any]
     out: Any
     counts: Any
     workspace: dict[str, Any]
+    buffer_signatures: dict[str, tuple[Any, ...]]
 
 
 class WorkspaceAdapter:
@@ -190,8 +200,8 @@ class WorkspaceAdapter:
     ) -> None:
         if arm not in ("row_stable", "hierarchical_stable"):
             raise AdapterError(f"unknown arm: {arm}")
-        self.arm = arm
-        self.hierarchical_tile_size = _positive_int(
+        self._arm = arm
+        self._hierarchical_tile_size = _positive_int(
             "hierarchical_tile_size", hierarchical_tile_size
         )
         if self.hierarchical_tile_size not in SUPPORTED_TILE_SIZES:
@@ -201,6 +211,14 @@ class WorkspaceAdapter:
             )
         self._binding: _Binding | None = None
         self.calls = 0
+
+    @property
+    def arm(self) -> Arm:
+        return self._arm
+
+    @property
+    def hierarchical_tile_size(self) -> int:
+        return self._hierarchical_tile_size
 
     @staticmethod
     def _call_key(
@@ -234,7 +252,14 @@ class WorkspaceAdapter:
         num_topk_tokens: int = 2048,
         block_n: int = QUALIFIED_BLOCK_N,
     ) -> None:
-        """Allocate and bind fixed buffers before warmup or graph capture."""
+        """Allocate and bind fixed buffers once, before warmup or graph capture.
+
+        Use a separate adapter for each graph bucket. Rebinding an existing
+        adapter could leave a captured graph referring to released storage.
+        """
+
+        if self._binding is not None:
+            raise AdapterError("adapter is already prepared; create one adapter per graph bucket")
 
         validate_production_call(
             dcp_size=dcp_size,
@@ -266,15 +291,42 @@ class WorkspaceAdapter:
             raise AdapterError("req_id must contain one id per token row")
         if block_table.ndim != 2:
             raise AdapterError("block_table must be two-dimensional")
+        if token_indices.shape[0] < 1 or any(size < 1 for size in block_table.shape):
+            raise AdapterError("batch and both block-table dimensions must be positive")
+        if token_indices.shape[0] > 2**31 - 1:
+            raise AdapterError("batch must fit int32 for the CUDA launch grid")
         inputs = (req_id, block_table, token_indices)
         if any(tensor.dtype != torch.int32 for tensor in inputs):
             raise AdapterError("all production inputs must use int32")
+        if any(tensor.is_neg() for tensor in inputs):
+            raise AdapterError("production inputs must not use lazy negation views")
         if any(not tensor.is_cuda for tensor in inputs):
             raise AdapterError("all production inputs must be CUDA tensors")
         if any(tensor.device != token_indices.device for tensor in inputs):
             raise AdapterError("all production inputs must be on the same device")
         if any(not tensor.is_contiguous() for tensor in inputs):
             raise AdapterError("all production inputs must be contiguous")
+        if self.arm == "hierarchical_stable":
+            try:
+                _validate_disjoint_storage(inputs)
+            except LocalizationError as exc:
+                raise AdapterError(str(exc)) from exc
+        shapes: dict[str, tuple[int, ...]] = {}
+        if self.arm == "hierarchical_stable":
+            try:
+                shapes = workspace_shapes(
+                    token_indices.shape[0], token_indices.shape[1],
+                    tile_size=self.hierarchical_tile_size,
+                )
+            except LocalizationError as exc:
+                raise AdapterError(str(exc)) from exc
+        # Check before changing devices too: preparing buffers on device B from
+        # inside device A's capture would otherwise evade the target-only gate.
+        if torch.cuda.is_current_stream_capturing():
+            raise AdapterError("prepare must be called before CUDA graph capture")
+        with torch.cuda.device(token_indices.device):
+            if torch.cuda.is_current_stream_capturing():
+                raise AdapterError("prepare must be called before CUDA graph capture")
 
         out = torch.empty_like(token_indices)
         counts = torch.empty(
@@ -290,11 +342,7 @@ class WorkspaceAdapter:
                     dtype=torch.int32,
                     device=token_indices.device,
                 )
-                for name, shape in workspace_shapes(
-                    token_indices.shape[0],
-                    token_indices.shape[1],
-                    tile_size=self.hierarchical_tile_size,
-                ).items()
+                for name, shape in shapes.items()
             }
         self._binding = _Binding(
             call=self._call_key(
@@ -308,9 +356,15 @@ class WorkspaceAdapter:
             req_ids=_tensor_signature(req_id),
             block_table=_tensor_signature(block_table),
             token_indices=_tensor_signature(token_indices),
+            # Keep inputs alive with their registered addresses for this bucket.
+            input_refs=inputs,
             out=out,
             counts=counts,
             workspace=workspace,
+            buffer_signatures={
+                name: _tensor_signature(tensor)
+                for name, tensor in {"out": out, "counts": counts, **workspace}.items()
+            },
         )
 
     @property
@@ -397,6 +451,8 @@ class WorkspaceAdapter:
             raise AdapterError(
                 "production input tensor address/shape/stride binding changed"
             )
+        if self.fixed_buffer_signatures != self._binding.buffer_signatures:
+            raise AdapterError("output or workspace tensor address/shape/stride binding changed")
 
         if self.arm == "row_stable":
             localize_rowwise(

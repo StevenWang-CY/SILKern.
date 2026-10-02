@@ -1,9 +1,9 @@
 """One call that tries to prove the kernels wrong on *your* stack.
 
-Everything in this package rests on one claim: the GPU implementations
-reproduce :func:`silkern.contract.localize_reference` exactly, and do so at fixed
-addresses without allocating. That claim is machine-checkable, so you should
-not take it on trust from a README written on someone else's hardware.
+This CUDA verifier checks that the Triton implementations reproduce
+:func:`silkern.contract.localize_reference` exactly at fixed addresses without
+allocating. Run it on the deployment stack before relying on those guarantees.
+The functional Apple API has its own verifier in :mod:`silkern.mlx_verify`.
 
     >>> import silkern
     >>> report = silkern.conformance()      # doctest: +SKIP
@@ -27,8 +27,8 @@ per cell:
     The launch is captured in a CUDA graph and replayed; every buffer pointer
     is unchanged and ``torch.cuda.memory_allocated()`` does not grow.
 ``immutability``
-    Inputs are unmodified, and guard bytes placed around every output buffer
-    are still zero -- i.e. nothing was written out of bounds.
+    Inputs are unmodified, and canaries placed around every output buffer
+    are unchanged -- i.e. nothing was written out of bounds.
 
 A failing cell is reported, not raised. The report tells you which geometry
 failed and which check, so a narrowed geometry is an actionable result rather
@@ -38,8 +38,9 @@ than a stack trace.
 from __future__ import annotations
 
 import random
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from numbers import Integral
 
 from silkern.contract import (
     DEFAULT_TILE_SIZE,
@@ -47,7 +48,7 @@ from silkern.contract import (
     localize_reference,
 )
 from silkern.errors import LocalizationError
-from silkern.kernels import localize_hierarchical, localize_rowwise
+from silkern.kernels import _validate_launch_config, localize_hierarchical, localize_rowwise
 from silkern.workspace import workspace_shapes
 
 CHECKS = ("oracle", "order", "determinism", "replay", "immutability")
@@ -71,8 +72,10 @@ DEFAULT_MATRIX: tuple[dict[str, int], ...] = (
 )
 
 GUARD_ELEMENTS = 64
+GUARD_VALUE = 0x5A5A5A5A
 REPLAY_COUNT = 32
 DETERMINISM_REPEATS = 8
+MAX_FIXTURE_ELEMENTS = 4_194_304
 
 
 @dataclass
@@ -86,12 +89,19 @@ class CellReport:
 
     @property
     def ok(self) -> bool:
-        return self.error is None and all(self.checks.values())
+        return (
+            self.error is None
+            and set(self.checks) == set(CHECKS)
+            and all(self.checks.get(name) is True for name in CHECKS)
+        )
 
     def failures(self) -> list[str]:
         if self.error is not None:
             return [f"error: {self.error}"]
-        return [name for name, passed in self.checks.items() if not passed]
+        missing_or_failed = [name for name in CHECKS if self.checks.get(name) is not True]
+        return missing_or_failed + [
+            f"unexpected check: {name}" for name in self.checks if name not in CHECKS
+        ]
 
 
 @dataclass
@@ -109,9 +119,31 @@ class ConformanceReport:
     def __bool__(self) -> bool:
         return self.ok
 
+    def to_dict(self) -> dict[str, object]:
+        """Return a JSON-serializable result, including skipped and failed checks."""
+        return {
+            "backend": "cuda",
+            "device": self.device,
+            "ok": self.ok,
+            "skipped": self.skipped,
+            "cells": [
+                {
+                    "arm": cell.arm,
+                    "geometry": dict(cell.geometry),
+                    "checks": dict(cell.checks),
+                    "error": cell.error,
+                    "ok": cell.ok,
+                    "failures": cell.failures(),
+                }
+                for cell in self.cells
+            ],
+        }
+
     def summary(self) -> str:
         if self.skipped is not None:
             return f"conformance skipped: {self.skipped}"
+        if not self.cells:
+            return f"silkern conformance on {self.device}: no cells executed (failed)"
         passed = sum(1 for c in self.cells if c.ok)
         head = (
             f"silkern conformance on {self.device}: "
@@ -207,7 +239,7 @@ def _expected_order(
 
 
 def _guarded(torch, shape, device):
-    """An int32 tensor with zeroed guard elements on both sides.
+    """An int32 tensor with nonzero guard elements on both sides.
 
     Returns ``(view, storage)``. Out-of-bounds writes land in the guards, so a
     kernel that overruns its row is caught even when the in-bounds values
@@ -216,15 +248,17 @@ def _guarded(torch, shape, device):
     total = 1
     for dim in shape:
         total *= dim
-    storage = torch.zeros(total + 2 * GUARD_ELEMENTS, dtype=torch.int32, device=device)
+    storage = torch.full(
+        (total + 2 * GUARD_ELEMENTS,), GUARD_VALUE, dtype=torch.int32, device=device
+    )
     view = storage[GUARD_ELEMENTS : GUARD_ELEMENTS + total].view(*shape)
     return view, storage
 
 
 def _guards_clean(storage) -> bool:
     return bool(
-        (storage[:GUARD_ELEMENTS] == 0).all()
-        and (storage[-GUARD_ELEMENTS:] == 0).all()
+        (storage[:GUARD_ELEMENTS] == GUARD_VALUE).all()
+        and (storage[-GUARD_ELEMENTS:] == GUARD_VALUE).all()
     )
 
 
@@ -238,13 +272,41 @@ def _run_cell(
     tile_size: int,
     device: str,
 ) -> CellReport:
-    report = CellReport(arm=arm, geometry=dict(geometry))
+    report = CellReport(arm=arm, geometry={})
     try:
+        if not isinstance(geometry, Mapping):
+            raise LocalizationError("matrix geometry must be a mapping")
+        # Integral scalar subclasses are supported by launch validation. Record
+        # them as Python ints so machine-readable reports remain serializable.
+        report.geometry = {
+            key: int(value) if isinstance(value, Integral) and not isinstance(value, bool) else value
+            for key, value in geometry.items()
+        }
+        geometry = report.geometry
+        required = {"width", "block_size", "dcp_size", "dcp_rank", "dcp_interleave"}
+        if set(geometry) != required:
+            raise LocalizationError(f"matrix geometry must contain {', '.join(sorted(required))}")
         width = geometry["width"]
         block_size = geometry["block_size"]
         dcp_size = geometry["dcp_size"]
         dcp_rank = geometry["dcp_rank"]
         dcp_interleave = geometry["dcp_interleave"]
+
+        # Reject invalid geometry before generating values or allocating device
+        # tensors; otherwise a typo in width can allocate an enormous buffer.
+        workspace_shapes(batch, width, tile_size=tile_size)
+        block_size, dcp_size, dcp_rank, dcp_interleave, _ = _validate_launch_config(
+            block_size, dcp_size, dcp_rank, dcp_interleave, True, 4
+        )
+        width = int(width)
+        if batch * width > MAX_FIXTURE_ELEMENTS:
+            raise LocalizationError(
+                f"diagnostic fixtures must not exceed {MAX_FIXTURE_ELEMENTS} elements"
+            )
+        # The random fixture includes one ownership period past its 17-page
+        # table and physical page IDs up to 4095, all materialized as int32.
+        if max(block_size * dcp_size * 18, block_size * 4096) > 2**31 - 1:
+            raise LocalizationError("diagnostic indices and physical slots must fit int32")
 
         req_ids, block_table, rows = _random_case(
             width=width,
@@ -259,6 +321,7 @@ def _run_cell(
         tokens = torch.tensor(rows, dtype=torch.int32, device=device)
         tokens_before = tokens.clone()
         table_before = table.clone()
+        req_before = req.clone()
 
         out, out_storage = _guarded(torch, (batch, width), device)
         counts, counts_storage = _guarded(torch, (batch,), device)
@@ -343,11 +406,12 @@ def _run_cell(
             report.checks["order"] = order_ok
 
         first = out.clone()
+        first_counts = counts.clone()
         stable = True
         for _ in range(DETERMINISM_REPEATS):
             launch()
             torch.cuda.synchronize()
-            if not bool(torch.equal(out, first)):
+            if not (bool(torch.equal(out, first)) and bool(torch.equal(counts, first_counts))):
                 stable = False
                 break
         report.checks["determinism"] = stable
@@ -374,11 +438,13 @@ def _run_cell(
             torch.cuda.memory_allocated() == allocated_before
             and after_pointers == pointers
             and out.cpu().tolist() == expected_out
+            and counts.cpu().tolist() == expected_counts
         )
 
         report.checks["immutability"] = (
             bool(torch.equal(tokens, tokens_before))
             and bool(torch.equal(table, table_before))
+            and bool(torch.equal(req, req_before))
             and all(_guards_clean(storage) for storage in guards)
         )
     except LocalizationError as exc:
@@ -418,10 +484,40 @@ def conformance(
         is safe to call unconditionally in CI.
 
     Raises:
-        LocalizationError: if ``arms`` names an unknown implementation. A bad
+        LocalizationError: if a sweep option is invalid. A bad
             *geometry* is reported as a failed cell instead, so one unsupported
             entry in a long matrix does not discard the rest of the sweep.
     """
+    # Validate the request even on a machine without optional GPU dependencies.
+    # A missing backend must not silently accept a misspelled arm or an empty run.
+    if isinstance(arms, str):
+        raise LocalizationError("arms must be a nonempty sequence of implementation names")
+    arms = tuple(arms)
+    if not arms:
+        raise LocalizationError("arms must be a nonempty sequence of implementation names")
+    for arm in arms:
+        if arm not in ARMS:
+            raise LocalizationError(f"unknown arm: {arm}")
+    arms = tuple(dict.fromkeys(arms))
+    if not isinstance(batch, Integral) or isinstance(batch, bool) or batch < 1:
+        raise LocalizationError("batch must be a positive integer")
+    if (
+        not isinstance(tile_size, Integral)
+        or isinstance(tile_size, bool)
+        or tile_size not in SUPPORTED_TILE_SIZES
+    ):
+        raise LocalizationError(f"tile_size must be one of {SUPPORTED_TILE_SIZES}")
+    if not isinstance(seed, Integral) or isinstance(seed, bool):
+        raise LocalizationError("seed must be an integer")
+    batch, tile_size, seed = int(batch), int(tile_size), int(seed)
+    if batch > MAX_FIXTURE_ELEMENTS:
+        raise LocalizationError(
+            f"diagnostic fixtures must not exceed {MAX_FIXTURE_ELEMENTS} elements"
+        )
+    cells = tuple(DEFAULT_MATRIX if matrix is None else matrix)
+    if not cells:
+        raise LocalizationError("matrix must contain at least one geometry")
+
     report = ConformanceReport()
     try:
         import torch
@@ -437,12 +533,8 @@ def conformance(
         report.skipped = "no CUDA device is available"
         return report
 
-    for arm in arms:
-        if arm not in ARMS:
-            raise LocalizationError(f"unknown arm: {arm}")
-
-    report.device = torch.cuda.get_device_name(0)
-    cells = tuple(DEFAULT_MATRIX if matrix is None else matrix)
+    # All allocations, streams, and counters below use the current CUDA device.
+    report.device = torch.cuda.get_device_name(torch.cuda.current_device())
     for arm in arms:
         for index, geometry in enumerate(cells):
             report.cells.append(
@@ -462,13 +554,14 @@ def conformance(
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI
     """``python -m silkern`` -- exits nonzero if any cell fails."""
     import argparse
+    import json
 
     parser = argparse.ArgumentParser(
         description="Run the silkern conformance matrix.",
         epilog=(
             "Exits 1 if any cell fails and 0 otherwise, including when the sweep "
-            "is skipped for want of a CUDA device or Triton -- so this is safe to "
-            "run unconditionally in CI."
+            "is skipped for want of a CUDA device or Triton. Use --require-device "
+            "to treat an unavailable backend as a failure (exit 2)."
         ),
     )
     parser.add_argument(
@@ -481,6 +574,10 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI
         choices=SUPPORTED_TILE_SIZES,
     )
     parser.add_argument("--seed", type=int, default=20260803)
+    parser.add_argument("--json", action="store_true", help="emit a machine-readable report")
+    parser.add_argument(
+        "--require-device", action="store_true", help="exit 2 if CUDA verification is skipped"
+    )
     parser.add_argument(
         "--arm",
         action="append",
@@ -491,15 +588,18 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI
     if args.batch < 1:
         parser.error("--batch must be at least 1")
 
-    report = conformance(
-        arms=tuple(dict.fromkeys(args.arm)) if args.arm else ARMS,
-        batch=args.batch,
-        tile_size=args.tile_size,
-        seed=args.seed,
-    )
-    print(report.summary())
+    try:
+        report = conformance(
+            arms=tuple(dict.fromkeys(args.arm)) if args.arm else ARMS,
+            batch=args.batch,
+            tile_size=args.tile_size,
+            seed=args.seed,
+        )
+    except LocalizationError as exc:
+        parser.error(str(exc))
+    print(json.dumps(report.to_dict(), indent=2) if args.json else report.summary())
     if report.skipped is not None:
-        return 0
+        return 2 if args.require_device else 0
     return 0 if report.ok else 1
 
 

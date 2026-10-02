@@ -5,22 +5,23 @@ Two implementations, same contract, different dispatch envelopes:
 ``localize_rowwise``
     One program scans one whole selection row. The stable prefix falls out of a
     single row-wide ``cumsum`` -- no cross-program communication, no atomics,
-    one kernel launch. Cheapest converter of the three measured
-    (see ``docs/dispatch.md``), and the right default at moderate context.
+    one kernel launch. Historical measurements distinguish converter cost from
+    complete-step behavior; see ``docs/dispatch.md`` before choosing an arm.
 
 ``localize_hierarchical``
     Bounds each program's scan to one tile, composes deterministic tile-prefix
     offsets through caller-owned workspace, and performs a stable scatter. Four
-    launches instead of one, but each program's working set is bounded, which
-    is what keeps it flat at long context.
+    launches instead of one, with a bounded per-program working set. Measure
+    both implementations in the intended consumer to select a dispatch policy.
 
 Neither launcher allocates device memory. Every buffer -- inputs, outputs, and
 workspace -- is supplied by the caller, so the same addresses can be captured
-in a CUDA graph and replayed indefinitely. Both validate aggressively and raise
+in a CUDA graph and reused while the bindings remain valid and buffer reuse is
+ordered after consumer reads. Both validate metadata and raise
 :class:`~silkern.errors.LocalizationError` rather than degrade.
 
-``torch`` is imported lazily inside the launchers so that importing ``silkern``
-costs nothing on a CPU-only machine.
+``torch`` is imported lazily inside the launchers. Importing ``silkern`` does not
+require PyTorch; a guarded Triton import defines kernels when it is installed.
 """
 
 from __future__ import annotations
@@ -315,6 +316,61 @@ if triton is not None:
         )
 
 
+def _validate_launch_config(
+    block_size: int,
+    dcp_size: int,
+    dcp_rank: int,
+    dcp_interleave: int,
+    compact_valid_to_front: bool,
+    num_warps: int,
+) -> tuple[int, int, int, int, int]:
+    """Validate and normalize host scalars before Triton specializes a kernel."""
+    _validate_dcp_config(dcp_size, dcp_rank, dcp_interleave)
+    _validate_compact_flag(compact_valid_to_front)
+    if not isinstance(block_size, Integral) or isinstance(block_size, bool):
+        raise LocalizationError("block_size must be a positive integer divisible by dcp_interleave")
+    # Integral includes NumPy scalar integers. Normalize before multiplication:
+    # fixed-width host arithmetic could otherwise wrap around the bounds check.
+    block_size, dcp_size, dcp_rank, dcp_interleave = (
+        int(value) for value in (block_size, dcp_size, dcp_rank, dcp_interleave)
+    )
+    if block_size < 1 or block_size % dcp_interleave:
+        raise LocalizationError("block_size must be a positive integer divisible by dcp_interleave")
+    if max(block_size, dcp_size, dcp_rank, dcp_interleave,
+           dcp_size * dcp_interleave) > 2**31 - 1:
+        raise LocalizationError("CUDA geometry and dcp_size * dcp_interleave must fit int32")
+    if (
+        not isinstance(num_warps, Integral)
+        or isinstance(num_warps, bool)
+        or num_warps not in (4, 8)
+    ):
+        raise LocalizationError("num_warps must be 4 or 8")
+    return block_size, dcp_size, dcp_rank, dcp_interleave, int(num_warps)
+
+
+def _validate_disjoint_storage(tensors, *, read_only_count: int = 0) -> None:
+    """Reject shared storage and overlapping contiguous memory, without device work.
+
+    Call only after validating contiguous, nonempty buffers on one device.
+    DLPack imports can wrap overlapping slices in separate storage objects with
+    different base pointers, so storage identity alone is insufficient. The
+    first ``read_only_count`` tensors may alias each other, but no later tensor
+    may share memory with any earlier one.
+    """
+    regions = []
+    for tensor in tensors:
+        start = tensor.data_ptr()
+        regions.append((tensor.untyped_storage().data_ptr(), start,
+                        start + tensor.numel() * tensor.element_size()))
+    for index in range(read_only_count, len(regions)):
+        storage, start, end = regions[index]
+        for other_storage, other_start, other_end in regions[:index]:
+            if storage == other_storage or (start < other_end and other_start < end):
+                raise LocalizationError(
+                    "localization buffers must use distinct storage and nonoverlapping memory"
+                )
+
+
 def localize_rowwise(
     req_ids,
     block_table,
@@ -335,11 +391,13 @@ def localize_rowwise(
     caller; nothing is allocated here, so the launch is safe to capture in a
     CUDA graph and replay at fixed addresses. ``out`` must be shaped like
     ``tokens`` and ``counts`` must hold one element per row. Outputs must not
-    share storage with inputs.
+    share storage with inputs. Launches use the current stream on the tensors'
+    device and restore the caller's current device afterward. Lazy negation
+    views are rejected: their logical values differ from their raw storage.
 
     The row width is capped at :data:`silkern.contract.MAX_ROW_WIDTH` because the
-    row-wide scan is a single ``cumsum`` over a power-of-two-padded row; wider
-    rows belong to :func:`localize_hierarchical`.
+    row-wide scan is a single ``cumsum`` over a power-of-two-padded row. The
+    hierarchical implementation currently enforces the same qualified limit.
 
     ``req_ids`` values are a caller precondition. They live on the device, so the
     launcher cannot bound-check them without a host synchronization -- which a
@@ -362,6 +420,8 @@ def localize_rowwise(
         raise LocalizationError("all localization buffers must be on the same device")
     if any(tensor.dtype != torch.int32 for tensor in tensors):
         raise LocalizationError("all localization buffers must use int32")
+    if any(tensor.is_neg() for tensor in tensors):
+        raise LocalizationError("localization buffers must not use lazy negation views")
     if any(not tensor.is_contiguous() for tensor in tensors):
         raise LocalizationError("stable localization requires contiguous tensors")
     if tokens.ndim != 2 or out.shape != tokens.shape:
@@ -384,59 +444,40 @@ def localize_rowwise(
         raise LocalizationError(
             f"row width {width} exceeds the current {MAX_ROW_WIDTH}-element limit"
         )
-    input_storage = {
-        req_ids.untyped_storage().data_ptr(),
-        block_table.untyped_storage().data_ptr(),
-        tokens.untyped_storage().data_ptr(),
-    }
-    if out.untyped_storage().data_ptr() in input_storage:
-        raise LocalizationError("out must not share storage with an input")
-    if counts.untyped_storage().data_ptr() in input_storage | {
-        out.untyped_storage().data_ptr()
-    }:
-        raise LocalizationError("counts must not share storage with another buffer")
-    _validate_dcp_config(dcp_size, dcp_rank, dcp_interleave)
-    _validate_compact_flag(compact_valid_to_front)
-    if (
-        not isinstance(block_size, Integral)
-        or isinstance(block_size, bool)
-        or block_size < 1
-        or block_size % dcp_interleave
-    ):
-        raise LocalizationError(
-            "block_size must be a positive integer divisible by dcp_interleave"
-        )
-    if (
-        not isinstance(num_warps, Integral)
-        or isinstance(num_warps, bool)
-        or num_warps not in (4, 8)
-    ):
-        raise LocalizationError("num_warps must be 4 or 8")
-
-    padded = triton.next_power_of_2(width)
-    compact = compact_valid_to_front and dcp_size > 1
-    _rowwise_kernel[(batch,)](
-        req_ids,
-        block_table,
-        tokens,
-        out,
-        counts,
-        block_table.stride(0),
-        block_table.stride(1),
-        tokens.stride(0),
-        tokens.stride(1),
-        out.stride(0),
-        out.stride(1),
-        WIDTH=width,
-        PADDED_WIDTH=padded,
-        BLOCK_TABLE_WIDTH=block_table.shape[1],
-        BLOCK_SIZE=block_size,
-        DCP_SIZE=dcp_size,
-        DCP_RANK=dcp_rank,
-        DCP_INTERLEAVE=dcp_interleave,
-        COMPACT_TO_FRONT=compact,
-        num_warps=num_warps,
+    if batch > 2**31 - 1:
+        raise LocalizationError("batch must fit int32 for the CUDA launch grid")
+    _validate_disjoint_storage(tensors, read_only_count=3)
+    block_size, dcp_size, dcp_rank, dcp_interleave, num_warps = _validate_launch_config(
+        block_size, dcp_size, dcp_rank, dcp_interleave, compact_valid_to_front, num_warps
     )
+
+    # Triton chooses its device and stream from the current CUDA context.
+    # Tensor pointer validation alone does not select their device.
+    with torch.cuda.device(tokens.device):
+        padded = triton.next_power_of_2(width)
+        compact = compact_valid_to_front and dcp_size > 1
+        _rowwise_kernel[(batch,)](
+            req_ids,
+            block_table,
+            tokens,
+            out,
+            counts,
+            block_table.stride(0),
+            block_table.stride(1),
+            tokens.stride(0),
+            tokens.stride(1),
+            out.stride(0),
+            out.stride(1),
+            WIDTH=width,
+            PADDED_WIDTH=padded,
+            BLOCK_TABLE_WIDTH=block_table.shape[1],
+            BLOCK_SIZE=block_size,
+            DCP_SIZE=dcp_size,
+            DCP_RANK=dcp_rank,
+            DCP_INTERLEAVE=dcp_interleave,
+            COMPACT_TO_FRONT=compact,
+            num_warps=num_warps,
+        )
 
 
 def localize_hierarchical(
@@ -463,7 +504,10 @@ def localize_hierarchical(
     ``mapped_workspace`` and ``local_positions_workspace`` must match the input
     shape.  The two tile workspaces must have shape
     ``(batch, ceil(width / tile_size))``.  Every buffer is an int32 contiguous
-    CUDA tensor on one device and must use distinct storage.
+    CUDA tensor on one device and must use distinct storage. All stages use the
+    current stream on that device and restore the caller's current device
+    afterward. Lazy negation views are rejected, as are overlapping imported
+    memory ranges even when their storage base pointers differ.
 
     The compacting path launches four deterministic stages: per-tile mapping and
     local prefix, per-row tile prefix, output initialization, and stable scatter.
@@ -506,6 +550,8 @@ def localize_hierarchical(
         raise LocalizationError(
             "all hierarchical localization buffers must use int32"
         )
+    if any(tensor.is_neg() for tensor in tensors):
+        raise LocalizationError("localization buffers must not use lazy negation views")
     if any(not tensor.is_contiguous() for tensor in tensors):
         raise LocalizationError(
             "hierarchical stable localization requires contiguous tensors"
@@ -545,89 +591,29 @@ def localize_hierarchical(
                 f"observed {observed_shapes[name]}"
             )
 
-    storage_pointers = [tensor.untyped_storage().data_ptr() for tensor in tensors]
-    if len(set(storage_pointers)) != len(storage_pointers):
-        raise LocalizationError(
-            "hierarchical localization buffers must use distinct storage"
-        )
-    _validate_dcp_config(dcp_size, dcp_rank, dcp_interleave)
-    _validate_compact_flag(compact_valid_to_front)
-    if (
-        not isinstance(block_size, Integral)
-        or isinstance(block_size, bool)
-        or block_size < 1
-        or block_size % dcp_interleave
-    ):
-        raise LocalizationError(
-            "block_size must be a positive integer divisible by dcp_interleave"
-        )
-    if (
-        not isinstance(num_warps, Integral)
-        or isinstance(num_warps, bool)
-        or num_warps not in (4, 8)
-    ):
-        raise LocalizationError("num_warps must be 4 or 8")
+    _validate_disjoint_storage(tensors)
+    block_size, dcp_size, dcp_rank, dcp_interleave, num_warps = _validate_launch_config(
+        block_size, dcp_size, dcp_rank, dcp_interleave, compact_valid_to_front, num_warps
+    )
 
-    num_tiles = shapes["tile_counts"][1]
-    compact = compact_valid_to_front and dcp_size > 1
-    _map_tiles_kernel[(batch, num_tiles)](
-        req_ids,
-        block_table,
-        tokens,
-        out,
-        mapped_workspace,
-        local_positions_workspace,
-        tile_counts_workspace,
-        block_table.stride(0),
-        block_table.stride(1),
-        tokens.stride(0),
-        tokens.stride(1),
-        out.stride(0),
-        out.stride(1),
-        mapped_workspace.stride(0),
-        mapped_workspace.stride(1),
-        local_positions_workspace.stride(0),
-        local_positions_workspace.stride(1),
-        tile_counts_workspace.stride(0),
-        tile_counts_workspace.stride(1),
-        WIDTH=width,
-        BLOCK_TABLE_WIDTH=block_table.shape[1],
-        BLOCK_SIZE=block_size,
-        DCP_SIZE=dcp_size,
-        DCP_RANK=dcp_rank,
-        DCP_INTERLEAVE=dcp_interleave,
-        TILE_SIZE=tile_size,
-        DIRECT_OUTPUT=not compact,
-        num_warps=num_warps,
-    )
-    padded_tiles = triton.next_power_of_2(num_tiles)
-    _tile_prefix_kernel[(batch,)](
-        tile_counts_workspace,
-        tile_offsets_workspace,
-        counts,
-        tile_counts_workspace.stride(0),
-        tile_counts_workspace.stride(1),
-        tile_offsets_workspace.stride(0),
-        tile_offsets_workspace.stride(1),
-        NUM_TILES=num_tiles,
-        PADDED_TILES=padded_tiles,
-        num_warps=1,
-    )
-    if compact:
-        elements = batch * width
-        fill_block = 256
-        _fill_output_kernel[(triton.cdiv(elements, fill_block),)](
-            out,
-            elements,
-            BLOCK=fill_block,
-            num_warps=4,
-        )
-        _scatter_tiles_kernel[(batch, num_tiles)](
+    # workspace_shapes validates Integral values but its normalization is local.
+    # Triton constexpr arithmetic requires the corresponding Python int.
+    tile_size = int(tile_size)
+    with torch.cuda.device(tokens.device):
+        num_tiles = shapes["tile_counts"][1]
+        compact = compact_valid_to_front and dcp_size > 1
+        _map_tiles_kernel[(batch, num_tiles)](
+            req_ids,
+            block_table,
+            tokens,
             out,
             mapped_workspace,
             local_positions_workspace,
             tile_counts_workspace,
-            tile_offsets_workspace,
+            block_table.stride(0),
+            block_table.stride(1),
+            tokens.stride(0),
+            tokens.stride(1),
             out.stride(0),
             out.stride(1),
             mapped_workspace.stride(0),
@@ -636,9 +622,55 @@ def localize_hierarchical(
             local_positions_workspace.stride(1),
             tile_counts_workspace.stride(0),
             tile_counts_workspace.stride(1),
-            tile_offsets_workspace.stride(0),
-            tile_offsets_workspace.stride(1),
             WIDTH=width,
+            BLOCK_TABLE_WIDTH=block_table.shape[1],
+            BLOCK_SIZE=block_size,
+            DCP_SIZE=dcp_size,
+            DCP_RANK=dcp_rank,
+            DCP_INTERLEAVE=dcp_interleave,
             TILE_SIZE=tile_size,
+            DIRECT_OUTPUT=not compact,
             num_warps=num_warps,
         )
+        padded_tiles = triton.next_power_of_2(num_tiles)
+        _tile_prefix_kernel[(batch,)](
+            tile_counts_workspace,
+            tile_offsets_workspace,
+            counts,
+            tile_counts_workspace.stride(0),
+            tile_counts_workspace.stride(1),
+            tile_offsets_workspace.stride(0),
+            tile_offsets_workspace.stride(1),
+            NUM_TILES=num_tiles,
+            PADDED_TILES=padded_tiles,
+            num_warps=1,
+        )
+        if compact:
+            elements = batch * width
+            fill_block = 256
+            _fill_output_kernel[(triton.cdiv(elements, fill_block),)](
+                out,
+                elements,
+                BLOCK=fill_block,
+                num_warps=4,
+            )
+            _scatter_tiles_kernel[(batch, num_tiles)](
+                out,
+                mapped_workspace,
+                local_positions_workspace,
+                tile_counts_workspace,
+                tile_offsets_workspace,
+                out.stride(0),
+                out.stride(1),
+                mapped_workspace.stride(0),
+                mapped_workspace.stride(1),
+                local_positions_workspace.stride(0),
+                local_positions_workspace.stride(1),
+                tile_counts_workspace.stride(0),
+                tile_counts_workspace.stride(1),
+                tile_offsets_workspace.stride(0),
+                tile_offsets_workspace.stride(1),
+                WIDTH=width,
+                TILE_SIZE=tile_size,
+                num_warps=num_warps,
+            )

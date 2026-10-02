@@ -7,19 +7,21 @@ title: "SILKern: deterministic sparse-index localization for context-parallel de
 abstract: >-
   Token-sparse decode selects global logical token positions while
   context-parallel attention consumes rank-owned physical KV-cache slots.
-  Production converters between the two reserve output segments with atomic
+  Atomic-reservation converters between the two reserve output segments with atomic
   additions: they preserve the selected set and its cardinality but leave the
   order of the consumed prefix unspecified, so it varies across runs of
   identical input. SILKern provides an exact localization contract, an
   independent CPU oracle, and two allocation-free Triton implementations
   (row-wide and hierarchical) that additionally preserve the selector's global
-  order and hold fixed addresses across CUDA-graph replay.
+  order and hold fixed addresses across CUDA-graph replay. An optional MLX
+  backend provides functional localization on Apple silicon using native MLX
+  operations or a fused Metal kernel, with explicit backend-specific memory
+  guarantees and reproducible local conformance and timing tools.
 type: software
-version: "0.1.0"
-date-released: "2026-08-04"
+version: "0.2.0"
 license: Apache-2.0
-repository-code: "https://github.com/StevenWang-CY/SILKern"
-url: "https://github.com/StevenWang-CY/SILKern"
+repository-code: "https://github.com/StevenWang-CY/SILKern."
+url: "https://github.com/StevenWang-CY/SILKern."
 authors:
   - name: "The SILKern Authors"
 keywords:
@@ -28,4 +30,6 @@ keywords:
   - index localization
   - determinism
   - CUDA graphs
+  - Apple silicon
+  - MLX
   - LLM inference

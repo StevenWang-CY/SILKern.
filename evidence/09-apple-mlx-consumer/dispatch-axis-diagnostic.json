@@ -1,0 +1,319 @@
+{
+  "diagnostic": "paired dispatch-axis comparison; only grid and row coordinate differ",
+  "metadata": {
+    "platform": "macOS-26.6-arm64-arm-64bit",
+    "machine": "arm64",
+    "python": "3.12.12",
+    "versions": {
+      "silkern": "0.2.0",
+      "mlx": "0.32.3"
+    },
+    "device": {
+      "device_name": "Apple M5 Max",
+      "max_recommended_working_set_size": 40200896512,
+      "memory_size": 51539607552,
+      "architecture": "applegpu_g17s",
+      "max_buffer_length": 30150672384,
+      "resource_limit": 499000
+    },
+    "execution_backend": "apple_metal",
+    "source_sha256": {
+      "silkern/contract.py": "b7fb66103fb1c5f3ca8e7e7b40e8891752c197c55083e8b534a64c76a5c1ab84",
+      "silkern/mlx.py": "456a50ccb4d3009b40acd200a99fc681b1fe293deec0a34cd169830fbd034ad8",
+      "silkern/mlx_verify.py": "6ede953f27d43ec3022fb118e3a1554c13942cc9352fa8edbd03547b3fba4f0f",
+      "bench/bench_mlx.py": "a9387837dbf5dab6f4078efd645ff80e585bb157d5362ddcde194fe15878a620"
+    }
+  },
+  "prototype_sha256": "f36cec488f7845b404a9ae5f128dc8f4d821c89cc8d2718289ba1a978ca5680d",
+  "script": "from pathlib import Path\nfrom functools import partial\nimport hashlib\nimport json\nimport statistics\nimport types\n\nimport mlx.core as mx\nfrom bench.bench_mlx import _case, _measure\nfrom silkern.contract import localize_reference\nfrom silkern.mlx import localize_mlx\nfrom silkern.mlx_verify import _metadata\n\nsource_path = Path('silkern/mlx.py').resolve()\nsource = source_path.read_text()\naxis_x_source = source.replace('threadgroup_position_in_grid.y', 'threadgroup_position_in_grid.x').replace('grid=(256, batch, 1)', 'grid=(batch * 256, 1, 1)')\naxis_x = types.ModuleType('silkern_axis_x_diagnostic')\nexec(compile(axis_x_source, str(source_path), 'exec'), axis_x.__dict__)\nstream = mx.default_stream(mx.gpu)\nreport = {'diagnostic': 'paired dispatch-axis comparison; only grid and row coordinate differ',\n          'metadata': _metadata(mx),\n          'prototype_sha256': hashlib.sha256(axis_x_source.encode()).hexdigest(),\n          'script': Path(__file__).read_text(),\n          'warmup': 10, 'blocks': 12, 'iterations': 50, 'cells': []}\ngeometry = dict(block_size=64, dcp_size=2, dcp_rank=0)\nfor batch, width in [(1, 2048), (32, 128), (8, 4096)]:\n    requests, pages, rows = _case(width, batch, 64, 2, 17)\n    arrays = tuple(mx.array(data, dtype=mx.int32) for data in (requests, pages, rows))\n    mx.eval(arrays)\n    expected = localize_reference(requests, pages, rows, **geometry)\n    arms = {}\n    for name, function in [('axis_x', axis_x.localize_mlx), ('axis_y', localize_mlx)]:\n        compiled = mx.compile(partial(function, **geometry, backend='metal', stream=stream))\n        out, counts = compiled(*arrays)\n        mx.eval(out, counts)\n        assert (out.tolist(), counts.tolist()) == expected\n        invalid = mx.full((batch, width), -1, dtype=mx.int32)\n        out2, counts2 = compiled(arrays[0], arrays[1], invalid)\n        assert out2.tolist() == [[-1] * width] * batch\n        assert counts2.tolist() == [0] * batch\n        arms[name] = partial(compiled, *arrays)\n    samples, schedule = _measure(mx, arms, warmup=10, iterations=50, blocks=12, stream=stream)\n    medians = {arm: statistics.median(values) for arm, values in samples.items()}\n    report['cells'].append({'batch': batch, 'width': width, 'seed': 17,\n                            'geometry': geometry, 'oracle_passed': True,\n                            'median_us': medians, 'block_samples_us': samples,\n                            'schedule': schedule})\n    print(batch, width, medians, flush=True)\nPath('evidence/09-apple-mlx-consumer/dispatch-axis-diagnostic.json').write_text(json.dumps(report, indent=2)+'\\n')\n",
+  "warmup": 10,
+  "blocks": 12,
+  "iterations": 50,
+  "cells": [
+    {
+      "batch": 1,
+      "width": 2048,
+      "seed": 17,
+      "geometry": {
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0
+      },
+      "oracle_passed": true,
+      "median_us": {
+        "axis_x": 159.71126,
+        "axis_y": 160.84125
+      },
+      "block_samples_us": {
+        "axis_x": [
+          194.6875,
+          137.5175,
+          144.51334,
+          155.5375,
+          165.47668,
+          156.04666,
+          155.8625,
+          161.15584,
+          165.64334,
+          161.82,
+          161.19334,
+          158.26668
+        ],
+        "axis_y": [
+          171.54834,
+          159.255,
+          171.99416,
+          129.7425,
+          161.14,
+          157.81916,
+          160.70416,
+          160.97834,
+          150.98168,
+          159.82584,
+          162.61584,
+          161.28834
+        ]
+      },
+      "schedule": [
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ]
+      ]
+    },
+    {
+      "batch": 32,
+      "width": 128,
+      "seed": 17,
+      "geometry": {
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0
+      },
+      "oracle_passed": true,
+      "median_us": {
+        "axis_x": 161.61542,
+        "axis_y": 164.04958
+      },
+      "block_samples_us": {
+        "axis_x": [
+          203.9725,
+          169.5375,
+          158.05,
+          152.65834,
+          139.86916,
+          144.8625,
+          147.9775,
+          167.8325,
+          167.13668,
+          165.18084,
+          138.59918,
+          167.8925
+        ],
+        "axis_y": [
+          209.65084,
+          177.38332,
+          168.52084,
+          161.615,
+          151.49166,
+          142.31,
+          161.48918,
+          166.48416,
+          167.15084,
+          183.44916,
+          139.89918,
+          140.34834
+        ]
+      },
+      "schedule": [
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ]
+      ]
+    },
+    {
+      "batch": 8,
+      "width": 4096,
+      "seed": 17,
+      "geometry": {
+        "block_size": 64,
+        "dcp_size": 2,
+        "dcp_rank": 0
+      },
+      "oracle_passed": true,
+      "median_us": {
+        "axis_x": 164.14625,
+        "axis_y": 164.86083000000002
+      },
+      "block_samples_us": {
+        "axis_x": [
+          169.47334,
+          168.7025,
+          161.80166,
+          167.38166,
+          164.63668,
+          159.045,
+          156.18834,
+          162.465,
+          163.65582,
+          161.75834,
+          169.6525,
+          182.5325
+        ],
+        "axis_y": [
+          164.0525,
+          175.9925,
+          177.2,
+          169.25332,
+          164.00082,
+          161.19666,
+          165.66916,
+          151.03,
+          162.68582,
+          161.5075,
+          172.13832,
+          171.62916
+        ]
+      },
+      "schedule": [
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ],
+        [
+          "axis_x",
+          "axis_y"
+        ],
+        [
+          "axis_y",
+          "axis_x"
+        ]
+      ]
+    }
+  ]
+}

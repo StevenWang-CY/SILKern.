@@ -4,9 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "silkern"
-version = "0.1.0"
-description = "SILKern: sparse-index localization kernels for context-parallel decode - deterministic, allocation-free, CUDA-graph-safe"
-readme = "README.md"
+version = "0.2.0"
+description = "Deterministic sparse-index localization for CUDA/Triton and Apple silicon/MLX"
+# Index descriptions need absolute links; README.md remains the full repo guide.
+readme = "docs/package-description.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
@@ -16,6 +17,8 @@ keywords = [
     "determinism",
     "cuda-graphs",
     "triton",
+    "mlx",
+    "apple-silicon",
     "llm-inference",
 ]
 classifiers = [
@@ -24,6 +27,8 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: System :: Distributed Computing",
     "Typing :: Typed",
@@ -34,17 +39,20 @@ dependencies = []
 
 [project.optional-dependencies]
 gpu = ["torch>=2.4", "triton>=3.0"]
-dev = ["pytest>=8.0", "ruff>=0.6"]
+mlx = ["mlx>=0.32.3,<0.33; sys_platform == 'darwin' and platform_machine == 'arm64'"]
+dev = ["pytest>=8.0", "ruff>=0.6", "build>=1.2"]
+docs = ["matplotlib>=3.8,<4"]
 
 [project.urls]
-Homepage = "https://github.com/StevenWang-CY/SILKern"
-Repository = "https://github.com/StevenWang-CY/SILKern"
-Issues = "https://github.com/StevenWang-CY/SILKern/issues"
-Evidence = "https://github.com/StevenWang-CY/SILKern/tree/main/evidence"
-Documentation = "https://github.com/StevenWang-CY/SILKern/tree/main/docs"
+Homepage = "https://github.com/StevenWang-CY/SILKern."
+Repository = "https://github.com/StevenWang-CY/SILKern."
+Issues = "https://github.com/StevenWang-CY/SILKern./issues"
+Evidence = "https://github.com/StevenWang-CY/SILKern./tree/main/evidence"
+Documentation = "https://github.com/StevenWang-CY/SILKern./tree/main/docs"
 
 [project.scripts]
 silkern-verify = "silkern.verify:main"
+silkern-verify-mlx = "silkern.mlx_verify:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["silkern"]
@@ -56,6 +64,8 @@ testpaths = ["tests"]
 addopts = ["--strict-markers", "--strict-config"]
 markers = [
     "gpu: requires a CUDA device and Triton (deselect with -m 'not gpu')",
+    "mlx: requires optional MLX (deselect with -m 'not mlx')",
+    "metal: requires an Apple Metal GPU (deselect with -m 'not metal')",
 ]
 
 [tool.ruff]

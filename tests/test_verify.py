@@ -7,7 +7,14 @@ they are the parts most likely to lie about a failure.
 
 from __future__ import annotations
 
+import json
+import sys
+from types import SimpleNamespace
+
+import pytest
+
 import silkern
+import silkern.verify as verify
 from silkern.verify import (
     CHECKS,
     DEFAULT_MATRIX,
@@ -18,7 +25,9 @@ from silkern.verify import (
 )
 
 
-def test_conformance_skips_cleanly_without_a_device() -> None:
+def test_conformance_skips_cleanly_without_a_device(monkeypatch) -> None:
+    # CPU reporting tests must never start a GPU sweep on a CUDA-equipped host.
+    monkeypatch.setitem(sys.modules, "torch", None)
     report = silkern.conformance()
     # In CI there is no CUDA device; a skip must be falsy but not an exception,
     # and must say why.
@@ -35,6 +44,14 @@ def test_conformance_skips_cleanly_without_a_device() -> None:
 
 def test_empty_report_is_not_ok() -> None:
     assert not ConformanceReport().ok
+    assert "no cells executed (failed)" in ConformanceReport().summary()
+
+
+@pytest.mark.parametrize("checks", [{}, {"oracle": True}])
+def test_incomplete_cell_cannot_report_success(checks: dict[str, bool]) -> None:
+    cell = CellReport(arm="row_stable", geometry={}, checks=checks)
+    assert not cell.ok
+    assert cell.failures() == [name for name in CHECKS if name not in checks]
 
 
 def test_cell_report_ok_requires_every_check() -> None:
@@ -51,6 +68,21 @@ def test_cell_report_ok_requires_every_check() -> None:
     assert cell.failures() == ["error: boom"]
 
 
+@pytest.mark.parametrize("outcome", [1, "failed", [], None])
+def test_nonboolean_outcomes_cannot_report_success(outcome) -> None:
+    cell = CellReport(arm="row_stable", geometry={}, checks=dict.fromkeys(CHECKS, True))
+    cell.checks["oracle"] = outcome
+    assert not cell.ok
+    assert cell.failures() == ["oracle"]
+
+
+def test_unknown_checks_cannot_silently_pass() -> None:
+    cell = CellReport(arm="row_stable", geometry={}, checks=dict.fromkeys(CHECKS, True))
+    cell.checks["orcale"] = True
+    assert not cell.ok
+    assert cell.failures() == ["unexpected check: orcale"]
+
+
 def test_failing_cell_summary_names_geometry_and_check() -> None:
     cell = CellReport(arm="row_stable", geometry={"width": 513, "dcp_size": 4})
     cell.checks = dict.fromkeys(CHECKS, True)
@@ -61,6 +93,126 @@ def test_failing_cell_summary_names_geometry_and_check() -> None:
     assert "row_stable" in summary
     assert "width=513" in summary
     assert "determinism" in summary
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"arms": ()},
+        {"arms": "row_stable"},
+        {"arms": ("unknown",)},
+        {"batch": 0},
+        {"batch": True},
+        {"batch": 1.5},
+        {"batch": verify.MAX_FIXTURE_ELEMENTS + 1},
+        {"tile_size": 128.0},
+        {"tile_size": 32},
+        {"seed": True},
+        {"seed": "one"},
+        {"matrix": []},
+    ],
+)
+def test_invalid_sweep_options_raise_even_without_backend(monkeypatch, kwargs) -> None:
+    monkeypatch.setitem(sys.modules, "torch", None)
+    with pytest.raises(silkern.LocalizationError):
+        verify.conformance(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "change", [
+        {"width": 2**40}, {"width": True}, {"dcp_size": 0}, {"block_size": 0},
+        {"compact_valid_to_front": False}, {"tile_size": 256},
+        {"block_size": 2**20}, {"dcp_size": 2**24},
+    ]
+)
+def test_bad_geometry_fails_before_any_device_allocation(change: dict[str, int]) -> None:
+    geometry = {**DEFAULT_MATRIX[0], **change}
+    report = verify._run_cell(
+        SimpleNamespace(), "row_stable", geometry,
+        batch=1, seed=0, tile_size=128, device="cuda",
+    )
+    assert not report.ok
+    assert report.error.startswith("LocalizationError:")
+    assert report.checks == dict.fromkeys(CHECKS, False)
+
+
+def test_large_geometry_rejects_host_fixture_before_allocation() -> None:
+    report = verify._run_cell(
+        SimpleNamespace(), "row_stable", {**DEFAULT_MATRIX[0], "width": 4096},
+        batch=2048, seed=0, tile_size=128, device="cuda",
+    )
+    assert not report.ok
+    assert "diagnostic fixtures" in report.error
+
+
+def test_malformed_geometry_is_reported_without_aborting_the_sweep() -> None:
+    report = verify._run_cell(
+        SimpleNamespace(), "row_stable", None,
+        batch=1, seed=0, tile_size=128, device="cuda",
+    )
+    assert not report.ok
+    assert report.error == "LocalizationError: matrix geometry must be a mapping"
+    assert report.checks == dict.fromkeys(CHECKS, False)
+
+
+def test_integral_geometry_stays_json_serializable_when_a_check_fails() -> None:
+    np = pytest.importorskip("numpy")
+    report = verify._run_cell(
+        SimpleNamespace(), "row_stable", {**DEFAULT_MATRIX[0], "width": np.int64(2**40)},
+        batch=1, seed=0, tile_size=128, device="cuda",
+    )
+    assert not report.ok
+    encoded = json.dumps(ConformanceReport(cells=[report]).to_dict(), allow_nan=False)
+    assert json.loads(encoded)["cells"][0]["geometry"]["width"] == 2**40
+
+
+def test_conformance_uses_current_device_and_deduplicates_arms(monkeypatch) -> None:
+    fake_cuda = SimpleNamespace(
+        is_available=lambda: True,
+        current_device=lambda: 3,
+        get_device_name=lambda index: f"Test Device {index}",
+    )
+    monkeypatch.setitem(sys.modules, "torch", SimpleNamespace(cuda=fake_cuda))
+    monkeypatch.setitem(sys.modules, "triton", SimpleNamespace())
+    monkeypatch.setattr(
+        verify, "_run_cell", lambda _torch, arm, geometry, **kwargs: CellReport(
+            arm=arm, geometry=geometry, checks=dict.fromkeys(CHECKS, True)
+        ),
+    )
+    report = verify.conformance(matrix=DEFAULT_MATRIX[:1], arms=("row_stable", "row_stable"))
+    assert report.device == "Test Device 3"
+    assert len(report.cells) == 1
+    assert report.ok
+
+
+@pytest.mark.parametrize("required, expected", [(False, 0), (True, 2)])
+def test_cli_json_reports_skip_and_enforces_required_backend(monkeypatch, capsys, required, expected) -> None:
+    monkeypatch.setattr(
+        verify, "conformance", lambda **kwargs: ConformanceReport(skipped="test backend missing")
+    )
+    argv = ["--json"] + (["--require-device"] if required else [])
+    assert verify.main(argv) == expected
+    result = json.loads(capsys.readouterr().out)
+    assert result == {
+        "backend": "cuda", "device": "unknown", "ok": False,
+        "skipped": "test backend missing", "cells": [],
+    }
+
+
+def test_cli_failed_cell_is_nonzero_and_explained_in_json(monkeypatch, capsys) -> None:
+    report = ConformanceReport(cells=[CellReport(arm="row_stable", geometry={"width": 1})])
+    monkeypatch.setattr(verify, "conformance", lambda **kwargs: report)
+    assert verify.main(["--json"]) == 1
+    result = json.loads(capsys.readouterr().out)
+    assert result["cells"][0]["failures"] == list(CHECKS)
+    assert not result["cells"][0]["ok"]
+
+
+@pytest.mark.parametrize("batch", ["0", str(verify.MAX_FIXTURE_ELEMENTS + 1)])
+def test_cli_rejects_invalid_batch_before_backend(monkeypatch, batch) -> None:
+    monkeypatch.setitem(sys.modules, "torch", None)
+    with pytest.raises(SystemExit, match="2"):
+        verify.main(["--batch", batch])
 
 
 def test_default_matrix_is_well_formed_and_crosses_boundaries() -> None:

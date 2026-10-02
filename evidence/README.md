@@ -1,12 +1,18 @@
 # Evidence
 
-Verbatim analyzer output for the measurements quoted in the top-level README.
-Nothing here was re-typed for presentation: each `analysis.json` is the file an
-independent analyzer wrote, and every number in the README appears in one of
-them. If a claim in the README does not appear in this directory, treat it as
-unsupported and open an issue.
+Archived NVIDIA analyzer output and new Apple measurement records supporting
+the [README](../README.md). Raw records remain the source of truth; documentation
+may round values or show explicitly derived ratios. A checksum proves integrity,
+not correctness or applicability to a different system.
 
-Only identity strings were altered — absolute paths, email addresses, and
+Records `01`–`06` were inherited from the original repository. Record `07`
+preserves the initial Apple checkpoint, and record `08` preserves the first
+audit corrections. Record `09` measures the current implementation, strengthens
+compiled-input qualification, and adds a complete selected-attention consumer.
+All Apple records include environment metadata and implementation source hashes.
+Current Apple claims use record `09`. No NVIDIA experiments were run for these updates.
+
+In the historical records, only identity strings were altered — absolute paths, email addresses, and
 monetary amounts were redacted. Measurements, gates, decisions, and claim
 boundaries are untouched, including the parts that are unflattering.
 
@@ -21,8 +27,10 @@ its own analyzer.
 Verify integrity with:
 
 ```
-shasum -a 256 -c SHA256SUMS
+(cd evidence && shasum -a 256 -c SHA256SUMS)
 ```
+
+Run this command from the repository root.
 
 ## What is here
 
@@ -34,6 +42,9 @@ shasum -a 256 -c SHA256SUMS
 | `04-mechanism-decomposition/` | An 8-arm decomposition of where the difference comes from. Converter work resolves (~2 µs); **consumed-prefix order alone does not** — its effect is inconsistently signed across contexts (−1.08 µs at 4K, −0.79 µs at 16K, +2.20 µs at 32K). This is counter-evidence against the tempting story that order itself is what costs. | 1× RTX 5060 Ti |
 | `06-order-instability-b200/` | Unique consumed-prefix orders per 20 replays of byte-identical input on the live two-GPU step: the atomic converter emits 17–20 distinct orders; the stable converter emits exactly 1, in every record. The source of the "17–20 distinct orders" statement. | 2× B200 |
 | `05-full-decode-canary/` | The complete per-token decode step of a real 48-layer model under live two-GPU context parallelism, three arms, randomized paired blocks, margins fixed before observation. `segments.json` carries the converter/attention/communication segment medians (converter at 32K: row-wide 120.0 µs, atomic 194.4 µs, hierarchical 239.7 µs — the source of the "38% less time" statement). | 2× H100 80GB |
+| [`07-apple-mlx/`](07-apple-mlx/) | Initial Apple JSON records retained unchanged: 48-cell conformance and three-process eager/compiled comparison, before later implementation corrections. | Apple M5 Max |
+| [`08-apple-mlx-audit/`](08-apple-mlx-audit/) | Earlier audit checkpoint: Metal scan synchronization and arithmetic corrections; 48-cell conformance and three timing sessions; original JSON retained. | Apple M5 Max |
+| [`09-apple-mlx-consumer/`](09-apple-mlx-consumer/) | Current checkpoint: 48-cell conformance, compiled per-input gates, three localization sessions, and three complete selected-attention sessions with independent attention checks. | Apple M5 Max |
 
 ## Reading `05-full-decode-canary/analysis.json`
 
@@ -53,20 +64,22 @@ above the margin. It is a genuine ~1.4% cost, reproduced in all five sessions,
 and it arises downstream of the converter, whose own segment timing is
 unchanged. The hierarchical arm is at parity at both contexts.
 
-Practical consequence, stated in `docs/dispatch.md`: use `localize_hierarchical`
-at long context.
+This motivates testing `localize_hierarchical` in that workload. It does not
+establish a universal context-length dispatch threshold; see
+[dispatch guidance](../docs/dispatch.md).
 
 ## What is deliberately not here
 
-* Raw per-session records, session logs, protocol documents, preregistration
-  records, retained failure records, and the profiler counter dumps. They exist
-  and are checksummed, but they are large and belong with the research
-  program rather than with a tool.
+* For historical NVIDIA records `01`–`06`: raw per-session records, session
+  logs, protocol documents, preregistration records, retained failure records,
+  and profiler counter dumps. The historical campaign retains those separately.
+  Apple records `07`–`09` include their raw timing sessions in this repository.
 * Any serving-runtime result. Every timing here comes from a single-purpose
   reference executor, not a production serving path under load. The reference
   executor computes a dense-weighted mixture-of-experts to stay
   capture-safe, which inflates the per-step denominator identically for all
-  arms. The ratios are unbiased by this; the absolute step time is not
-  representative of a tuned serving step.
-* Any claim of portability. Three GPU generations were tested. That is three,
-  not all.
+  arms. That common overhead changes the relative fraction attributable to localization.
+  Neither the ratios nor the absolute step time transfer automatically to a
+  tuned serving step.
+* A guarantee of portability. The archived NVIDIA stacks and new Apple M5 Max
+  record each qualify their recorded configuration, not every device or version.
