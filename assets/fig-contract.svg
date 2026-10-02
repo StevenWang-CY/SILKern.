@@ -1,138 +1,200 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="510" viewBox="0 0 1120 510" role="img" aria-labelledby="contract-title contract-desc">
-  <title id="contract-title">Worked localization and stable-compaction example</title>
-  <desc id="contract-desc">Panel a follows input tokens [8, 5, 130, 7, -1, 262] through ownership filtering and page translation. With block size 64, two ranks, rank zero, interleave one, request zero and page table [11, 2, 7, 5], source columns zero, two and five survive. Local tokens [4, 65, 131] translate to physical slots [708, 129, 451]. Panel b shows validity bits [1,0,1,0,0,1] and the prefix-scan destinations zero, one and two. Source-order-preserving scatter produces [708,129,451,-1,-1,-1] with exact count three. In-range page values are translated verbatim, including negative page IDs; this example uses populated positive pages.</desc>
-  <style>
-    text { font: 14px Arial, Helvetica, sans-serif; fill: #171717; font-weight: 400; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    .small { font-size: 13px; }
-    .muted { fill: #525252; }
-    .blue { fill: #245a96; }
-    .rule { fill: none; stroke: #d4d4d4; stroke-width: 1; }
-    .edge { fill: none; stroke: #737373; stroke-width: 1; }
-    .trace { fill: none; stroke: #245a96; stroke-width: 1; }
-    .cell { fill: none; stroke: #a3a3a3; stroke-width: 1; }
-    @media (prefers-color-scheme: dark) {
-      text { fill: #e5e5e5; }
-      .muted { fill: #a3a3a3; }
-      .blue { fill: #8eb5de; }
-      .rule { stroke: #404040; }
-      .edge { stroke: #a3a3a3; }
-      .trace { stroke: #8eb5de; }
-      .cell { stroke: #737373; }
-    }
-  </style>
-  <text x="32" y="23">(a) Ownership and translation</text>
-  <text x="1088" y="23" class="small mono" text-anchor="end">block=64; D=2; rank=0; interleave=1; request=0; P=[11,2,7,5]</text>
-  <text x="32" y="74">Global token  t</text>
-  <rect class="cell" x="274" y="53" width="72" height="30"/>
-  <text x="310" y="74" class="mono" text-anchor="middle">8</text>
-  <rect class="cell" x="414" y="53" width="72" height="30"/>
-  <text x="450" y="74" class="mono" text-anchor="middle">5</text>
-  <rect class="cell" x="554" y="53" width="72" height="30"/>
-  <text x="590" y="74" class="mono" text-anchor="middle">130</text>
-  <rect class="cell" x="694" y="53" width="72" height="30"/>
-  <text x="730" y="74" class="mono" text-anchor="middle">7</text>
-  <rect class="cell" x="834" y="53" width="72" height="30"/>
-  <text x="870" y="74" class="mono" text-anchor="middle">-1</text>
-  <rect class="cell" x="974" y="53" width="72" height="30"/>
-  <text x="1010" y="74" class="mono" text-anchor="middle">262</text>
-  <text x="32" y="124">Owner  t mod 2</text>
-  <path class="trace" d="M310 83V105"/>
-  <path class="trace" d="M307 101L310 105L313 101"/>
-  <text x="310" y="124" class="mono muted" text-anchor="middle">0</text>
-  <path class="edge" d="M450 83V105"/>
-  <path class="edge" d="M447 101L450 105L453 101"/>
-  <text x="450" y="124" class="mono muted" text-anchor="middle">1</text>
-  <path class="edge" d="M450 136V146"/>
-  <path class="edge" d="M446 146L454 154M454 146L446 154"/>
-  <path class="trace" d="M590 83V105"/>
-  <path class="trace" d="M587 101L590 105L593 101"/>
-  <text x="590" y="124" class="mono muted" text-anchor="middle">0</text>
-  <path class="edge" d="M730 83V105"/>
-  <path class="edge" d="M727 101L730 105L733 101"/>
-  <text x="730" y="124" class="mono muted" text-anchor="middle">1</text>
-  <path class="edge" d="M730 136V146"/>
-  <path class="edge" d="M726 146L734 154M734 146L726 154"/>
-  <path class="edge" d="M870 83V105"/>
-  <path class="edge" d="M867 101L870 105L873 101"/>
-  <text x="870" y="124" class="mono muted" text-anchor="middle">invalid</text>
-  <path class="edge" d="M870 136V146"/>
-  <path class="edge" d="M866 146L874 154M874 146L866 154"/>
-  <path class="trace" d="M1010 83V105"/>
-  <path class="trace" d="M1007 101L1010 105L1013 101"/>
-  <text x="1010" y="124" class="mono muted" text-anchor="middle">0</text>
-  <text x="32" y="183">Local token  ℓ = ⌊t / 2⌋</text>
-  <path class="trace" d="M310 136V157"/>
-  <path class="trace" d="M307 153L310 157L313 153"/>
-  <rect class="cell" x="274" y="162" width="72" height="30"/>
-  <text x="310" y="183" class="mono" text-anchor="middle">4</text>
-  <path class="trace" d="M590 136V157"/>
-  <path class="trace" d="M587 153L590 157L593 153"/>
-  <rect class="cell" x="554" y="162" width="72" height="30"/>
-  <text x="590" y="183" class="mono" text-anchor="middle">65</text>
-  <path class="trace" d="M1010 136V157"/>
-  <path class="trace" d="M1007 153L1010 157L1013 153"/>
-  <rect class="cell" x="974" y="162" width="72" height="30"/>
-  <text x="1010" y="183" class="mono" text-anchor="middle">131</text>
-  <text x="32" y="228" class="small">P[⌊ℓ / 64⌋] × 64 + ℓ mod 64</text>
-  <path class="trace" d="M310 192V207"/>
-  <path class="trace" d="M307 203L310 207L313 203"/>
-  <text x="310" y="228" class="small mono" text-anchor="middle">11 × 64 + 4</text>
-  <path class="trace" d="M590 192V207"/>
-  <path class="trace" d="M587 203L590 207L593 203"/>
-  <text x="590" y="228" class="small mono" text-anchor="middle">2 × 64 + 1</text>
-  <path class="trace" d="M1010 192V207"/>
-  <path class="trace" d="M1007 203L1010 207L1013 203"/>
-  <text x="1010" y="228" class="small mono" text-anchor="middle">7 × 64 + 3</text>
-  <text x="32" y="268">Physical slot</text>
-  <rect class="cell" x="274" y="248" width="72" height="30"/>
-  <text x="310" y="268" class="mono" text-anchor="middle">708</text>
-  <path class="trace" d="M310 234V246"/>
-  <path class="trace" d="M307 242L310 246L313 242"/>
-  <rect class="cell" x="554" y="248" width="72" height="30"/>
-  <text x="590" y="268" class="mono" text-anchor="middle">129</text>
-  <path class="trace" d="M590 234V246"/>
-  <path class="trace" d="M587 242L590 246L593 242"/>
-  <rect class="cell" x="974" y="248" width="72" height="30"/>
-  <text x="1010" y="268" class="mono" text-anchor="middle">451</text>
-  <path class="trace" d="M1010 234V246"/>
-  <path class="trace" d="M1007 242L1010 246L1013 242"/>
-  <text x="32" y="310">(b) Stable compaction</text>
-  <text x="32" y="344">Valid mapping  v</text>
-  <text x="310" y="344" class="mono" text-anchor="middle">1</text>
-  <text x="450" y="344" class="mono" text-anchor="middle">0</text>
-  <text x="590" y="344" class="mono" text-anchor="middle">1</text>
-  <text x="730" y="344" class="mono" text-anchor="middle">0</text>
-  <text x="870" y="344" class="mono" text-anchor="middle">0</text>
-  <text x="1010" y="344" class="mono" text-anchor="middle">1</text>
-  <text x="32" y="381" class="small">Destination  cumsum(v) − 1</text>
-  <text x="310" y="381" class="mono" text-anchor="middle">0</text>
-  <text x="450" y="381" class="mono muted" text-anchor="middle">—</text>
-  <text x="590" y="381" class="mono" text-anchor="middle">1</text>
-  <text x="730" y="381" class="mono muted" text-anchor="middle">—</text>
-  <text x="870" y="381" class="mono muted" text-anchor="middle">—</text>
-  <text x="1010" y="381" class="mono" text-anchor="middle">2</text>
-  <path class="trace" d="M310 391V427"/>
-  <path class="trace" d="M307 423L310 427L313 423"/>
-  <path class="trace" d="M590 391C590 409.0 450 409.0 450 427"/>
-  <path class="trace" d="M447 423L450 427L453 423"/>
-  <path class="trace" d="M1010 391C1010 409.0 590 409.0 590 427"/>
-  <path class="trace" d="M587 423L590 427L593 423"/>
-  <text x="32" y="453">Output</text>
-  <rect class="trace" x="274" y="432" width="72" height="30"/>
-  <text x="310" y="453" class="mono" text-anchor="middle">708</text>
-  <rect class="trace" x="414" y="432" width="72" height="30"/>
-  <text x="450" y="453" class="mono" text-anchor="middle">129</text>
-  <rect class="trace" x="554" y="432" width="72" height="30"/>
-  <text x="590" y="453" class="mono" text-anchor="middle">451</text>
-  <rect class="cell" x="694" y="432" width="72" height="30"/>
-  <text x="730" y="453" class="mono muted" text-anchor="middle">-1</text>
-  <rect class="cell" x="834" y="432" width="72" height="30"/>
-  <text x="870" y="453" class="mono muted" text-anchor="middle">-1</text>
-  <rect class="cell" x="974" y="432" width="72" height="30"/>
-  <text x="1010" y="453" class="mono muted" text-anchor="middle">-1</text>
-  <path class="trace" d="M274 469V475H626V469"/>
-  <path class="rule" d="M694 469V475H1046V469"/>
-  <text x="450" y="492" class="small" text-anchor="middle">valid prefix; count = 3</text>
-  <text x="870" y="492" class="small muted" text-anchor="middle">padding</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="514" viewBox="0 0 1120 514" role="img" aria-labelledby="title desc">
+<title id="title">Coordinate translation and the two output layouts</title>
+<desc id="desc">The worked row uses two ranks, rank zero, interleave one, page size 64 and pages 11, 2, 7,5. Columns 0, 2, 5 survive: tokens 8, 130, 262 become local positions 4, 65, 131, logical page and offset pairs (0, 4), (1, 1), (2, 3), then physical slots 708, 129, 451. Validity is 1, 0, 1, 0, 0, 1 and the surviving scan destinations are0,1,2. Front compaction returns 708,129,451,-1,-1,-1. Disabling compaction returns 708,-1,129,-1,-1,451. Both counts are 3; only the compacted row has a valid count-length prefix. Single-rank calls also preserve columns, with their own coordinate translation. General ownership, deinterleaving and page formulas appear at right.</desc>
+<style>text{font-family:Arial,Helvetica,sans-serif;font-size:16px;font-variant-numeric:tabular-nums;fill:var(--ink)}
+svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#fff;--neutral:#f1f3f5;--blue:#32669b;--blue-wash:#e8f0f8;--teal:#287c72;--teal-wash:#e7f2ef;--copper:#a16a3b;--copper-wash:#f7eddf;--violet:#786a9e;--violet-wash:#eeebf5}
+.heading{font-size:19px;font-weight:600}.subhead{font-size:16px;font-weight:600}
+.small{font-size:13px}.label{font-size:14px}.muted{fill:var(--muted)}
+.mono{font-family:Menlo,Consolas,monospace;font-size:15px}
+.mono.small{font-size:13px}.data{font-size:16px;font-weight:500}.data.knockout{font-weight:600}
+.math{font-family:Georgia,'Times New Roman',serif;font-size:17px;font-style:italic}
+.rule{fill:none;stroke:var(--rule);stroke-width:1}
+.edge{fill:none;stroke:var(--line);stroke-width:1.25;stroke-linejoin:round;stroke-linecap:round}
+.outline{fill:var(--paper);stroke:var(--line);stroke-width:1.2}
+.node{fill:var(--neutral);stroke:var(--line);stroke-width:1}
+.grid-cell{fill:var(--neutral);stroke:var(--rule);stroke-width:.7}
+.grid-frame{fill:none;stroke:var(--line);stroke-width:1}
+.route-cutout{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round}
+.blue{--color:var(--blue);--wash:var(--blue-wash)}
+.teal{--color:var(--teal);--wash:var(--teal-wash)}
+.copper{--color:var(--copper);--wash:var(--copper-wash)}
+.violet{--color:var(--violet);--wash:var(--violet-wash)}
+.colored{fill:var(--color)}.tile{fill:var(--wash);stroke:var(--color);stroke-width:1.25}
+.trace{fill:none;stroke:var(--color);stroke-width:1.7;stroke-linecap:round}
+.solid{fill:var(--color);stroke:var(--color);stroke-width:1}
+.knockout{fill:#fff}.dash{stroke-dasharray:3 4}
+@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--neutral:#1b232c;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}.knockout{fill:#111820}}
+</style>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
+<text x="22" y="28" class="heading" text-anchor="start">a  A complete row, in selector order</text>
+<text x="22" y="53" class="label muted" text-anchor="start">D = 2 · rank = 0 · I = 1 · S = 64 · P = [11, 2, 7, 5]</text>
+<path d="M22 68H686M716 10V496" class="rule"/>
+<text x="22" y="94" class="small muted" text-anchor="start">Input column</text>
+<text x="260" y="94" class="small mono muted" text-anchor="middle">0</text>
+<text x="335" y="94" class="small mono muted" text-anchor="middle">1</text>
+<text x="410" y="94" class="small mono muted" text-anchor="middle">2</text>
+<text x="485" y="94" class="small mono muted" text-anchor="middle">3</text>
+<text x="560" y="94" class="small mono muted" text-anchor="middle">4</text>
+<text x="635" y="94" class="small mono muted" text-anchor="middle">5</text>
+<text x="22" y="130" class="label" text-anchor="start">Global position  t</text>
+<rect x="230" y="107" width="60" height="34" rx="2" class="blue tile"/>
+<text x="260.0" y="129.0" class="data blue colored" text-anchor="middle">8</text>
+<path d="M260 142v11" class="blue trace" marker-end="url(#arrow)"/>
+<rect x="305" y="107" width="60" height="34" rx="2" class="node"/>
+<text x="335.0" y="129.0" class="data" text-anchor="middle">5</text>
+<rect x="380" y="107" width="60" height="34" rx="2" class="teal tile"/>
+<text x="410.0" y="129.0" class="data teal colored" text-anchor="middle">130</text>
+<path d="M410 142v11" class="teal trace" marker-end="url(#arrow)"/>
+<rect x="455" y="107" width="60" height="34" rx="2" class="node"/>
+<text x="485.0" y="129.0" class="data" text-anchor="middle">7</text>
+<rect x="530" y="107" width="60" height="34" rx="2" class="node"/>
+<text x="560.0" y="129.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="605" y="107" width="60" height="34" rx="2" class="copper tile"/>
+<text x="635.0" y="129.0" class="data copper colored" text-anchor="middle">262</text>
+<path d="M635 142v11" class="copper trace" marker-end="url(#arrow)"/>
+<text x="22" y="180" class="label" text-anchor="start">Owner</text>
+<rect x="230" y="157" width="60" height="34" rx="2" class="blue tile"/>
+<text x="260.0" y="179.0" class="data blue colored" text-anchor="middle">0</text>
+<path d="M260 192v11" class="blue trace" marker-end="url(#arrow)"/>
+<rect x="305" y="157" width="60" height="34" rx="2" class="node"/>
+<text x="335.0" y="179.0" class="data" text-anchor="middle">1</text>
+<rect x="380" y="157" width="60" height="34" rx="2" class="teal tile"/>
+<text x="410.0" y="179.0" class="data teal colored" text-anchor="middle">0</text>
+<path d="M410 192v11" class="teal trace" marker-end="url(#arrow)"/>
+<rect x="455" y="157" width="60" height="34" rx="2" class="node"/>
+<text x="485.0" y="179.0" class="data" text-anchor="middle">1</text>
+<rect x="530" y="157" width="60" height="34" rx="2" class="node"/>
+<text x="560.0" y="179.0" class="data muted" text-anchor="middle">—</text>
+<rect x="605" y="157" width="60" height="34" rx="2" class="copper tile"/>
+<text x="635.0" y="179.0" class="data copper colored" text-anchor="middle">0</text>
+<path d="M635 192v11" class="copper trace" marker-end="url(#arrow)"/>
+<text x="22" y="230" class="label" text-anchor="start">Local position  ℓ</text>
+<rect x="230" y="207" width="60" height="34" rx="2" class="blue tile"/>
+<text x="260.0" y="229.0" class="data blue colored" text-anchor="middle">4</text>
+<path d="M260 242v11" class="blue trace" marker-end="url(#arrow)"/>
+<rect x="305" y="207" width="60" height="34" rx="2" class="node"/>
+<text x="335.0" y="229.0" class="data muted" text-anchor="middle">—</text>
+<rect x="380" y="207" width="60" height="34" rx="2" class="teal tile"/>
+<text x="410.0" y="229.0" class="data teal colored" text-anchor="middle">65</text>
+<path d="M410 242v11" class="teal trace" marker-end="url(#arrow)"/>
+<rect x="455" y="207" width="60" height="34" rx="2" class="node"/>
+<text x="485.0" y="229.0" class="data muted" text-anchor="middle">—</text>
+<rect x="530" y="207" width="60" height="34" rx="2" class="node"/>
+<text x="560.0" y="229.0" class="data muted" text-anchor="middle">—</text>
+<rect x="605" y="207" width="60" height="34" rx="2" class="copper tile"/>
+<text x="635.0" y="229.0" class="data copper colored" text-anchor="middle">131</text>
+<path d="M635 242v11" class="copper trace" marker-end="url(#arrow)"/>
+<text x="22" y="280" class="label" text-anchor="start">(logical page, offset)</text>
+<rect x="230" y="257" width="60" height="34" rx="2" class="blue tile"/>
+<text x="260.0" y="279.0" class="data blue colored" text-anchor="middle">0, 4</text>
+<path d="M260 292v11" class="blue trace" marker-end="url(#arrow)"/>
+<rect x="305" y="257" width="60" height="34" rx="2" class="node"/>
+<text x="335.0" y="279.0" class="data muted" text-anchor="middle">—</text>
+<rect x="380" y="257" width="60" height="34" rx="2" class="teal tile"/>
+<text x="410.0" y="279.0" class="data teal colored" text-anchor="middle">1, 1</text>
+<path d="M410 292v11" class="teal trace" marker-end="url(#arrow)"/>
+<rect x="455" y="257" width="60" height="34" rx="2" class="node"/>
+<text x="485.0" y="279.0" class="data muted" text-anchor="middle">—</text>
+<rect x="530" y="257" width="60" height="34" rx="2" class="node"/>
+<text x="560.0" y="279.0" class="data muted" text-anchor="middle">—</text>
+<rect x="605" y="257" width="60" height="34" rx="2" class="copper tile"/>
+<text x="635.0" y="279.0" class="data copper colored" text-anchor="middle">2, 3</text>
+<path d="M635 292v11" class="copper trace" marker-end="url(#arrow)"/>
+<text x="22" y="330" class="label" text-anchor="start">Physical slot  a</text>
+<rect x="230" y="307" width="60" height="34" rx="2" class="blue solid"/>
+<text x="260.0" y="329.0" class="data blue knockout" text-anchor="middle">708</text>
+<rect x="305" y="307" width="60" height="34" rx="2" class="node"/>
+<text x="335.0" y="329.0" class="data muted" text-anchor="middle">—</text>
+<rect x="380" y="307" width="60" height="34" rx="2" class="teal solid"/>
+<text x="410.0" y="329.0" class="data teal knockout" text-anchor="middle">129</text>
+<rect x="455" y="307" width="60" height="34" rx="2" class="node"/>
+<text x="485.0" y="329.0" class="data muted" text-anchor="middle">—</text>
+<rect x="530" y="307" width="60" height="34" rx="2" class="node"/>
+<text x="560.0" y="329.0" class="data muted" text-anchor="middle">—</text>
+<rect x="605" y="307" width="60" height="34" rx="2" class="copper solid"/>
+<text x="635.0" y="329.0" class="data copper knockout" text-anchor="middle">451</text>
+<path d="M22 356H686" class="rule"/>
+<text x="22" y="384" class="label" text-anchor="start">Validity  v</text>
+<text x="22" y="415" class="mono" text-anchor="start">cumsum(v) − 1</text>
+<text x="260" y="384" class="mono blue colored" text-anchor="middle">1</text>
+<text x="260" y="415" class="mono blue colored" text-anchor="middle">0</text>
+<text x="335" y="384" class="mono muted" text-anchor="middle">0</text>
+<text x="335" y="415" class="mono muted" text-anchor="middle">—</text>
+<text x="410" y="384" class="mono teal colored" text-anchor="middle">1</text>
+<text x="410" y="415" class="mono teal colored" text-anchor="middle">1</text>
+<text x="485" y="384" class="mono muted" text-anchor="middle">0</text>
+<text x="485" y="415" class="mono muted" text-anchor="middle">—</text>
+<text x="560" y="384" class="mono muted" text-anchor="middle">0</text>
+<text x="560" y="415" class="mono muted" text-anchor="middle">—</text>
+<text x="635" y="384" class="mono copper colored" text-anchor="middle">1</text>
+<text x="635" y="415" class="mono copper colored" text-anchor="middle">2</text>
+<path d="M260 424C260 438 260 437 260 450" class="route-cutout"/>
+<path d="M260 424C260 438 260 437 260 450" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M410 424C410 438 335 437 335 450" class="route-cutout"/>
+<path d="M410 424C410 438 335 437 335 450" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M635 424C635 438 410 437 410 450" class="route-cutout"/>
+<path d="M635 424C635 438 410 437 410 450" class="copper trace" marker-end="url(#arrow)"/>
+<text x="22" y="476" class="subhead" text-anchor="start">Compacted output</text>
+<rect x="230" y="453" width="60" height="34" rx="2" class="blue solid"/>
+<text x="260.0" y="475.0" class="data blue knockout" text-anchor="middle">708</text>
+<rect x="305" y="453" width="60" height="34" rx="2" class="teal solid"/>
+<text x="335.0" y="475.0" class="data teal knockout" text-anchor="middle">129</text>
+<rect x="380" y="453" width="60" height="34" rx="2" class="copper solid"/>
+<text x="410.0" y="475.0" class="data copper knockout" text-anchor="middle">451</text>
+<rect x="455" y="453" width="60" height="34" rx="2" class="node"/>
+<text x="485.0" y="475.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="530" y="453" width="60" height="34" rx="2" class="node"/>
+<text x="560.0" y="475.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="605" y="453" width="60" height="34" rx="2" class="node"/>
+<text x="635.0" y="475.0" class="data muted" text-anchor="middle">−1</text>
+<text x="447" y="507" class="small muted" text-anchor="middle">count = 3 · stable filter, not a sort</text>
+<text x="742" y="28" class="heading" text-anchor="start">b  Coordinates and layout</text>
+<text x="742" y="66" class="small muted" text-anchor="start">For nonnegative t</text>
+<text x="742" y="94" class="math" text-anchor="start">owner = ⌊t / I⌋ mod D</text>
+<text x="742" y="127" class="math" text-anchor="start">ℓ = ⌊t / (D I)⌋ I + t mod I</text>
+<text x="742" y="160" class="math" text-anchor="start">(b, δ) = divmod(ℓ, S)</text>
+<text x="742" y="193" class="math" text-anchor="start">a = P[request, b] S + δ</text>
+<text x="742" y="221" class="small muted" text-anchor="start">Read P only for an owned, in-range mapping.</text>
+<path d="M742 239H1098" class="rule"/>
+<text x="742" y="260" class="subhead" text-anchor="start">Front compaction · count = 3</text>
+<rect x="743" y="277" width="52" height="32" rx="2" class="blue tile"/>
+<text x="769.0" y="298.0" class="data blue colored" text-anchor="middle">708</text>
+<text x="769" y="330" class="mono muted" text-anchor="middle">1</text>
+<rect x="802" y="277" width="52" height="32" rx="2" class="teal tile"/>
+<text x="828.0" y="298.0" class="data teal colored" text-anchor="middle">129</text>
+<text x="828" y="330" class="mono muted" text-anchor="middle">1</text>
+<rect x="861" y="277" width="52" height="32" rx="2" class="copper tile"/>
+<text x="887.0" y="298.0" class="data copper colored" text-anchor="middle">451</text>
+<text x="887" y="330" class="mono muted" text-anchor="middle">1</text>
+<rect x="920" y="277" width="52" height="32" rx="2" class="node"/>
+<text x="946.0" y="298.0" class="data muted" text-anchor="middle">−1</text>
+<text x="946" y="330" class="mono muted" text-anchor="middle">0</text>
+<rect x="979" y="277" width="52" height="32" rx="2" class="node"/>
+<text x="1005.0" y="298.0" class="data muted" text-anchor="middle">−1</text>
+<text x="1005" y="330" class="mono muted" text-anchor="middle">0</text>
+<rect x="1038" y="277" width="52" height="32" rx="2" class="node"/>
+<text x="1064.0" y="298.0" class="data muted" text-anchor="middle">−1</text>
+<text x="1064" y="330" class="mono muted" text-anchor="middle">0</text>
+<text x="742" y="348" class="small muted" text-anchor="start">validity mask</text>
+<text x="742" y="363" class="subhead" text-anchor="start">Compaction off · count = 3</text>
+<rect x="743" y="380" width="52" height="32" rx="2" class="blue tile"/>
+<text x="769.0" y="401.0" class="data blue colored" text-anchor="middle">708</text>
+<text x="769" y="433" class="mono muted" text-anchor="middle">1</text>
+<rect x="802" y="380" width="52" height="32" rx="2" class="node"/>
+<text x="828.0" y="401.0" class="data muted" text-anchor="middle">−1</text>
+<text x="828" y="433" class="mono muted" text-anchor="middle">0</text>
+<rect x="861" y="380" width="52" height="32" rx="2" class="teal tile"/>
+<text x="887.0" y="401.0" class="data teal colored" text-anchor="middle">129</text>
+<text x="887" y="433" class="mono muted" text-anchor="middle">1</text>
+<rect x="920" y="380" width="52" height="32" rx="2" class="node"/>
+<text x="946.0" y="401.0" class="data muted" text-anchor="middle">−1</text>
+<text x="946" y="433" class="mono muted" text-anchor="middle">0</text>
+<rect x="979" y="380" width="52" height="32" rx="2" class="node"/>
+<text x="1005.0" y="401.0" class="data muted" text-anchor="middle">−1</text>
+<text x="1005" y="433" class="mono muted" text-anchor="middle">0</text>
+<rect x="1038" y="380" width="52" height="32" rx="2" class="copper tile"/>
+<text x="1064.0" y="401.0" class="data copper colored" text-anchor="middle">451</text>
+<text x="1064" y="433" class="mono muted" text-anchor="middle">1</text>
+<text x="742" y="451" class="small muted" text-anchor="start">validity mask</text>
+<text x="742" y="488" class="small muted" text-anchor="start">Single-rank calls also preserve input columns.</text>
 </svg>

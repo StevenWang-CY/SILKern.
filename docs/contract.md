@@ -32,9 +32,9 @@ serves as the specification beyond that accelerator storage limit.
 
 ## Five stages, one stable result
 
-![The five localization stages with a worked row](../assets/fig-contract.svg)
+![Worked localization coordinates, stable destinations, and compacted versus column-preserving output layouts](../assets/fig-contract.svg)
 
-**Figure 2. A worked localization row.** Ownership removes columns 1 and 3, while column 4 is invalid. The surviving positions translate to physical slots 708, 129, and 451. Prefix-derived destinations preserve their input order; padding follows the three-element valid prefix. Stable compaction does not sort by physical address.
+**Figure 2. A worked localization row.** Columns 0, 2, and 5 translate to physical slots 708, 129, and 451. Prefix-derived destinations preserve their input order and leave a padded tail. The right panel gives the general coordinate equations and compares compacted and column-preserving layouts: both have count 3, but only one has a valid three-element prefix.
 
 For each input token, in its original column order:
 

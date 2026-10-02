@@ -6,9 +6,9 @@ SILKern localizes indices at the boundary between a sparse selector and a paged
 attention consumer. Its architecture keeps the mathematical contract independent
 of the execution framework, and keeps each backend's memory model explicit.
 
-![Sparse-attention boundary and expanded validity, translation, scan, and scatter graph](../assets/fig-platforms.svg)
+![Tensor flow, stable scatter, page-table routing, and selected KV cache entries](../assets/fig-platforms.svg)
 
-**Figure 1. Localization at the sparse-attention boundary.** The expanded graph separates physical-address translation from the validity scan that assigns stable destinations and an exact count. The example uses rank 0 of two ranks, interleave 1, and block size 64. This is the compacting contract shared by Python, MLX/Metal, and CUDA/Triton; the graph does not prescribe kernel-launch boundaries.
+**Figure 1. Localization at the sparse-attention boundary.** Color follows each surviving token through ownership filtering, address translation, and stable scatter. The page-table view resolves logical pages into three 64-slot cache tiles; highlighted cells show the selected K/V addresses. The example uses rank 0 of two ranks, interleave 1, and page size 64. Output follows selector order even when physical pages are nonmonotonic. Backends share this compacting result with distinct memory ownership.
 
 ## Layers and responsibilities
 

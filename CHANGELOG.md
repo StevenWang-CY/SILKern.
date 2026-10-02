@@ -54,6 +54,9 @@
   empty selections, and selected-attention normalization across logical shards.
 - Rework the README and vector diagrams; correct canonical repository links to
   `StevenWang-CY/SILKern.`.
+- Add reproducible tensor, page-table, cache, and consumer diagrams with labeled
+  survivor paths. Present Apple latency in grouped bars with zero baselines,
+  direct values, and a separate consumer scale; preserve archived CUDA intervals.
 - Clarify that historical H100 converter timings cover a complete 48-layer
   segment, retain the 64K rowwise regression, and remove unsupported universal
   dispatch and serving-performance claims.

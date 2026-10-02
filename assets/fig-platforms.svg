@@ -1,97 +1,448 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="404" viewBox="0 0 1120 404" role="img" aria-labelledby="overview-title overview-desc">
-<title id="overview-title">Sparse-index localization at the attention boundary</title>
-<desc id="overview-desc">Left: selected global positions enter SILKern and leave as rank-local slots and exact counts for a masked KV gather and attention consumer. Right: the localization operation is expanded into ownership and bounds predicates, local-coordinate calculation, page translation, a validity prefix sum, and stable scatter. The validity mask determines both destinations and count; translation reads only valid pages and supplies values without reordering them. Output storage starts with minus-one padding. For rank zero with two ranks, interleave one, block size64, request zero and pages11,2,7,5, tokens8,5,130,7,minus one,262 become slots708,129,451,minus one,minus one,minus one and count3. This is the compacting path; single-rank and noncompacting layouts preserve columns. The graph describes semantics shared by Python, MLX/Metal and CUDA/Triton, not a fixed kernel-launch schedule.</desc>
-<style>
-text{font-family:Arial,Helvetica,sans-serif;font-size:14px;fill:#202020}
-.math{font-family:Georgia,"Times New Roman",serif;font-size:15px;font-style:italic}
-.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
-.small{font-size:12px}.muted{fill:#5d5d5d}.blue{fill:#245a96}.node{fill:none;stroke:#555;stroke-width:1}
-.edge{fill:none;stroke:#555;stroke-width:1;marker-end:url(#arrow)}.branch{fill:#555}
-.expand{fill:none;stroke:#8c8c8c;stroke-width:.8;stroke-dasharray:4 4}
-.cell{fill:none;stroke:#8a8a8a;stroke-width:.8}.selected{fill:none;stroke:#245a96;stroke-width:1.2}
-@media(prefers-color-scheme:dark){text{fill:#e6e6e6}.muted{fill:#a6a6a6}.blue{fill:#8eb5de}.node,.edge{stroke:#b5b5b5}.branch{fill:#b5b5b5}.expand,.cell{stroke:#777}.selected{stroke:#8eb5de}}
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="652" viewBox="0 0 1120 652" role="img" aria-labelledby="title desc">
+<title id="title">Sparse selections become ordered rank-local KV addresses</title>
+<desc id="desc">Top: selection tensors pass through SILKern localization, a masked KV gather and selected attention. Panel a traces rank-zero input [8,5,130,7,-1,262] with two ranks, interleave one and page size 64. Blue, teal and copper identify the survivors 8, 130, 262. Their local positions 4, 65, 131 map through logical pages 0, 1, 2 to physical pages 11, 2, 7, producing 708, 129, 451. Validity bits 1, 0, 1, 0, 0, 1 supply stable destinations 0, 1, 2. Output is [708,129,451,-1,-1,-1], count 3. Panel b draws all 64 slots of physical pages 2, 7, 11, highlighting offsets 1, 3, 4. The page table is nonmonotonic; output retains selection order. Only valid mappings read the table. The example illustrates front compaction for multiple ranks, not the single-rank layout. Python, MLX/Metal and CUDA/Triton share the result with distinct memory ownership.</desc>
+<style>text{font-family:Arial,Helvetica,sans-serif;font-size:16px;font-variant-numeric:tabular-nums;fill:var(--ink)}
+svg{--ink:#202832;--muted:#58616c;--line:#84909b;--rule:#d4dbe1;--paper:#fff;--neutral:#f1f3f5;--blue:#32669b;--blue-wash:#e8f0f8;--teal:#287c72;--teal-wash:#e7f2ef;--copper:#a16a3b;--copper-wash:#f7eddf;--violet:#786a9e;--violet-wash:#eeebf5}
+.heading{font-size:19px;font-weight:600}.subhead{font-size:16px;font-weight:600}
+.small{font-size:13px}.label{font-size:14px}.muted{fill:var(--muted)}
+.mono{font-family:Menlo,Consolas,monospace;font-size:15px}
+.mono.small{font-size:13px}.data{font-size:16px;font-weight:500}.data.knockout{font-weight:600}
+.math{font-family:Georgia,'Times New Roman',serif;font-size:17px;font-style:italic}
+.rule{fill:none;stroke:var(--rule);stroke-width:1}
+.edge{fill:none;stroke:var(--line);stroke-width:1.25;stroke-linejoin:round;stroke-linecap:round}
+.outline{fill:var(--paper);stroke:var(--line);stroke-width:1.2}
+.node{fill:var(--neutral);stroke:var(--line);stroke-width:1}
+.grid-cell{fill:var(--neutral);stroke:var(--rule);stroke-width:.7}
+.grid-frame{fill:none;stroke:var(--line);stroke-width:1}
+.route-cutout{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round}
+.blue{--color:var(--blue);--wash:var(--blue-wash)}
+.teal{--color:var(--teal);--wash:var(--teal-wash)}
+.copper{--color:var(--copper);--wash:var(--copper-wash)}
+.violet{--color:var(--violet);--wash:var(--violet-wash)}
+.colored{fill:var(--color)}.tile{fill:var(--wash);stroke:var(--color);stroke-width:1.25}
+.trace{fill:none;stroke:var(--color);stroke-width:1.7;stroke-linecap:round}
+.solid{fill:var(--color);stroke:var(--color);stroke-width:1}
+.knockout{fill:#fff}.dash{stroke-dasharray:3 4}
+@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--neutral:#1b232c;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}.knockout{fill:#111820}}
 </style>
-<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1L7 4L1 7" fill="none" stroke="context-stroke" stroke-width="1"/></marker></defs>
-<text x="126" y="23" class="" text-anchor="middle">Selected global positions</text>
-<rect class="selected" x="36" y="36" width="30" height="30"/>
-<text x="51.0" y="55.0" class="mono blue" text-anchor="middle">8</text>
-<rect class="cell" x="66" y="36" width="30" height="30"/>
-<text x="81.0" y="55.0" class="mono" text-anchor="middle">5</text>
-<rect class="selected" x="96" y="36" width="30" height="30"/>
-<text x="111.0" y="55.0" class="mono blue" text-anchor="middle">130</text>
-<rect class="cell" x="126" y="36" width="30" height="30"/>
-<text x="141.0" y="55.0" class="mono" text-anchor="middle">7</text>
-<rect class="cell" x="156" y="36" width="30" height="30"/>
-<text x="171.0" y="55.0" class="mono muted" text-anchor="middle">−1</text>
-<rect class="selected" x="186" y="36" width="30" height="30"/>
-<text x="201.0" y="55.0" class="mono blue" text-anchor="middle">262</text>
-<path class="edge" d="M126 66V112"/>
-<rect class="selected" x="34" y="114" width="184" height="66"/>
-<text x="126" y="141" class="blue" text-anchor="middle">SILKern</text>
-<text x="126" y="163" class="math" text-anchor="middle">(req, P, t) → (s, n)</text>
-<path class="edge" d="M126 180V226"/>
-<text x="114" y="209" class="math" text-anchor="end">slots s, count n</text>
-<rect class="node" x="26" y="228" width="200" height="46"/>
-<text x="126" y="256" class="" text-anchor="middle">Masked KV gather</text>
-<path class="edge" d="M126 274V310"/>
-<rect class="node" x="26" y="312" width="200" height="42"/>
-<text x="126" y="338" class="" text-anchor="middle">Selected attention</text>
-<path class="expand" d="M218 114L308 28M218 180L308 364"/>
-<path class="expand" d="M308 28H1094V364H308Z"/>
-<text x="544" y="47" class="math" text-anchor="middle">tⱼ</text>
-<path class="edge" d="M544 53V62H444V84"/>
-<path class="edge" d="M544 62H691V84"/>
-<circle class="branch" cx="544" cy="62" r="2"/>
-<text x="942" y="48" class="mono" text-anchor="middle">req = 0; P = [11, 2, 7, 5]</text>
-<path class="edge" d="M950 55V84"/>
-<rect class="node" x="346" y="86" width="196" height="66"/>
-<text x="444" y="110" class="" text-anchor="middle">Ownership &amp; bounds</text>
-<text x="444" y="134" class="math" text-anchor="middle">vⱼ ∈ {0, 1}</text>
-<rect class="node" x="602" y="86" width="178" height="66"/>
-<text x="691" y="110" class="" text-anchor="middle">Deinterleave</text>
-<text x="691" y="134" class="math" text-anchor="middle">tⱼ → ℓⱼ</text>
-<path class="edge" d="M780 119H834"/>
-<text x="805" y="108" class="math" text-anchor="middle">ℓⱼ</text>
-<rect class="node" x="836" y="86" width="238" height="66"/>
-<text x="955" y="108" class="" text-anchor="middle">Masked page translation</text>
-<text x="955" y="130" class="mono" text-anchor="middle">aⱼ = P[ℓⱼ // S]·S + ℓⱼ % S</text>
-<path class="edge" d="M444 152V204"/>
-<text x="428" y="185" class="math" text-anchor="end">vⱼ</text>
-<circle class="branch" cx="444" cy="177" r="2"/>
-<path class="edge" d="M444 177H812V274H834"/>
-<circle class="branch" cx="812" cy="177" r="2"/>
-<path class="edge" d="M812 177V142H834"/>
-<text x="738" y="169" class="small muted" text-anchor="middle">validity predicate</text>
-<rect class="node" x="346" y="206" width="196" height="55"/>
-<text x="444" y="228" class="" text-anchor="middle">Inclusive prefix sum</text>
-<text x="444" y="248" class="math" text-anchor="middle">pⱼ = ∑ₖ≤ⱼ vₖ − 1</text>
-<path class="edge" d="M542 234H677V290H834"/>
-<text x="610" y="224" class="math" text-anchor="middle">destination pⱼ</text>
-<path class="edge" d="M955 152V240"/>
-<text x="969" y="200" class="math" text-anchor="start">physical slot aⱼ</text>
-<text x="836" y="233" class="small muted" text-anchor="start">s initially −1</text>
-<rect class="node" x="836" y="242" width="238" height="62"/>
-<text x="955" y="264" class="" text-anchor="middle">Stable scatter</text>
-<text x="955" y="286" class="math" text-anchor="middle">s[pⱼ] ← aⱼ  if vⱼ</text>
-<path class="edge" d="M444 261V316"/>
-<text x="459" y="287" class="math" text-anchor="start">∑ⱼ vⱼ</text>
-<text x="394" y="343" class="math" text-anchor="middle">n =</text>
-<rect class="node" x="420" y="321" width="48" height="30"/>
-<text x="444" y="342" class="mono blue" text-anchor="middle">3</text>
-<path class="edge" d="M955 304V321"/>
-<text x="850" y="346" class="math" text-anchor="end">s =</text>
-<rect class="selected" x="864" y="323" width="35" height="28"/>
-<text x="881.5" y="341.0" class="mono blue" text-anchor="middle">708</text>
-<rect class="selected" x="899" y="323" width="35" height="28"/>
-<text x="916.5" y="341.0" class="mono blue" text-anchor="middle">129</text>
-<rect class="selected" x="934" y="323" width="35" height="28"/>
-<text x="951.5" y="341.0" class="mono blue" text-anchor="middle">451</text>
-<rect class="cell" x="969" y="323" width="35" height="28"/>
-<text x="986.5" y="341.0" class="mono muted" text-anchor="middle">−1</text>
-<rect class="cell" x="1004" y="323" width="35" height="28"/>
-<text x="1021.5" y="341.0" class="mono muted" text-anchor="middle">−1</text>
-<rect class="cell" x="1039" y="323" width="35" height="28"/>
-<text x="1056.5" y="341.0" class="mono muted" text-anchor="middle">−1</text>
-<text x="126" y="391" class="" text-anchor="middle">(a) Attention boundary</text>
-<text x="701" y="391" class="" text-anchor="middle">(b) Stable localization for one rank</text>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
+<rect x="28" y="18" width="30" height="22" rx="2" class="outline"/>
+<rect x="25" y="21" width="30" height="22" rx="2" class="outline"/>
+<rect x="22" y="24" width="30" height="22" rx="2" class="outline"/>
+<path d="M32 24v22M42 24v22M22 35h30" class="rule"/>
+<text x="68" y="36" class="subhead" text-anchor="start">Global selections</text>
+<rect x="300" y="24" width="25" height="25" rx="3" class="blue tile"/>
+<path d="M296 30h4M325 30h4M306 20v4M306 49v4" class="edge"/>
+<path d="M296 36h4M325 36h4M312 20v4M312 49v4" class="edge"/>
+<path d="M296 42h4M325 42h4M318 20v4M318 49v4" class="edge"/>
+<path d="M307 32l5 5-5 5M315 42h5" class="blue trace"/>
+<text x="346" y="36" class="subhead" text-anchor="start">SILKern</text>
+<rect x="563" y="24" width="8" height="8" rx="0" class="grid-cell"/>
+<rect x="571" y="24" width="8" height="8" rx="0" class="blue solid"/>
+<rect x="579" y="24" width="8" height="8" rx="0" class="grid-cell"/>
+<rect x="587" y="24" width="8" height="8" rx="0" class="grid-cell"/>
+<rect x="563" y="32" width="8" height="8" rx="0" class="grid-cell"/>
+<rect x="571" y="32" width="8" height="8" rx="0" class="grid-cell"/>
+<rect x="579" y="32" width="8" height="8" rx="0" class="blue solid"/>
+<rect x="587" y="32" width="8" height="8" rx="0" class="grid-cell"/>
+<rect x="563" y="40" width="8" height="8" rx="0" class="blue solid"/>
+<rect x="571" y="40" width="8" height="8" rx="0" class="grid-cell"/>
+<rect x="579" y="40" width="8" height="8" rx="0" class="grid-cell"/>
+<rect x="587" y="40" width="8" height="8" rx="0" class="grid-cell"/>
+<rect x="563" y="24" width="32" height="24" rx="0" class="grid-frame"/>
+<text x="609" y="36" class="subhead" text-anchor="start">Masked KV gather</text>
+<path d="M881 24l14 12M909 24l-14 12M895 36v14" class="edge"/>
+<circle cx="895" cy="36" r="9" class="blue tile"/>
+<text x="895" y="41" class="math" text-anchor="middle">Σ</text>
+<text x="927" y="36" class="subhead" text-anchor="start">Attention</text>
+<text x="68" y="57" class="small muted" text-anchor="start">token positions · selector order</text>
+<text x="346" y="57" class="small muted" text-anchor="start">rank-local slots + exact count</text>
+<text x="609" y="57" class="small muted" text-anchor="start">only the selected cache entries</text>
+<text x="927" y="57" class="small muted" text-anchor="start">shared normalization</text>
+<path d="M239 35H282" class="edge" marker-end="url(#arrow)"/>
+<path d="M512 35H548" class="edge" marker-end="url(#arrow)"/>
+<path d="M816 35H866" class="edge" marker-end="url(#arrow)"/>
+<path d="M22 81H1098" class="rule"/>
+<text x="22" y="112" class="heading" text-anchor="start">a  Filter, translate, preserve order</text>
+<text x="22" y="136" class="label muted" text-anchor="start">D = 2   ·   rank = 0   ·   interleave = 1   ·   page size = 64</text>
+<path d="M627 102V586" class="rule"/>
+<text x="653" y="112" class="heading" text-anchor="start">b  Resolve the paged address</text>
+<text x="653" y="136" class="label muted" text-anchor="start">request 0   ·   page table P = [11, 2, 7, 5]</text>
+<text x="22" y="169" class="small muted" text-anchor="start">Input column</text>
+<text x="231" y="169" class="small mono muted" text-anchor="middle">0</text>
+<text x="296" y="169" class="small mono muted" text-anchor="middle">1</text>
+<text x="361" y="169" class="small mono muted" text-anchor="middle">2</text>
+<text x="426" y="169" class="small mono muted" text-anchor="middle">3</text>
+<text x="491" y="169" class="small mono muted" text-anchor="middle">4</text>
+<text x="556" y="169" class="small mono muted" text-anchor="middle">5</text>
+<text x="22" y="205" class="" text-anchor="start">Global position  t</text>
+<rect x="204" y="182" width="54" height="34" rx="2" class="blue tile"/>
+<text x="231.0" y="204.0" class="data blue colored" text-anchor="middle">8</text>
+<rect x="269" y="182" width="54" height="34" rx="2" class="node"/>
+<text x="296.0" y="204.0" class="data" text-anchor="middle">5</text>
+<rect x="334" y="182" width="54" height="34" rx="2" class="teal tile"/>
+<text x="361.0" y="204.0" class="data teal colored" text-anchor="middle">130</text>
+<rect x="399" y="182" width="54" height="34" rx="2" class="node"/>
+<text x="426.0" y="204.0" class="data" text-anchor="middle">7</text>
+<rect x="464" y="182" width="54" height="34" rx="2" class="node"/>
+<text x="491.0" y="204.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="529" y="182" width="54" height="34" rx="2" class="copper tile"/>
+<text x="556.0" y="204.0" class="data copper colored" text-anchor="middle">262</text>
+<text x="22" y="298" class="" text-anchor="start">Local position  ℓ</text>
+<rect x="204" y="275" width="54" height="34" rx="2" class="blue tile"/>
+<text x="231.0" y="297.0" class="data blue colored" text-anchor="middle">4</text>
+<rect x="269" y="275" width="54" height="34" rx="2" class="node"/>
+<text x="296.0" y="297.0" class="data muted" text-anchor="middle">—</text>
+<rect x="334" y="275" width="54" height="34" rx="2" class="teal tile"/>
+<text x="361.0" y="297.0" class="data teal colored" text-anchor="middle">65</text>
+<rect x="399" y="275" width="54" height="34" rx="2" class="node"/>
+<text x="426.0" y="297.0" class="data muted" text-anchor="middle">—</text>
+<rect x="464" y="275" width="54" height="34" rx="2" class="node"/>
+<text x="491.0" y="297.0" class="data muted" text-anchor="middle">—</text>
+<rect x="529" y="275" width="54" height="34" rx="2" class="copper tile"/>
+<text x="556.0" y="297.0" class="data copper colored" text-anchor="middle">131</text>
+<text x="22" y="395" class="" text-anchor="start">Physical slot  a</text>
+<rect x="204" y="372" width="54" height="34" rx="2" class="blue solid"/>
+<text x="231.0" y="394.0" class="data blue knockout" text-anchor="middle">708</text>
+<rect x="269" y="372" width="54" height="34" rx="2" class="node"/>
+<text x="296.0" y="394.0" class="data muted" text-anchor="middle">—</text>
+<rect x="334" y="372" width="54" height="34" rx="2" class="teal solid"/>
+<text x="361.0" y="394.0" class="data teal knockout" text-anchor="middle">129</text>
+<rect x="399" y="372" width="54" height="34" rx="2" class="node"/>
+<text x="426.0" y="394.0" class="data muted" text-anchor="middle">—</text>
+<rect x="464" y="372" width="54" height="34" rx="2" class="node"/>
+<text x="491.0" y="394.0" class="data muted" text-anchor="middle">—</text>
+<rect x="529" y="372" width="54" height="34" rx="2" class="copper solid"/>
+<text x="556.0" y="394.0" class="data copper knockout" text-anchor="middle">451</text>
+<path d="M231 216V231" class="blue trace" marker-end="url(#arrow)"/>
+<text x="231" y="249" class="small blue colored" text-anchor="middle">rank 0</text>
+<path d="M231 256V271" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M231 309V321" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M296 216V231" class="edge" marker-end="url(#arrow)"/>
+<text x="296" y="249" class="small muted" text-anchor="middle">rank 1</text>
+<path d="M292 261l8 8m-8 0l8-8" class="edge"/>
+<path d="M361 216V231" class="teal trace" marker-end="url(#arrow)"/>
+<text x="361" y="249" class="small teal colored" text-anchor="middle">rank 0</text>
+<path d="M361 256V271" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M361 309V321" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M426 216V231" class="edge" marker-end="url(#arrow)"/>
+<text x="426" y="249" class="small muted" text-anchor="middle">rank 1</text>
+<path d="M422 261l8 8m-8 0l8-8" class="edge"/>
+<path d="M491 216V231" class="edge" marker-end="url(#arrow)"/>
+<text x="491" y="249" class="small muted" text-anchor="middle">invalid</text>
+<path d="M487 261l8 8m-8 0l8-8" class="edge"/>
+<path d="M556 216V231" class="copper trace" marker-end="url(#arrow)"/>
+<text x="556" y="249" class="small copper colored" text-anchor="middle">rank 0</text>
+<path d="M556 256V271" class="copper trace" marker-end="url(#arrow)"/>
+<path d="M556 309V321" class="copper trace" marker-end="url(#arrow)"/>
+<text x="22" y="337" class="label muted" text-anchor="start">(page, offset)</text>
+<text x="22" y="356" class="small mono muted" text-anchor="start">divmod(ℓ, 64)</text>
+<text x="231" y="343" class="mono blue colored" text-anchor="middle">0 · 4</text>
+<path d="M231 351V368" class="blue trace" marker-end="url(#arrow)"/>
+<text x="361" y="343" class="mono teal colored" text-anchor="middle">1 · 1</text>
+<path d="M361 351V368" class="teal trace" marker-end="url(#arrow)"/>
+<text x="556" y="343" class="mono copper colored" text-anchor="middle">2 · 3</text>
+<path d="M556 351V368" class="copper trace" marker-end="url(#arrow)"/>
+<path d="M22 421H606" class="rule"/>
+<text x="22" y="449" class="label" text-anchor="start">Validity  v</text>
+<text x="22" y="480" class="label" text-anchor="start">Stable destination</text>
+<text x="22" y="500" class="small mono muted" text-anchor="start">p = cumsum(v) − 1</text>
+<circle cx="231" cy="444" r="10" class="blue tile"/>
+<text x="231" y="449" class="mono blue colored" text-anchor="middle">1</text>
+<text x="231" y="480" class="mono blue colored" text-anchor="middle">0</text>
+<text x="296" y="449" class="mono muted" text-anchor="middle">0</text>
+<text x="296" y="480" class="mono muted" text-anchor="middle">—</text>
+<circle cx="361" cy="444" r="10" class="teal tile"/>
+<text x="361" y="449" class="mono teal colored" text-anchor="middle">1</text>
+<text x="361" y="480" class="mono teal colored" text-anchor="middle">1</text>
+<text x="426" y="449" class="mono muted" text-anchor="middle">0</text>
+<text x="426" y="480" class="mono muted" text-anchor="middle">—</text>
+<text x="491" y="449" class="mono muted" text-anchor="middle">0</text>
+<text x="491" y="480" class="mono muted" text-anchor="middle">—</text>
+<circle cx="556" cy="444" r="10" class="copper tile"/>
+<text x="556" y="449" class="mono copper colored" text-anchor="middle">1</text>
+<text x="556" y="480" class="mono copper colored" text-anchor="middle">2</text>
+<path d="M231 489C231 509 231 506 231 527" class="route-cutout"/>
+<path d="M231 489C231 509 231 506 231 527" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M361 489C361 509 296 506 296 527" class="route-cutout"/>
+<path d="M361 489C361 509 296 506 296 527" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M556 489C556 509 361 506 361 527" class="route-cutout"/>
+<path d="M556 489C556 509 361 506 361 527" class="copper trace" marker-end="url(#arrow)"/>
+<text x="22" y="553" class="subhead" text-anchor="start">Output  s</text>
+<rect x="204" y="530" width="54" height="34" rx="2" class="blue solid"/>
+<text x="231.0" y="552.0" class="data blue knockout" text-anchor="middle">708</text>
+<rect x="269" y="530" width="54" height="34" rx="2" class="teal solid"/>
+<text x="296.0" y="552.0" class="data teal knockout" text-anchor="middle">129</text>
+<rect x="334" y="530" width="54" height="34" rx="2" class="copper solid"/>
+<text x="361.0" y="552.0" class="data copper knockout" text-anchor="middle">451</text>
+<rect x="399" y="530" width="54" height="34" rx="2" class="node"/>
+<text x="426.0" y="552.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="464" y="530" width="54" height="34" rx="2" class="node"/>
+<text x="491.0" y="552.0" class="data muted" text-anchor="middle">−1</text>
+<rect x="529" y="530" width="54" height="34" rx="2" class="node"/>
+<text x="556.0" y="552.0" class="data muted" text-anchor="middle">−1</text>
+<path d="M204 571v5h184v-5" class="blue trace"/>
+<text x="296.0" y="595" class="label muted" text-anchor="middle">valid prefix · count = 3</text>
+<path d="M399 571v5h184v-5" class="edge"/>
+<text x="491.0" y="595" class="label muted" text-anchor="middle">padding</text>
+<rect x="660" y="156" width="27" height="27" rx="2" class="outline"/>
+<rect x="656" y="160" width="27" height="27" rx="2" class="teal tile"/>
+<path d="M656 169h27M656 178h27M665 160v27" class="teal trace"/>
+<text x="696" y="170" class="small muted" text-anchor="start">Logical</text>
+<text x="758" y="170" class="small muted" text-anchor="start">Physical</text>
+<rect x="656" y="192" width="42" height="34" rx="2" class="blue tile"/>
+<text x="677.0" y="214.0" class="data blue colored" text-anchor="middle">0</text>
+<path d="M704 209H718" class="edge" marker-end="url(#arrow)"/>
+<rect x="727" y="192" width="45" height="34" rx="2" class="blue tile"/>
+<text x="749.5" y="214.0" class="data blue colored" text-anchor="middle">11</text>
+<rect x="656" y="246" width="42" height="34" rx="2" class="teal tile"/>
+<text x="677.0" y="268.0" class="data teal colored" text-anchor="middle">1</text>
+<path d="M704 263H718" class="edge" marker-end="url(#arrow)"/>
+<rect x="727" y="246" width="45" height="34" rx="2" class="teal tile"/>
+<text x="749.5" y="268.0" class="data teal colored" text-anchor="middle">2</text>
+<rect x="656" y="300" width="42" height="34" rx="2" class="copper tile"/>
+<text x="677.0" y="322.0" class="data copper colored" text-anchor="middle">2</text>
+<path d="M704 317H718" class="edge" marker-end="url(#arrow)"/>
+<rect x="727" y="300" width="45" height="34" rx="2" class="copper tile"/>
+<text x="749.5" y="322.0" class="data copper colored" text-anchor="middle">7</text>
+<rect x="656" y="354" width="42" height="34" rx="2" class="node"/>
+<text x="677.0" y="376.0" class="data" text-anchor="middle">3</text>
+<path d="M704 371H718" class="edge" marker-end="url(#arrow)"/>
+<rect x="727" y="354" width="45" height="34" rx="2" class="node"/>
+<text x="749.5" y="376.0" class="data" text-anchor="middle">5</text>
+<text x="656" y="429" class="small muted" text-anchor="start">P[3] = 5 is unused</text>
+<text x="656" y="450" class="small muted" text-anchor="start">in this selection.</text>
+<text x="656" y="480" class="small muted" text-anchor="start">Survivor identity</text>
+<circle cx="663" cy="493" r="4" class="blue solid"/>
+<text x="678" y="498" class="small mono blue colored" text-anchor="start">8 → 708</text>
+<circle cx="663" cy="516" r="4" class="teal solid"/>
+<text x="678" y="521" class="small mono teal colored" text-anchor="start">130 → 129</text>
+<circle cx="663" cy="539" r="4" class="copper solid"/>
+<text x="678" y="544" class="small mono copper colored" text-anchor="start">262 → 451</text>
+<text x="869" y="166" class="subhead" text-anchor="start">Page 2</text>
+<text x="1094" y="166" class="small mono muted" text-anchor="end">128–191</text>
+<rect x="870" y="174" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="174" width="12" height="12" rx="0" class="teal solid"/>
+<rect x="894" y="174" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="174" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="174" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="174" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="174" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="174" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="186" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="186" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="186" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="186" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="186" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="186" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="186" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="186" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="198" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="198" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="198" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="198" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="198" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="198" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="198" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="198" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="210" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="210" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="210" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="210" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="210" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="210" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="210" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="210" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="222" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="222" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="222" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="222" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="222" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="222" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="222" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="222" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="234" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="234" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="234" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="234" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="234" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="234" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="234" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="234" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="246" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="246" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="246" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="246" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="246" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="246" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="246" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="246" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="258" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="258" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="258" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="258" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="258" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="258" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="258" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="258" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="174" width="96" height="96" rx="0" class="grid-frame"/>
+<text x="988" y="207" class="mono teal colored" text-anchor="start">+ 1</text>
+<text x="988" y="232" class="subhead teal colored" text-anchor="start">129</text>
+<text x="988" y="252" class="small muted" text-anchor="start">KV slot</text>
+<path d="M888.0 180H974" class="teal trace"/>
+<text x="869" y="298" class="subhead" text-anchor="start">Page 7</text>
+<text x="1094" y="298" class="small mono muted" text-anchor="end">448–511</text>
+<rect x="870" y="306" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="306" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="306" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="306" width="12" height="12" rx="0" class="copper solid"/>
+<rect x="918" y="306" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="306" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="306" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="306" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="318" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="318" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="318" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="318" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="318" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="318" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="318" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="318" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="330" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="330" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="330" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="330" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="330" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="330" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="330" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="330" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="342" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="342" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="342" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="342" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="342" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="342" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="342" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="342" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="354" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="354" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="354" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="354" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="354" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="354" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="354" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="354" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="366" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="366" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="366" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="366" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="366" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="366" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="366" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="366" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="378" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="378" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="378" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="378" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="378" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="378" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="378" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="378" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="390" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="390" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="390" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="390" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="390" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="390" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="390" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="390" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="306" width="96" height="96" rx="0" class="grid-frame"/>
+<text x="988" y="339" class="mono copper colored" text-anchor="start">+ 3</text>
+<text x="988" y="364" class="subhead copper colored" text-anchor="start">451</text>
+<text x="988" y="384" class="small muted" text-anchor="start">KV slot</text>
+<path d="M912.0 312H974" class="copper trace"/>
+<text x="869" y="430" class="subhead" text-anchor="start">Page 11</text>
+<text x="1094" y="430" class="small mono muted" text-anchor="end">704–767</text>
+<rect x="870" y="438" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="438" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="438" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="438" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="438" width="12" height="12" rx="0" class="blue solid"/>
+<rect x="930" y="438" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="438" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="438" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="450" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="450" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="450" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="450" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="450" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="450" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="450" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="450" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="462" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="462" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="462" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="462" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="462" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="462" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="462" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="462" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="474" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="474" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="474" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="474" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="474" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="474" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="474" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="474" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="486" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="486" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="486" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="486" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="486" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="486" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="486" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="486" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="498" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="498" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="498" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="498" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="498" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="498" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="498" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="498" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="510" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="510" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="510" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="510" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="510" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="510" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="510" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="510" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="522" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="882" y="522" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="894" y="522" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="906" y="522" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="918" y="522" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="930" y="522" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="942" y="522" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="954" y="522" width="12" height="12" rx="0" class="grid-cell"/>
+<rect x="870" y="438" width="96" height="96" rx="0" class="grid-frame"/>
+<text x="988" y="471" class="mono blue colored" text-anchor="start">+ 4</text>
+<text x="988" y="496" class="subhead blue colored" text-anchor="start">708</text>
+<text x="988" y="516" class="small muted" text-anchor="start">KV slot</text>
+<path d="M924.0 444H974" class="blue trace"/>
+<path d="M774 209C816 209 822 480 863 480" class="route-cutout"/>
+<path d="M774 209C816 209 822 480 863 480" class="blue trace" marker-end="url(#arrow)"/>
+<path d="M774 263C816 263 822 216 863 216" class="route-cutout"/>
+<path d="M774 263C816 263 822 216 863 216" class="teal trace" marker-end="url(#arrow)"/>
+<path d="M774 317C816 317 822 348 863 348" class="route-cutout"/>
+<path d="M774 317C816 317 822 348 863 348" class="copper trace" marker-end="url(#arrow)"/>
+<text x="653" y="568" class="label muted" text-anchor="start">Each cell is one token’s K/V entry.</text>
+<text x="653" y="590" class="label muted" text-anchor="start">Physical order differs from selection order.</text>
+<path d="M22 613H1098" class="rule"/>
+<text x="22" y="639" class="subhead" text-anchor="start">Shared result</text>
+<text x="194" y="639" class="label muted" text-anchor="start">Python · lists</text>
+<text x="424" y="639" class="label muted" text-anchor="start">MLX / Metal · returned arrays</text>
+<text x="770" y="639" class="label muted" text-anchor="start">CUDA / Triton · caller-owned buffers</text>
 </svg>
