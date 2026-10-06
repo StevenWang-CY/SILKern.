@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.2.0 — Unreleased
+## 2.0.0 — 2026-10-06
+
+First tagged software release. This release includes the Apple/MLX and
+hardening work developed under the unreleased `0.2.0` version. Recorded
+measurements retain their original version labels and source hashes.
 
 ### Apple silicon and MLX
 

@@ -12,7 +12,14 @@ on Apple silicon without requiring PyTorch or Triton.
 The Apple extra currently pins MLX `>=0.32.3,<0.33`. Use Apple silicon, native
 arm64 Python 3.11 or newer, and macOS 14 or newer. These combine SILKern's Python
 minimum with the [MLX installation requirements](https://ml-explore.github.io/mlx/build/html/install.html).
-From the repository checkout:
+Install the versioned Apple package:
+
+```bash
+python -m pip install "silkern[mlx] @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.0.0/silkern-2.0.0-py3-none-any.whl"
+```
+
+For examples, benchmarks, or development, use the
+[release checkout](../README.md#get-started):
 
 ```bash
 python3 -m venv .venv
@@ -214,7 +221,9 @@ output evaluation when measuring each call. Run
 ### Recorded Apple result
 
 **Apple M5 Max · 48 GiB · macOS 26.6 arm64 · Python 3.12.12 · MLX 0.32.3 ·
-SILKern 0.2.0.** The [conformance report](../evidence/09-apple-mlx-consumer/conformance.json)
+SILKern 0.2.0 development checkpoint.** The measured implementation files are
+unchanged in 2.0.0; the original records keep their recorded package version.
+The [conformance report](../evidence/09-apple-mlx-consumer/conformance.json)
 passes 48/48 cells across the custom Metal and compositional MLX paths,
 with 16 repeated evaluations per cell. This checkpoint includes the large-batch
 Metal grid correction, thread-local streams, and stronger per-session compiled

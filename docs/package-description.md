@@ -7,9 +7,19 @@ physical slots in its own paged KV cache. SILKern translates those indices,
 filters ownership, and preserves the selector's relative order and duplicates.
 It returns exact valid counts with a documented output layout.
 
-[Get started and see examples](https://github.com/StevenWang-CY/SILKern./blob/main/README.md)
-· [API contract](https://github.com/StevenWang-CY/SILKern./blob/main/docs/contract.md)
-· [Performance evidence](https://github.com/StevenWang-CY/SILKern./blob/main/docs/evidence.md)
+[Download version 2.0.0](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0)
+with its checksums and validation reports:
+
+```bash
+python -m pip install "silkern @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.0.0/silkern-2.0.0-py3-none-any.whl"
+```
+
+Use `silkern[mlx]` or `silkern[gpu]` in that command to install an optional
+backend. Release artifacts are hosted on GitHub.
+
+[Get started and see examples](https://github.com/StevenWang-CY/SILKern./blob/v2.0.0/README.md)
+· [API contract](https://github.com/StevenWang-CY/SILKern./blob/v2.0.0/docs/contract.md)
+· [Performance evidence](https://github.com/StevenWang-CY/SILKern./blob/v2.0.0/docs/evidence.md)
 
 | Backend | Entry point | Memory model |
 |---|---|---|
@@ -19,8 +29,8 @@ It returns exact valid counts with a documented output layout.
 
 The base installation has no runtime dependencies. The `mlx` extra installs
 MLX on native arm64 macOS; the `gpu` extra installs PyTorch and Triton.
-See [Apple setup](https://github.com/StevenWang-CY/SILKern./blob/main/docs/apple-mlx.md)
-and [CUDA integration](https://github.com/StevenWang-CY/SILKern./blob/main/docs/integration-vllm.md)
+See [Apple setup](https://github.com/StevenWang-CY/SILKern./blob/v2.0.0/docs/apple-mlx.md)
+and [CUDA integration](https://github.com/StevenWang-CY/SILKern./blob/v2.0.0/docs/integration-vllm.md)
 for platform requirements and lifecycle rules.
 
 ```python
@@ -47,4 +57,4 @@ does not establish model-serving throughput.
 
 Apache-2.0 · [Source](https://github.com/StevenWang-CY/SILKern.)
 · [Issues](https://github.com/StevenWang-CY/SILKern./issues)
-· [Changelog](https://github.com/StevenWang-CY/SILKern./blob/main/CHANGELOG.md)
+· [Changelog](https://github.com/StevenWang-CY/SILKern./blob/v2.0.0/CHANGELOG.md)

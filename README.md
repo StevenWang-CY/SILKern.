@@ -7,6 +7,7 @@
 Deterministic sparse-index localization for **Apple silicon / MLX** and **CUDA / Triton**.
 
 [![CI](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml/badge.svg)](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml)
+[![Release 2.0.0](https://img.shields.io/badge/Release-2.0.0-355f86.svg)](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-525252.svg)](pyproject.toml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-292824.svg)](LICENSE)
 [![Evidence](https://img.shields.io/badge/Evidence-checksummed-525252.svg)](evidence/)
@@ -22,9 +23,10 @@ Deterministic sparse-index localization for **Apple silicon / MLX** and **CUDA /
 
 **Figure 1. From global positions to stable cache addresses.** (a) Rank 0 keeps tokens 8, 130, and 262 and deinterleaves them to local positions 4, 65, and 131. (b) The page table translates these to physical slots 708, 129, and 451. (c) Prefix destinations 0, 1, and 2 preserve selector order; the remaining columns are padding and the count is 3. Only valid destinations are shown. Color tracks each survivor. This worked row uses two ranks, interleave 1, page size 64, and request 0; all retained mappings are in range. K/V gathering remains a consumer operation.
 
-**New in 0.2.0 (unreleased):** native Apple/MLX localization, backend-specific
-verification, stronger validation, and an explicit architecture guide.
-[See the changelog](CHANGELOG.md).
+**SILKern 2.0.0 · October 6, 2026.** Native Apple/MLX localization,
+backend-specific verification, stronger validation, and responsive technical
+figures. [Download the release](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0)
+or read the [changelog](CHANGELOG.md).
 
 ## A small kernel at an important boundary
 
@@ -48,11 +50,24 @@ attention, or provide a model-serving runtime.
 
 ## Get started
 
-Clone the repository; the trailing dot in `SILKern.` is part of its name. Benchmarks
-run from the checkout and are deliberately excluded from the installed library.
+Install the versioned wheel from the
+[2.0.0 release](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0).
+The base package has no runtime dependencies:
 
 ```bash
-git clone https://github.com/StevenWang-CY/SILKern. silkern
+python -m pip install "silkern @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.0.0/silkern-2.0.0-py3-none-any.whl"
+```
+
+Use `silkern[mlx]` in place of `silkern` in that command for Apple silicon,
+or `silkern[gpu]` for a compatible CUDA environment. Release downloads include
+SHA-256 checksums and validation reports.
+
+For examples, benchmarks, and editable development, clone the release source;
+the trailing dot in `SILKern.` is part of its name. Benchmarks run from the
+checkout and are deliberately excluded from the installed library.
+
+```bash
+git clone --branch v2.0.0 --depth 1 https://github.com/StevenWang-CY/SILKern. silkern
 cd silkern
 python3 -m venv .venv
 source .venv/bin/activate
@@ -335,7 +350,7 @@ oracle. Install the editable checkout with `pip install -e ".[docs]"` first.
   title   = {SILKern: deterministic sparse-index localization for context-parallel decode},
   author  = {{The SILKern Authors}},
   year    = {2026},
-  version = {0.2.0},
+  version = {2.0.0},
   license = {Apache-2.0},
   url     = {https://github.com/StevenWang-CY/SILKern.}
 }

@@ -1,10 +1,38 @@
-# 0.2.0 implementation review
+# 2.0.0 implementation and release review
 
 [README](../README.md) · [Architecture](architecture.md) · [Changelog](../CHANGELOG.md) · [Evidence](evidence.md)
 
 This update adds native Apple execution and strengthens the existing API,
 integration lifecycle, verification, and distribution. It remains a focused
 localization library; production serving qualification depends on its consumer.
+The implementation was developed under the unreleased `0.2.0` version and ships
+as `2.0.0`. Historical measurement records keep their original metadata.
+
+## Release verification · October 6, 2026
+
+The `2.0.0` package passed fresh release checks on Apple M5 Max, macOS 26.6,
+Python 3.12.12, and MLX 0.32.3:
+
+| Release check | Result |
+|---|---|
+| CPU and Apple tests, with warnings treated as errors | 645 passed; two CUDA modules skipped because PyTorch is absent |
+| Apple conformance with `--require-device --repeats 16` | 48/48 cells passed across compositional MLX and custom Metal |
+| Tests from the extracted source distribution in a clean base environment | 398 passed; seven optional-runtime/NumPy cases skipped and three MLX cases deselected |
+| Source archive, wheel, and strict Twine metadata checks | Passed; wheel built through the source archive |
+| Wheel installed outside the checkout | Version and oracle verified; no MLX, PyTorch, or Triton installed; both verification commands report explicit skips |
+| Evidence and documentation | All 43 evidence checksums and six measured source hashes match; local links, heading anchors, picture sources, and plotted values checked |
+| Ruff and whitespace checks | Passed |
+
+The [GitHub release](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0)
+provides the wheel, source archive, SHA-256 checksums, fresh Apple conformance
+report, and a validation summary identifying its exact commit and CI run.
+The source archive includes the guides, examples, figure sources, and recorded
+evidence. The wheel contains the library and verification entry points.
+
+Release verification does not replace the recorded performance measurements.
+The six implementation and benchmark sources identified in Apple record 09
+are byte-identical to the measured checkpoint. No new timing claims or NVIDIA
+experiments accompany this release.
 
 ## Findings and changes
 
@@ -82,7 +110,7 @@ only the localization backend. Timing follows MLX's documented
 
 ## Qualification boundary
 
-The final local checks passed:
+The implementation-checkpoint checks, recorded before release, passed:
 
 | Check | Result |
 |---|---|
@@ -121,7 +149,8 @@ Continuous integration now defines Linux Python 3.11–3.14 checks, an isolated
 wheel installation, evidence integrity, and an Apple test job. Hosted macOS
 runners can lack Metal; their reports explicitly distinguish unavailable-device
 skips from passing hardware qualification. Use `--require-device` when a device
-qualification must succeed. The remote workflow must still run after publication.
+qualification must succeed. Publication requires a successful remote workflow
+on the release commit.
 The Python 3.14 check qualifies the dependency-free surface; Apple runtime
 qualification was performed with Python 3.12 and MLX 0.32.3.
 
