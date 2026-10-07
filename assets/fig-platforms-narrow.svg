@@ -1,195 +1,330 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1680" viewBox="0 0 400 1680" role="img" aria-labelledby="title desc"><defs><g id="figure-content"><path d="M351 16V524M736 16V430M736 482V524" class="rule wide-only" />
-<text x="24" y="36" class="heading" text-anchor="start"><tspan class="panel">a</tspan><tspan dx="12">Ownership and coordinates</tspan></text>
-<text x="375" y="36" class="heading" text-anchor="start"><tspan class="panel">b</tspan><tspan dx="12">Paged addresses</tspan></text>
-<text x="760" y="36" class="heading" text-anchor="start"><tspan class="panel">c</tspan><tspan dx="12">Stable compaction</tspan></text>
-<text x="24" y="84" class="" text-anchor="start">Global positions</text>
-<text x="24" y="130" class="math" text-anchor="start">t</text>
-<path d="M91 104H85V144H91M322.0 104H328.0V144H322.0" class="tensor-bracket" />
-<rect x="90.0" y="107" width="30.5" height="34" rx="3" class="blue tensor-cell" />
-<text x="105.25" y="130.0" class="data blue colored" text-anchor="middle">8</text>
-<text x="145.75" y="130.0" class="data muted" text-anchor="middle">5</text>
-<rect x="171.0" y="107" width="30.5" height="34" rx="3" class="teal tensor-cell" />
-<text x="186.25" y="130.0" class="data teal colored" text-anchor="middle">130</text>
-<text x="226.75" y="130.0" class="data muted" text-anchor="middle">7</text>
-<text x="267.25" y="130.0" class="data muted" text-anchor="middle">−1</text>
-<rect x="292.5" y="107" width="30.5" height="34" rx="3" class="copper tensor-cell" />
-<text x="307.75" y="130.0" class="data copper colored" text-anchor="middle">262</text>
-<path d="M334 124H341V407H333" class="edge" marker-end="url(#arrow)" />
-<text x="24" y="218" class="" text-anchor="start">Owner</text>
-<path d="M91 192H85V232H91M322.0 192H328.0V232H322.0" class="tensor-bracket" />
-<rect x="90.0" y="195" width="30.5" height="34" rx="3" class="blue tensor-cell" />
-<text x="105.25" y="218.0" class="data blue colored" text-anchor="middle">0</text>
-<text x="145.75" y="218.0" class="data muted" text-anchor="middle">1</text>
-<rect x="171.0" y="195" width="30.5" height="34" rx="3" class="teal tensor-cell" />
-<text x="186.25" y="218.0" class="data teal colored" text-anchor="middle">0</text>
-<text x="226.75" y="218.0" class="data muted" text-anchor="middle">1</text>
-<text x="267.25" y="218.0" class="data muted" text-anchor="middle">—</text>
-<rect x="292.5" y="195" width="30.5" height="34" rx="3" class="copper tensor-cell" />
-<text x="307.75" y="218.0" class="data copper colored" text-anchor="middle">0</text>
-<path d="M105.25 150V186" class="blue trace" marker-end="url(#arrow)" />
-<path d="M145.75 150V186" class="edge" marker-end="url(#arrow)" />
-<path d="M186.25 150V186" class="teal trace" marker-end="url(#arrow)" />
-<path d="M226.75 150V186" class="edge" marker-end="url(#arrow)" />
-<path d="M307.75 150V186" class="copper trace" marker-end="url(#arrow)" />
-<path d="M193 238V258" class="edge" marker-end="url(#arrow)" />
-<rect x="58" y="264" width="270" height="40" rx="2" class="outline" />
-<text x="193.0" y="290.0" class="" text-anchor="middle">Keep rank 0</text>
-<path d="M193 310V320" class="edge" marker-end="url(#arrow)" />
-<text x="24" y="346" class="math" text-anchor="start">v</text>
-<text x="105.25" y="346" class="blue colored" text-anchor="middle">1</text>
-<rect x="93.25" y="355" width="24" height="4" rx="0" class="blue mask-bit" />
-<text x="145.75" y="346" class="muted" text-anchor="middle">0</text>
-<rect x="133.75" y="355" width="24" height="4" rx="0" class="mask-zero" />
-<text x="186.25" y="346" class="teal colored" text-anchor="middle">1</text>
-<rect x="174.25" y="355" width="24" height="4" rx="0" class="teal mask-bit" />
-<text x="226.75" y="346" class="muted" text-anchor="middle">0</text>
-<rect x="214.75" y="355" width="24" height="4" rx="0" class="mask-zero" />
-<text x="267.25" y="346" class="muted" text-anchor="middle">0</text>
-<rect x="255.25" y="355" width="24" height="4" rx="0" class="mask-zero" />
-<text x="307.75" y="346" class="copper colored" text-anchor="middle">1</text>
-<rect x="295.75" y="355" width="24" height="4" rx="0" class="copper mask-bit" />
-<path d="M193 365V383" class="edge" marker-end="url(#arrow)" />
-<rect x="58" y="389" width="270" height="36" rx="2" class="outline" />
-<text x="193.0" y="413.0" class="" text-anchor="middle">Deinterleave owned positions</text>
-<path d="M193 429V442" class="edge" marker-end="url(#arrow)" />
-<text x="24" y="474" class="math" text-anchor="start">ℓ</text>
-<path d="M91 448H85V488H91M322.0 448H328.0V488H322.0" class="tensor-bracket" />
-<rect x="90.0" y="451" width="30.5" height="34" rx="3" class="blue tensor-cell" />
-<text x="105.25" y="474.0" class="data blue colored" text-anchor="middle">4</text>
-<text x="145.75" y="474.0" class="data muted" text-anchor="middle">—</text>
-<rect x="171.0" y="451" width="30.5" height="34" rx="3" class="teal tensor-cell" />
-<text x="186.25" y="474.0" class="data teal colored" text-anchor="middle">65</text>
-<text x="226.75" y="474.0" class="data muted" text-anchor="middle">—</text>
-<text x="267.25" y="474.0" class="data muted" text-anchor="middle">—</text>
-<rect x="292.5" y="451" width="30.5" height="34" rx="3" class="copper tensor-cell" />
-<text x="307.75" y="474.0" class="data copper colored" text-anchor="middle">131</text>
-<text x="375" y="84" class="" text-anchor="start">Request page table</text>
-<text x="375" y="136" class="math" text-anchor="start">b</text>
-<path d="M430 110H424V150H430M678 110H684V150H678" class="tensor-bracket" />
-<rect x="429" y="113" width="55" height="34" rx="3" class="blue tensor-cell" />
-<text x="456.5" y="136.0" class="data blue colored" text-anchor="middle">0</text>
-<rect x="494" y="113" width="55" height="34" rx="3" class="teal tensor-cell" />
-<text x="521.5" y="136.0" class="data teal colored" text-anchor="middle">1</text>
-<rect x="559" y="113" width="55" height="34" rx="3" class="copper tensor-cell" />
-<text x="586.5" y="136.0" class="data copper colored" text-anchor="middle">2</text>
-<text x="651.5" y="136.0" class="data muted" text-anchor="middle">3</text>
-<text x="375" y="200" class="" text-anchor="start">P[b]</text>
-<path d="M430 174H424V214H430M678 174H684V214H678" class="tensor-bracket" />
-<rect x="429" y="177" width="55" height="34" rx="3" class="blue tensor-cell" />
-<text x="456.5" y="200.0" class="data blue colored" text-anchor="middle">11</text>
-<rect x="494" y="177" width="55" height="34" rx="3" class="teal tensor-cell" />
-<text x="521.5" y="200.0" class="data teal colored" text-anchor="middle">2</text>
-<rect x="559" y="177" width="55" height="34" rx="3" class="copper tensor-cell" />
-<text x="586.5" y="200.0" class="data copper colored" text-anchor="middle">7</text>
-<text x="651.5" y="200.0" class="data muted" text-anchor="middle">5</text>
-<path d="M456.5 155V168" class="blue trace" marker-end="url(#arrow)" />
-<path d="M521.5 155V168" class="teal trace" marker-end="url(#arrow)" />
-<path d="M586.5 155V168" class="copper trace" marker-end="url(#arrow)" />
-<text x="375" y="272" class="" text-anchor="start">(b, δ) = divmod(ℓ, S)</text>
-<path d="M381 294H375V334H381M705 294H711V334H705" class="tensor-bracket" />
-<rect x="380" y="297" width="102" height="34" rx="3" class="blue tensor-cell" />
-<text x="431.0" y="320.0" class="data blue colored" text-anchor="middle">(0, 4)</text>
-<rect x="492" y="297" width="102" height="34" rx="3" class="teal tensor-cell" />
-<text x="543.0" y="320.0" class="data teal colored" text-anchor="middle">(1, 1)</text>
-<rect x="604" y="297" width="102" height="34" rx="3" class="copper tensor-cell" />
-<text x="655.0" y="320.0" class="data copper colored" text-anchor="middle">(2, 3)</text>
-<path d="M431.0 340V365" class="blue trace" marker-end="url(#arrow)" />
-<path d="M543.0 340V365" class="teal trace" marker-end="url(#arrow)" />
-<path d="M655.0 340V365" class="copper trace" marker-end="url(#arrow)" />
-<path d="M693 194H718V393H690" class="edge" marker-end="url(#arrow)" />
-<rect x="412" y="372" width="272" height="42" rx="2" class="outline" />
-<text x="548.0" y="399.0" class="" text-anchor="middle">P[b] · S + δ</text>
-<path d="M445.75 420V442" class="blue trace" marker-end="url(#arrow)" />
-<path d="M532.75 420V442" class="teal trace" marker-end="url(#arrow)" />
-<path d="M663.25 420V442" class="copper trace" marker-end="url(#arrow)" />
-<text x="375" y="474" class="math" text-anchor="start">a</text>
-<path d="M430 448H424V488H430M679.0 448H685.0V488H679.0" class="tensor-bracket" />
-<rect x="429.0" y="451" width="33.5" height="34" rx="3" class="blue tensor-cell" />
-<text x="445.75" y="474.0" class="data blue colored" text-anchor="middle">708</text>
-<text x="489.25" y="474.0" class="data muted" text-anchor="middle">—</text>
-<rect x="516.0" y="451" width="33.5" height="34" rx="3" class="teal tensor-cell" />
-<text x="532.75" y="474.0" class="data teal colored" text-anchor="middle">129</text>
-<text x="576.25" y="474.0" class="data muted" text-anchor="middle">—</text>
-<text x="619.75" y="474.0" class="data muted" text-anchor="middle">—</text>
-<rect x="646.5" y="451" width="33.5" height="34" rx="3" class="copper tensor-cell" />
-<text x="663.25" y="474.0" class="data copper colored" text-anchor="middle">451</text>
-<text x="760" y="84" class="" text-anchor="start">Validity and prefix destinations</text>
-<text x="760" y="130" class="math" text-anchor="start">v</text>
-<text x="824.0" y="130" class="blue colored" text-anchor="middle">1</text>
-<rect x="812.0" y="139" width="24" height="4" rx="0" class="blue mask-bit" />
-<text x="872.0" y="130" class="muted" text-anchor="middle">0</text>
-<rect x="860.0" y="139" width="24" height="4" rx="0" class="mask-zero" />
-<text x="920.0" y="130" class="teal colored" text-anchor="middle">1</text>
-<rect x="908.0" y="139" width="24" height="4" rx="0" class="teal mask-bit" />
-<text x="968.0" y="130" class="muted" text-anchor="middle">0</text>
-<rect x="956.0" y="139" width="24" height="4" rx="0" class="mask-zero" />
-<text x="1016.0" y="130" class="muted" text-anchor="middle">0</text>
-<rect x="1004.0" y="139" width="24" height="4" rx="0" class="mask-zero" />
-<text x="1064.0" y="130" class="copper colored" text-anchor="middle">1</text>
-<rect x="1052.0" y="139" width="24" height="4" rx="0" class="copper mask-bit" />
-<path d="M944 151V184" class="edge" marker-end="url(#arrow)" />
-<rect x="813" y="190" width="254" height="40" rx="2" class="outline" />
-<text x="940.0" y="216.0" class="" text-anchor="middle">p = cumsum(v) − 1</text>
-<path d="M944 236V254" class="edge" marker-end="url(#arrow)" />
-<text x="760" y="286" class="math" text-anchor="start">p</text>
-<path d="M806 260H800V300H806M1082 260H1088V300H1082" class="tensor-bracket" />
-<rect x="805" y="263" width="38" height="34" rx="3" class="blue tensor-cell" />
-<text x="824.0" y="286.0" class="data blue colored" text-anchor="middle">0</text>
-<text x="872.0" y="286.0" class="data muted" text-anchor="middle">—</text>
-<rect x="901" y="263" width="38" height="34" rx="3" class="teal tensor-cell" />
-<text x="920.0" y="286.0" class="data teal colored" text-anchor="middle">1</text>
-<text x="968.0" y="286.0" class="data muted" text-anchor="middle">—</text>
-<text x="1016.0" y="286.0" class="data muted" text-anchor="middle">—</text>
-<rect x="1045" y="263" width="38" height="34" rx="3" class="copper tensor-cell" />
-<text x="1064.0" y="286.0" class="data copper colored" text-anchor="middle">2</text>
-<path d="M824.0 306C824.0 367 824.0 373 824.0 442" class="route-cutout" />
-<path d="M824.0 306C824.0 367 824.0 373 824.0 442" class="blue trace" marker-end="url(#arrow)" />
-<path d="M920.0 306C920.0 367 872.0 373 872.0 442" class="route-cutout" />
-<path d="M920.0 306C920.0 367 872.0 373 872.0 442" class="teal trace" marker-end="url(#arrow)" />
-<path d="M1064.0 306C1064.0 367 920.0 373 920.0 442" class="route-cutout" />
-<path d="M1064.0 306C1064.0 367 920.0 373 920.0 442" class="copper trace" marker-end="url(#arrow)" />
-<text x="1030" y="400" class="" text-anchor="middle">s[p<tspan class="math-index" baseline-shift="sub">j</tspan>] ← a<tspan class="math-index" baseline-shift="sub">j</tspan></text>
-<path d="M691 468H794" class="edge wide-only" marker-end="url(#arrow)" />
-<path d="M806 448H800V488H806M1082 448H1088V488H1082" class="tensor-bracket" />
-<rect x="805" y="451" width="38" height="34" rx="3" class="blue tensor-cell" />
-<path d="M810 486h28" class="blue trace" />
-<text x="824.0" y="474.0" class="data blue colored emphasis" text-anchor="middle">708</text>
-<rect x="853" y="451" width="38" height="34" rx="3" class="teal tensor-cell" />
-<path d="M858 486h28" class="teal trace" />
-<text x="872.0" y="474.0" class="data teal colored emphasis" text-anchor="middle">129</text>
-<rect x="901" y="451" width="38" height="34" rx="3" class="copper tensor-cell" />
-<path d="M906 486h28" class="copper trace" />
-<text x="920.0" y="474.0" class="data copper colored emphasis" text-anchor="middle">451</text>
-<text x="968.0" y="474.0" class="data muted" text-anchor="middle">−1</text>
-<text x="1016.0" y="474.0" class="data muted" text-anchor="middle">−1</text>
-<text x="1064.0" y="474.0" class="data muted" text-anchor="middle">−1</text>
-<path d="M800 498v5h144v-5" class="edge" />
-<text x="872.0" y="522" class="muted" text-anchor="middle">count = 3</text>
-<path d="M944 498v5h144v-5" class="edge" />
-<text x="1016.0" y="522" class="muted" text-anchor="middle">padding</text>
-</g></defs><title id="title">Ownership, paged translation and deterministic compaction</title>
-<desc id="desc">Three panels expand one call on rank zero with two ranks, interleave one, page size 64 and request zero. Panel a classifies global positions [8,5,130,7,-1,262] by owner, keeps rank zero, and deinterleaves to local positions [4,-,65,-,-,131]. The valid mask is [1,0,1,0,0,1]. Panel b shows request page table P=[11,2,7,5], the surviving page-offset pairs (0,4),(1,1),(2,3), and their physical addresses 708,129,451. Panel c computes inclusive validity prefixes minus one; only valid destinations 0,1,2 are used. Colored routes carry each surviving address to its stable output position, yielding [708,129,451,-1,-1,-1] and count 3. Filled and empty bit marks reinforce numeric validity. This illustrates multi-rank front compaction; the single-rank and non-compacting paths preserve columns. SILKern returns addresses and counts; K/V gathering and attention remain consumer operations.</desc>
-<style>svg{--ink:#242424;--muted:#636363;--line:#777777;--rule:#d8d8d8;--paper:#ffffff;--comparison:#b9bec3;--blue:#355e8a;--blue-wash:#e8f0f8;--teal:#47786d;--teal-wash:#e7f2ef;--copper:#9d6444;--copper-wash:#f7eddf;--violet:#786791;--violet-wash:#eeebf5}@media(prefers-color-scheme:dark){svg{--ink:#e8edf2;--muted:#aab4bf;--line:#8d9aa8;--rule:#37424d;--paper:#0d1117;--comparison:#778696;--blue:#8ab7e6;--blue-wash:#172c43;--teal:#80c4b4;--teal-wash:#17322e;--copper:#dfb17e;--copper-wash:#392c20;--violet:#b6a7da;--violet-wash:#292338}}text{font-family:'Arial','DejaVu Sans',sans-serif;font-size:18px;font-variant-numeric:tabular-nums;fill:var(--ink)}.heading{font-size:20px;font-weight:400}.panel,.key{font-weight:700}.subhead{font-weight:400}.math{font-style:italic}.muted{fill:var(--muted)}.data{font-weight:400}.emphasis{font-weight:700}
-.rule{fill:none;stroke:var(--rule);stroke-width:1}
-.edge{fill:none;stroke:var(--line);stroke-width:1.1;stroke-linejoin:round;stroke-linecap:round}
-.outline{fill:var(--paper);stroke:var(--ink);stroke-width:1.05}
-.tensor-bracket{fill:none;stroke:var(--line);stroke-width:1.1}
-.control{fill:none;stroke:var(--line);stroke-width:1.1;stroke-dasharray:3 3}
-.junction{fill:var(--line);stroke:none}
-.memory{fill:var(--paper);stroke:var(--line);stroke-width:1}
-.memory-active{fill:var(--wash);stroke:var(--color);stroke-width:1}
-.tensor-cell{fill:var(--wash);stroke:var(--color);stroke-width:1}
-.mask-bit{fill:var(--color);stroke:none}
-.mask-zero{fill:none;stroke:var(--rule);stroke-width:1}
-.math-index{font-size:75%}
-.array-divider{fill:none;stroke:var(--rule);stroke-width:.8}
-.route-cutout{fill:none;stroke:var(--paper);stroke-width:5;stroke-linecap:round}
-.blue{--color:var(--blue);--wash:var(--blue-wash)}
-.teal{--color:var(--teal);--wash:var(--teal-wash)}
-.copper{--color:var(--copper);--wash:var(--copper-wash)}
-.violet{--color:var(--violet);--wash:var(--violet-wash)}
-.colored{fill:var(--color)}
-.trace{fill:none;stroke:var(--color);stroke-width:1.3;stroke-linecap:round}
-</style>
-<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z" fill="context-stroke" /></marker></defs>
-<style>.wide-only{display:none}</style><svg x="0" y="0" width="351" height="544" viewBox="0 0 351 544" overflow="hidden"><use href="#figure-content" /></svg><svg x="0" y="568" width="385" height="544" viewBox="351 0 385 544" overflow="hidden"><use href="#figure-content" /></svg><svg x="0" y="1136" width="384" height="544" viewBox="736 0 384 544" overflow="hidden"><use href="#figure-content" /></svg></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="908.36" viewBox="0 0 420 908.36" role="img" aria-labelledby="title desc"><title id="title">From global positions to stable cache addresses</title>
+<desc id="desc">Three panels follow one call on rank 0 of two ranks, interleave 1, page size 64 and request 0. Panel a: selector row t = [8, 5, 130, 7, -1, 262]; owners are [0, 1, 0, 1, none, 0], so columns 0, 2 and 5 survive and deinterleave to local positions 4, 65 and 131. Panel b: local positions fall in logical pages 0, 1 and 2 at offsets 4, 1 and 3; the request page table [11, 2, 7, 5] sends them to physical blocks 11, 2 and 7, giving slots 708, 129 and 451. Panel c: inclusive validity prefixes minus one give destinations 0, 1 and 2, so the output is [708, 129, 451, -1, -1, -1] with count 3, in selector order. Color follows each surviving token.</desc>
+
+<!-- Text is set in subsets of STIX Two Text and STIX Two Math, SIL Open Font License 1.1 (tools/fonts/OFL.txt). --><style>@font-face{font-family:'SILKern Text';font-style:normal;font-weight:400;src:url(data:font/woff;base64,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) format('woff')}@font-face{font-family:'SILKern Text';font-style:italic;font-weight:400;src:url(data:font/woff;base64,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) format('woff')}@font-face{font-family:'SILKern Text';font-style:normal;font-weight:600;src:url(data:font/woff;base64,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) format('woff')}@font-face{font-family:'SILKern Math';font-style:normal;font-weight:400;src:url(data:font/woff;base64,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) format('woff')}svg{--ink:#1f2328;--soft:#3d444d;--mute:#656d76;--faint:#8c959f;--frame:#57606a;--wire:#6e7781;--rule:#d0d7de;--grid:#e8ebef;--chip:#eff2f5;--zone:#f6f8fa;--paper:#ffffff;--blue:#2563b0;--blue-w:#e5eefa;--orange:#bd5521;--orange-w:#fbeadf;--green:#257a58;--green-w:#e1f1e9;--violet:#6e52a3;--violet-w:#ede8f6;--accent:#2563b0;--compare:#c5cbd2}@media(prefers-color-scheme:dark){svg{--ink:#e6edf3;--soft:#c9d1d9;--mute:#9198a1;--faint:#6e7681;--frame:#8b949e;--wire:#7d8590;--rule:#3d444d;--grid:#262c34;--chip:#1c222a;--zone:#151b23;--paper:#0d1117;--blue:#6fa8ee;--blue-w:#132840;--orange:#ef9a63;--orange-w:#3a2417;--green:#5ec49a;--green-w:#11301f;--violet:#b49ce6;--violet-w:#29203f;--accent:#6fa8ee;--compare:#4f5761}}text{font-family:'SILKern Text','SILKern Math',serif;fill:var(--ink);font-synthesis:none;font-kerning:normal;white-space:pre}.i{font-style:italic}.b{font-weight:600}.mute{fill:var(--mute)}.faint{fill:var(--faint)}.soft{fill:var(--soft)}.blue{--c:var(--blue);--w:var(--blue-w)}.orange{--c:var(--orange);--w:var(--orange-w)}.green{--c:var(--green);--w:var(--green-w)}.violet{--c:var(--violet);--w:var(--violet-w)}.accent{--c:var(--accent);--w:var(--accent-w)}.tint{fill:var(--c)}.wash{fill:var(--w)}.wire{fill:none;stroke:var(--wire);stroke-width:1.35;stroke-linecap:round;stroke-linejoin:round}.head{fill:var(--wire)}.trace{fill:none;stroke:var(--c);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}.trace-head{fill:var(--c)}.mask{fill:none;stroke:var(--wire);stroke-width:1.35;stroke-dasharray:3.5 3;stroke-linecap:butt}.frame{fill:none;stroke:var(--frame);stroke-width:1.2}.divider{fill:none;stroke:var(--rule);stroke-width:1.0}.rule{fill:none;stroke:var(--rule);stroke-width:1.2}.grid{fill:none;stroke:var(--grid);stroke-width:1.2}.axis{fill:none;stroke:var(--frame);stroke-width:1.2}.chip{fill:var(--chip)}.zone{fill:var(--zone)}.paper{fill:var(--paper)}.compare{fill:var(--compare)}.dot{fill:var(--wire)}.frac{fill:none;stroke:var(--ink);stroke-width:1}.frac.tint{stroke:var(--c)}</style>
+<defs><g id="figure-content"><path d="M90 102L90 144" class="blue trace" />
+<path d="M90 170L90 227" class="blue trace" />
+<path d="M90 231L86.87 223.22L90 226.03L93.13 223.22Z" class="blue trace-head" />
+<path d="M130 102L130 144" class="wire" />
+<path d="M170 102L170 144" class="orange trace" />
+<path d="M170 170L170 227" class="orange trace" />
+<path d="M170 231L166.87 223.22L170 226.03L173.13 223.22Z" class="orange trace-head" />
+<path d="M210 102L210 144" class="wire" />
+<path d="M290 102L290 144" class="green trace" />
+<path d="M290 170L290 227" class="green trace" />
+<path d="M290 231L286.87 223.22L290 226.03L293.13 223.22Z" class="green trace-head" />
+<text x="190" y="56" text-anchor="middle" class="mute" font-size="18">rank <tspan class="i">r</tspan> = 0 of <tspan class="i">D</tspan> = 2,  <tspan class="i">I</tspan> = 1</text>
+<rect x="70" y="110" width="240" height="26" rx="3" class="chip" />
+<text x="190" y="129.93" text-anchor="middle">⌊<tspan class="i">t</tspan>/<tspan class="i">I</tspan>⌋ mod <tspan class="i">D</tspan></text>
+<rect x="70" y="188" width="240" height="26" rx="3" class="chip" />
+<text x="190" y="207.93" text-anchor="middle">⌊<tspan class="i">t</tspan>/(<tspan class="i">DI</tspan>)⌋ <tspan class="i">I</tspan> + <tspan class="i">t</tspan> mod <tspan class="i">I</tspan></text>
+<text x="58" y="92" text-anchor="end"><tspan class="i">t</tspan></text>
+<text x="58" y="163" text-anchor="end"><tspan class="i">o</tspan></text>
+<text x="58" y="254" text-anchor="end"><tspan class="i">ℓ</tspan></text>
+<rect x="70" y="70" width="40" height="30" class="blue wash" />
+<rect x="150" y="70" width="40" height="30" class="orange wash" />
+<rect x="270" y="70" width="40" height="30" class="green wash" />
+<path d="M110 70v30" class="divider" />
+<path d="M150 70v30" class="divider" />
+<path d="M190 70v30" class="divider" />
+<path d="M230 70v30" class="divider" />
+<path d="M270 70v30" class="divider" />
+<rect x="70" y="70" width="240" height="30" class="frame" />
+<text x="90" y="91.8" text-anchor="middle" class="blue tint" font-size="20">8</text>
+<text x="130" y="91.8" text-anchor="middle" class="mute" font-size="20">5</text>
+<text x="170" y="91.8" text-anchor="middle" class="orange tint" font-size="20">130</text>
+<text x="210" y="91.8" text-anchor="middle" class="mute" font-size="20">7</text>
+<text x="250" y="91.8" text-anchor="middle" class="faint" font-size="20">−1</text>
+<text x="290" y="91.8" text-anchor="middle" class="green tint" font-size="20">262</text>
+<rect x="70" y="144" width="40" height="26" class="blue wash" />
+<rect x="150" y="144" width="40" height="26" class="orange wash" />
+<rect x="270" y="144" width="40" height="26" class="green wash" />
+<path d="M110 144v26" class="divider" />
+<path d="M150 144v26" class="divider" />
+<path d="M190 144v26" class="divider" />
+<path d="M230 144v26" class="divider" />
+<path d="M270 144v26" class="divider" />
+<rect x="70" y="144" width="240" height="26" class="frame" />
+<text x="90" y="163.8" text-anchor="middle" class="blue tint" font-size="20">0</text>
+<text x="130" y="163.8" text-anchor="middle" class="mute" font-size="20">1</text>
+<text x="170" y="163.8" text-anchor="middle" class="orange tint" font-size="20">0</text>
+<text x="210" y="163.8" text-anchor="middle" class="mute" font-size="20">1</text>
+<text x="250" y="163.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="290" y="163.8" text-anchor="middle" class="green tint" font-size="20">0</text>
+<rect x="70" y="232" width="40" height="30" class="blue wash" />
+<rect x="150" y="232" width="40" height="30" class="orange wash" />
+<rect x="270" y="232" width="40" height="30" class="green wash" />
+<path d="M110 232v30" class="divider" />
+<path d="M150 232v30" class="divider" />
+<path d="M190 232v30" class="divider" />
+<path d="M230 232v30" class="divider" />
+<path d="M270 232v30" class="divider" />
+<rect x="70" y="232" width="240" height="30" class="frame" />
+<text x="90" y="253.8" text-anchor="middle" class="blue tint" font-size="20">4</text>
+<text x="130" y="253.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="170" y="253.8" text-anchor="middle" class="orange tint" font-size="20">65</text>
+<text x="210" y="253.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="250" y="253.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="290" y="253.8" text-anchor="middle" class="green tint" font-size="20">131</text>
+<rect x="572" y="40" width="220" height="238" rx="6" class="zone" />
+<text x="408" y="56" text-anchor="middle" class="mute" font-size="18">logical page <tspan class="i">b</tspan></text>
+<text x="511" y="56" text-anchor="middle" class="mute" font-size="18"><tspan class="i">P</tspan>[<tspan class="i">b</tspan>]</text>
+<text x="682" y="56" text-anchor="middle" class="mute" font-size="18">physical KV blocks</text>
+<text x="348" y="100" text-anchor="end" class="faint" font-size="18">0</text>
+<rect x="408" y="82" width="13" height="24" class="blue wash" />
+<path d="M369 82v24" class="divider" />
+<path d="M382 82v24" class="divider" />
+<path d="M395 82v24" class="divider" />
+<path d="M408 82v24" class="divider" />
+<path d="M421 82v24" class="divider" />
+<path d="M434 82v24" class="divider" />
+<path d="M447 82H356V106H447" class="frame" />
+<circle cx="449" cy="94" r="1.1" class="dot" />
+<circle cx="454" cy="94" r="1.1" class="dot" />
+<circle cx="459" cy="94" r="1.1" class="dot" />
+<text x="362.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="375.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="388.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="401.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="414.5" y="100.8" text-anchor="middle" class="blue tint" font-size="20" />
+<text x="427.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="440.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<path d="M468 94L484 94" class="blue trace" />
+<path d="M488 94L480.22 97.13L483.03 94L480.22 90.87Z" class="blue trace-head" />
+<text x="348" y="148" text-anchor="end" class="faint" font-size="18">1</text>
+<rect x="369" y="130" width="13" height="24" class="orange wash" />
+<path d="M369 130v24" class="divider" />
+<path d="M382 130v24" class="divider" />
+<path d="M395 130v24" class="divider" />
+<path d="M408 130v24" class="divider" />
+<path d="M421 130v24" class="divider" />
+<path d="M434 130v24" class="divider" />
+<path d="M447 130H356V154H447" class="frame" />
+<circle cx="449" cy="142" r="1.1" class="dot" />
+<circle cx="454" cy="142" r="1.1" class="dot" />
+<circle cx="459" cy="142" r="1.1" class="dot" />
+<text x="362.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="375.5" y="148.8" text-anchor="middle" class="orange tint" font-size="20" />
+<text x="388.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="401.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="414.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="427.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="440.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<path d="M468 142L484 142" class="orange trace" />
+<path d="M488 142L480.22 145.13L483.03 142L480.22 138.87Z" class="orange trace-head" />
+<text x="348" y="196" text-anchor="end" class="faint" font-size="18">2</text>
+<rect x="395" y="178" width="13" height="24" class="green wash" />
+<path d="M369 178v24" class="divider" />
+<path d="M382 178v24" class="divider" />
+<path d="M395 178v24" class="divider" />
+<path d="M408 178v24" class="divider" />
+<path d="M421 178v24" class="divider" />
+<path d="M434 178v24" class="divider" />
+<path d="M447 178H356V202H447" class="frame" />
+<circle cx="449" cy="190" r="1.1" class="dot" />
+<circle cx="454" cy="190" r="1.1" class="dot" />
+<circle cx="459" cy="190" r="1.1" class="dot" />
+<text x="362.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="375.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="388.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="401.5" y="196.8" text-anchor="middle" class="green tint" font-size="20" />
+<text x="414.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="427.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="440.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<path d="M468 190L484 190" class="green trace" />
+<path d="M488 190L480.22 193.13L483.03 190L480.22 186.87Z" class="green trace-head" />
+<text x="348" y="244" text-anchor="end" class="faint" font-size="18">3</text>
+<path d="M369 226v24" class="divider" />
+<path d="M382 226v24" class="divider" />
+<path d="M395 226v24" class="divider" />
+<path d="M408 226v24" class="divider" />
+<path d="M421 226v24" class="divider" />
+<path d="M434 226v24" class="divider" />
+<path d="M447 226H356V250H447" class="frame" />
+<circle cx="449" cy="238" r="1.1" class="dot" />
+<circle cx="454" cy="238" r="1.1" class="dot" />
+<circle cx="459" cy="238" r="1.1" class="dot" />
+<text x="362.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="375.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="388.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="401.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="414.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="427.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="440.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<path d="M468 238L484 238" class="wire" />
+<path d="M488 238L480.8 240.9L483.4 238L480.8 235.1Z" class="head" />
+<rect x="490" y="70" width="42" height="48" class="blue wash" />
+<rect x="490" y="118" width="42" height="48" class="orange wash" />
+<rect x="490" y="166" width="42" height="48" class="green wash" />
+<path d="M490 118h42" class="divider" />
+<path d="M490 166h42" class="divider" />
+<path d="M490 214h42" class="divider" />
+<rect x="490" y="70" width="42" height="192" class="frame" />
+<text x="511" y="100.8" text-anchor="middle" class="blue tint" font-size="20">11</text>
+<text x="511" y="148.8" text-anchor="middle" class="orange tint" font-size="20">2</text>
+<text x="511" y="196.8" text-anchor="middle" class="green tint" font-size="20">7</text>
+<text x="511" y="244.8" text-anchor="middle" class="mute" font-size="20">5</text>
+<path d="M536 94C571 94 571 238 602 238" class="blue trace" />
+<path d="M606 238L598.22 241.13L601.03 238L598.22 234.87Z" class="blue trace-head" />
+<path d="M536 142C571 142 571 94 602 94" class="orange trace" />
+<path d="M606 94L598.22 97.13L601.03 94L598.22 90.87Z" class="orange trace-head" />
+<path d="M536 190C571 190 571 190 602 190" class="green trace" />
+<path d="M606 190L598.22 193.13L601.03 190L598.22 186.87Z" class="green trace-head" />
+<path d="M536 238C571 238 571 142 602 142" class="wire" />
+<path d="M606 142L598.8 144.9L601.4 142L598.8 139.1Z" class="head" />
+<text x="634" y="100" text-anchor="end" class="faint" font-size="18">2</text>
+<rect x="653" y="82" width="13" height="24" class="orange wash" />
+<path d="M653 82v24" class="divider" />
+<path d="M666 82v24" class="divider" />
+<path d="M679 82v24" class="divider" />
+<path d="M692 82v24" class="divider" />
+<path d="M705 82v24" class="divider" />
+<path d="M718 82v24" class="divider" />
+<path d="M731 82H640V106H731" class="frame" />
+<circle cx="733" cy="94" r="1.1" class="dot" />
+<circle cx="738" cy="94" r="1.1" class="dot" />
+<circle cx="743" cy="94" r="1.1" class="dot" />
+<text x="646.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="659.5" y="100.8" text-anchor="middle" class="orange tint" font-size="20" />
+<text x="672.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="685.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="698.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="711.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="724.5" y="100.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="752" y="101" class="orange tint" font-size="20"><tspan class="b">129</tspan></text>
+<circle cx="625" cy="114.5" r="0.9" class="dot" />
+<circle cx="625" cy="118" r="0.9" class="dot" />
+<circle cx="625" cy="121.5" r="0.9" class="dot" />
+<text x="634" y="148" text-anchor="end" class="faint" font-size="18">5</text>
+<path d="M653 130v24" class="divider" />
+<path d="M666 130v24" class="divider" />
+<path d="M679 130v24" class="divider" />
+<path d="M692 130v24" class="divider" />
+<path d="M705 130v24" class="divider" />
+<path d="M718 130v24" class="divider" />
+<path d="M731 130H640V154H731" class="frame" />
+<circle cx="733" cy="142" r="1.1" class="dot" />
+<circle cx="738" cy="142" r="1.1" class="dot" />
+<circle cx="743" cy="142" r="1.1" class="dot" />
+<text x="646.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="659.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="672.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="685.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="698.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="711.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="724.5" y="148.8" text-anchor="middle" class="mute" font-size="20" />
+<circle cx="625" cy="162.5" r="0.9" class="dot" />
+<circle cx="625" cy="166" r="0.9" class="dot" />
+<circle cx="625" cy="169.5" r="0.9" class="dot" />
+<text x="634" y="196" text-anchor="end" class="faint" font-size="18">7</text>
+<rect x="679" y="178" width="13" height="24" class="green wash" />
+<path d="M653 178v24" class="divider" />
+<path d="M666 178v24" class="divider" />
+<path d="M679 178v24" class="divider" />
+<path d="M692 178v24" class="divider" />
+<path d="M705 178v24" class="divider" />
+<path d="M718 178v24" class="divider" />
+<path d="M731 178H640V202H731" class="frame" />
+<circle cx="733" cy="190" r="1.1" class="dot" />
+<circle cx="738" cy="190" r="1.1" class="dot" />
+<circle cx="743" cy="190" r="1.1" class="dot" />
+<text x="646.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="659.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="672.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="685.5" y="196.8" text-anchor="middle" class="green tint" font-size="20" />
+<text x="698.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="711.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="724.5" y="196.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="752" y="197" class="green tint" font-size="20"><tspan class="b">451</tspan></text>
+<circle cx="625" cy="210.5" r="0.9" class="dot" />
+<circle cx="625" cy="214" r="0.9" class="dot" />
+<circle cx="625" cy="217.5" r="0.9" class="dot" />
+<text x="634" y="244" text-anchor="end" class="faint" font-size="18">11</text>
+<rect x="692" y="226" width="13" height="24" class="blue wash" />
+<path d="M653 226v24" class="divider" />
+<path d="M666 226v24" class="divider" />
+<path d="M679 226v24" class="divider" />
+<path d="M692 226v24" class="divider" />
+<path d="M705 226v24" class="divider" />
+<path d="M718 226v24" class="divider" />
+<path d="M731 226H640V250H731" class="frame" />
+<circle cx="733" cy="238" r="1.1" class="dot" />
+<circle cx="738" cy="238" r="1.1" class="dot" />
+<circle cx="743" cy="238" r="1.1" class="dot" />
+<text x="646.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="659.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="672.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="685.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="698.5" y="244.8" text-anchor="middle" class="blue tint" font-size="20" />
+<text x="711.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="724.5" y="244.8" text-anchor="middle" class="mute" font-size="20" />
+<text x="752" y="245" class="blue tint" font-size="20"><tspan class="b">708</tspan></text>
+<text x="564" y="300" text-anchor="middle" class="mute" font-size="18"><tspan class="i">a</tspan> = <tspan class="i">P</tspan>[<tspan class="i">b</tspan>] · <tspan class="i">S</tspan> + <tspan class="i">δ</tspan>,  <tspan class="i">S</tspan> = 64</text>
+<path d="M868.5 102L868.5 144" class="blue trace" />
+<path d="M950.5 102L950.5 144" class="orange trace" />
+<path d="M1073.5 102L1073.5 144" class="green trace" />
+<path d="M868.5 170C868.5 200.5 868.5 200.5 868.5 227" class="blue trace" />
+<path d="M868.5 231L865.37 223.22L868.5 226.03L871.63 223.22Z" class="blue trace-head" />
+<path d="M950.5 170C950.5 200.5 909.5 200.5 909.5 227" class="orange trace" />
+<path d="M909.5 231L906.37 223.22L909.5 226.03L912.63 223.22Z" class="orange trace-head" />
+<path d="M1073.5 170C1073.5 200.5 950.5 200.5 950.5 227" class="green trace" />
+<path d="M950.5 231L947.37 223.22L950.5 226.03L953.63 223.22Z" class="green trace-head" />
+<text x="971" y="56" text-anchor="middle" class="mute" font-size="18">valid <tspan class="i">v</tspan> = [<tspan class="i">o</tspan> = <tspan class="i">r</tspan>]</text>
+<rect x="848" y="110" width="246" height="26" rx="3" class="chip" />
+<text x="971" y="129.93" text-anchor="middle">cumsum(<tspan class="i">v</tspan>) − 1</text>
+<text x="836" y="92" text-anchor="end"><tspan class="i">a</tspan></text>
+<text x="836" y="163" text-anchor="end"><tspan class="i">p</tspan></text>
+<text x="836" y="254" text-anchor="end"><tspan class="i">s</tspan></text>
+<rect x="848" y="70" width="41" height="30" class="blue wash" />
+<rect x="930" y="70" width="41" height="30" class="orange wash" />
+<rect x="1053" y="70" width="41" height="30" class="green wash" />
+<path d="M889 70v30" class="divider" />
+<path d="M930 70v30" class="divider" />
+<path d="M971 70v30" class="divider" />
+<path d="M1012 70v30" class="divider" />
+<path d="M1053 70v30" class="divider" />
+<rect x="848" y="70" width="246" height="30" class="frame" />
+<text x="868.5" y="91.8" text-anchor="middle" class="blue tint" font-size="20">708</text>
+<text x="909.5" y="91.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="950.5" y="91.8" text-anchor="middle" class="orange tint" font-size="20">129</text>
+<text x="991.5" y="91.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="1032.5" y="91.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="1073.5" y="91.8" text-anchor="middle" class="green tint" font-size="20">451</text>
+<rect x="848" y="144" width="41" height="26" class="blue wash" />
+<rect x="930" y="144" width="41" height="26" class="orange wash" />
+<rect x="1053" y="144" width="41" height="26" class="green wash" />
+<path d="M889 144v26" class="divider" />
+<path d="M930 144v26" class="divider" />
+<path d="M971 144v26" class="divider" />
+<path d="M1012 144v26" class="divider" />
+<path d="M1053 144v26" class="divider" />
+<rect x="848" y="144" width="246" height="26" class="frame" />
+<text x="868.5" y="163.8" text-anchor="middle" class="blue tint" font-size="20">0</text>
+<text x="909.5" y="163.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="950.5" y="163.8" text-anchor="middle" class="orange tint" font-size="20">1</text>
+<text x="991.5" y="163.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="1032.5" y="163.8" text-anchor="middle" class="faint" font-size="20">·</text>
+<text x="1073.5" y="163.8" text-anchor="middle" class="green tint" font-size="20">2</text>
+<rect x="848" y="232" width="41" height="30" class="blue wash" />
+<rect x="889" y="232" width="41" height="30" class="orange wash" />
+<rect x="930" y="232" width="41" height="30" class="green wash" />
+<path d="M889 232v30" class="divider" />
+<path d="M930 232v30" class="divider" />
+<path d="M971 232v30" class="divider" />
+<path d="M1012 232v30" class="divider" />
+<path d="M1053 232v30" class="divider" />
+<rect x="848" y="232" width="246" height="30" class="frame" />
+<text x="868.5" y="253.8" text-anchor="middle" class="blue tint" font-size="20"><tspan class="b">708</tspan></text>
+<text x="909.5" y="253.8" text-anchor="middle" class="orange tint" font-size="20"><tspan class="b">129</tspan></text>
+<text x="950.5" y="253.8" text-anchor="middle" class="green tint" font-size="20"><tspan class="b">451</tspan></text>
+<text x="991.5" y="253.8" text-anchor="middle" class="mute" font-size="20">−1</text>
+<text x="1032.5" y="253.8" text-anchor="middle" class="mute" font-size="20">−1</text>
+<text x="1073.5" y="253.8" text-anchor="middle" class="mute" font-size="20">−1</text>
+<path d="M850 270q0 3.5 3.5 3.5H906q3.5 0 3.5 3.5q0 -3.5 3.5 -3.5H965.5q3.5 0 3.5 -3.5" class="wire" />
+<path d="M973 270q0 3.5 3.5 3.5H1029q3.5 0 3.5 3.5q0 -3.5 3.5 -3.5H1088.5q3.5 0 3.5 -3.5" class="wire" />
+<text x="909.5" y="296" text-anchor="middle" class="mute" font-size="18">count = 3</text>
+<text x="1032.5" y="296" text-anchor="middle" class="mute" font-size="18">padding</text>
+<text x="190" y="326" text-anchor="middle">(a) Ownership</text>
+<text x="564" y="326" text-anchor="middle">(b) Paged translation</text>
+<text x="971" y="326" text-anchor="middle">(c) Stable compaction</text>
+</g></defs><svg x="57" y="0" width="306" height="236" viewBox="22 36 306 236" overflow="hidden"><use href="#figure-content" /></svg><svg x="57" y="242" width="306" height="30" viewBox="22 306 306 30" overflow="hidden"><use href="#figure-content" /></svg><svg x="0" y="300" width="420" height="276.36" viewBox="334 36 462 304" overflow="hidden"><use href="#figure-content" /></svg><svg x="60" y="604.36" width="300" height="304" viewBox="806 36 300 304" overflow="hidden"><use href="#figure-content" /></svg></svg>

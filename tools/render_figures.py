@@ -1,344 +1,334 @@
-"""Regenerate evidence-backed SVG figures: pip install -e '.[docs]'; python tools/render_figures.py.
+"""Regenerate the evidence-backed SVG charts from checked-in measurement records.
 
-Source values are read from checked-in artifacts. Fonts remain SVG text for
-accessibility. Fixed SVG IDs and omitted timestamps make regeneration stable
-within the same Matplotlib version. Hardware benchmarks are never invoked.
+    python -m pip install -e ".[docs]"
+    python tools/render_figures.py
+
+Every plotted value and every number in the accessible descriptions is read from
+``evidence/``; nothing here runs a benchmark. Charts share the typography and
+palette of the explanatory diagrams. Bars start at zero, and direct labels
+repeat the recorded medians to one decimal place.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from xml.sax.saxutils import escape
 
-import matplotlib
-from figure_style import FONT_FAMILIES, HEADING, LABEL, LIGHT, THEME_CSS, WIDTH
+from figure_style import NARROW, NOTE, ROOT, WIDTH, Figure
 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.patches import Patch  # noqa: E402
-from matplotlib.text import Text  # noqa: E402
-from matplotlib.ticker import FormatStrFormatter  # noqa: E402
-
-ROOT = Path(__file__).resolve().parents[1]
 APPLE_RECORD = Path("evidence/09-apple-mlx-consumer")
-INK = LIGHT["ink"]
-MUTED = LIGHT["muted"]
-RULE = LIGHT["rule"]
-NEUTRAL = LIGHT["line"]
-ACCENT = LIGHT["blue"]
-ADVERSE = LIGHT["copper"]
-COMPARISON = LIGHT["comparison"]
-COLORS = {
-    LIGHT[name]: name for name in ("ink", "muted", "rule", "line", "blue", "copper", "comparison")
-}
+CUDA_RECORD = Path("evidence/05-full-decode-canary")
+MLX, METAL = "mlx_compiled", "metal_compiled"
+LOCALIZATION_TOP, CONSUMER_TOP = 240, 400  # shared zero-based latency scales, µs
+ARMS = (
+    ("row_stable", "rowwise"),
+    ("pinned_atomic", "atomic"),
+    ("hierarchical_stable", "hierarchical"),
+)
+CONTRASTS = (
+    ("row_stable", 32768, "32K", "rowwise"),
+    ("hierarchical_stable", 32768, "32K", "hierarchical"),
+    ("row_stable", 65536, "64K", "rowwise"),
+    ("hierarchical_stable", 65536, "64K", "hierarchical"),
+)
+RATIO_AXIS = (0.995, 1.020)
+RATIO_TICKS = (0.995, 1.0, 1.005, 1.01, 1.015, 1.02)
 
 
-def _save_svg(fig, filename: str, title: str, description: str) -> None:
-    # Measure the actual glyphs before export; this catches clipped annotations
-    # when labels or evidence values change without rasterizing the SVG's text.
-    fig.canvas.draw()
-    renderer = fig.canvas.get_renderer()
-    for artist in fig.findobj(Text):
-        if artist.get_visible() and artist.get_text():
-            bounds = artist.get_window_extent(renderer)
-            if (
-                bounds.x0 < 0
-                or bounds.y0 < 0
-                or bounds.x1 > fig.bbox.width
-                or bounds.y1 > fig.bbox.height
-            ):
-                raise ValueError(f"Figure text falls outside the canvas: {artist.get_text()!r}")
-    path = ROOT / "assets" / filename
-    fig.savefig(path, format="svg", transparent=True, metadata={"Date": None})
-    plt.close(fig)
-    svg = path.read_text()
-    start = svg.index("<svg")
-    end = svg.index(">", start)
-    svg = svg[:end] + ' role="img" aria-labelledby="figure-title figure-desc"' + svg[end:]
-    end = svg.index(">", start) + 1
-    accessibility = (
-        f'<title id="figure-title">{escape(title)}</title>'
-        f'<desc id="figure-desc">{escape(description)}</desc>'
-        f"<style>{THEME_CSS}text{{font-variant-numeric:tabular-nums}}</style>"
-    )
-    svg = svg[:end] + "\n" + accessibility + svg[end:]
-    for color, variable in COLORS.items():
-        svg = svg.replace(f"fill: {color}", f"fill: var(--{variable})")
-        svg = svg.replace(f"stroke: {color}", f"stroke: var(--{variable})")
-    path.write_text("\n".join(line.rstrip() for line in svg.splitlines()) + "\n")
+def _xaxis(s: Figure, x0, length, y_top, y_axis, ticks, top, *, title: str) -> None:
+    """Vertical gridlines, a zero baseline, tick values and an axis title."""
+    for tick in ticks:
+        x = x0 + length * tick / top
+        s.path(f"M{x:.2f} {y_top:.2f}V{y_axis:.2f}", "grid" if tick else "axis")
+        s.text(x, y_axis + 20, f"{tick:g}", size=NOTE, anchor="middle", cls="faint")
+    s.text(x0 + length / 2, y_axis + 42, title, size=NOTE, anchor="middle", cls="mute")
 
 
-def _configure() -> None:
-    plt.rcParams.update(
-        {
-            "font.family": list(FONT_FAMILIES),
-            "font.size": LABEL,
-            "svg.fonttype": "none",
-            "svg.hashsalt": "silkern-evidence-figures",
-            "text.color": INK,
-            "axes.labelcolor": INK,
-            "axes.edgecolor": NEUTRAL,
-            "axes.linewidth": 0.7,
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-            "xtick.color": MUTED,
-            "ytick.color": INK,
-            "xtick.labelsize": LABEL,
-            "ytick.labelsize": LABEL,
-            "xtick.major.width": 0.7,
-            "ytick.major.width": 0.7,
-            "figure.facecolor": "none",
-            "axes.facecolor": "none",
-            "savefig.facecolor": "none",
-        }
-    )
+def _paired_bars(s: Figure, x0, y0, length, top, rows) -> None:
+    """Rows of (label, comparison, highlighted) values as paired horizontal bars."""
+    for k, (label, compare, highlight) in enumerate(rows):
+        y = y0 + 44 * k
+        s.text(x0 - 10, y + 19, label, size=NOTE, anchor="end")
+        for dy, value, fill, cls, weight in (
+            (0, compare, "compare", "soft", "regular"),
+            (15, highlight, "accent tint", "accent tint", "semibold"),
+        ):
+            w = length * value / top
+            s.rect(x0, y + dy, w, 12, fill)
+            s.text(x0 + w + 6, y + dy + 10.5, f"{value:.1f}", size=NOTE, cls=cls, weight=weight)
 
 
-def _figure(height: int, width: int = WIDTH):
-    # One SVG point per layout unit; the README can scale the whole figure.
-    return plt.figure(figsize=(width / 72, height / 72), dpi=72)
-
-
-def _panel_title(fig, x, y, letter, title):
-    height = fig.get_figheight() * 72
-    width = fig.get_figwidth() * 72
-    fig.text(x / width, 1 - y / height, letter, fontsize=HEADING, weight="bold")
-    fig.text((x + 24) / width, 1 - y / height, title, fontsize=HEADING, weight="normal")
-
-
-def _axis(fig, rectangle):
-    ax = fig.add_axes(rectangle)
-    ax.set_axisbelow(True)
-    ax.grid(axis="x", color=RULE, linewidth=0.7)
-    ax.tick_params(axis="y", length=0, pad=8)
-    ax.tick_params(axis="x", length=4, pad=6)
-    return ax
-
-
-def _bar_panel(fig, rectangle, cells, *, limit, ticks, labels, narrow=False):
-    ax = fig.add_axes(rectangle)
-    ax.set_axisbelow(True)
-    ax.grid(axis="y", color=RULE, linewidth=0.7)
-    ax.spines["left"].set_visible(False)
-    ax.tick_params(axis="y", length=0, pad=10)
-    ax.tick_params(axis="x", length=0, pad=10)
-    # All four panels use the same physical bar width, including the two-group consumer.
-    positions = list(range(3)) if len(cells) == 3 else [0.4, 1.6]
-    spacing = 0.23 if narrow else 0.205
-    for arm, offset, color in (
-        ("mlx_compiled", -spacing, COMPARISON),
-        ("metal_compiled", spacing, ACCENT),
-    ):
-        heights = [cell["median_us"][arm] for cell in cells]
-        bars = ax.bar(
-            [v + offset for v in positions],
-            heights,
-            width=0.38 if narrow else 0.34,
-            color=color,
-            edgecolor=INK,
-            linewidth=0.45,
-            zorder=3,
+def _converter_bars(s: Figure, segments, x0, y0, length, top) -> None:
+    """The 32K converter segment: rowwise highlighted against atomic and hierarchical."""
+    for k, (arm, label) in enumerate(ARMS):
+        value = segments["contexts"]["32768"][f"converter.{arm}"]["pooled_median_us"]
+        y = y0 + 50 * k
+        ours = arm == "row_stable"
+        w = length * value / top
+        s.text(x0 - 10, y + 15, label, anchor="end")
+        s.rect(x0, y, w, 20, "accent tint" if ours else "compare")
+        s.text(
+            x0 + w + 6,
+            y + 15,
+            f"{value:.1f}",
+            size=NOTE,
+            cls="accent tint" if ours else "soft",
+            weight="semibold" if ours else "regular",
         )
-        ax.bar_label(
-            bars, labels=[f"{v:.1f}" for v in heights], padding=6, color=INK, fontsize=LABEL
-        )
-    ax.set_xticks(positions, labels)
-    ax.set_yticks(ticks)
-    ax.set_ylim(0, limit)
-    ax.set_xlim(-0.6, 2.6)
-    return ax
 
 
-def render_apple(*, narrow=False) -> None:
+def _ratio_label(value: float) -> str:
+    return f"{value:.3f}".rstrip("0").ljust(4, "0")
+
+
+def _estimate(contrast) -> str:
+    return f"{contrast['point']:.4f}  [{contrast['lo']:.4f}, {contrast['hi']:.4f}]"
+
+
+def _contrast_style(arm: str, contrast, margin: float) -> tuple[str | None, bool]:
+    """Orange marks an interval beyond the margin; blue the rowwise arm; gray the rest."""
+    adverse = contrast["hi"] > margin
+    return ("orange" if adverse else "accent" if arm == "row_stable" else None), adverse
+
+
+def _interval(s: Figure, xr, contrast, y: float, hue: str | None) -> None:
+    """A confidence interval with end caps; open markers recede, filled ones lead."""
+    stroke = f"{hue} trace" if hue else "wire"
+    s.line([(xr(contrast["lo"]), y), (xr(contrast["hi"]), y)], cls=stroke, collide=False)
+    for end in ("lo", "hi"):
+        s.line([(xr(contrast[end]), y - 5), (xr(contrast[end]), y + 5)], cls=stroke, collide=False)
+    x = xr(contrast["point"])
+    if hue:
+        s.circle(x, y, 4.2, f"{hue} tint")
+    else:
+        s.circle(x, y, 3.8, "paper")
+        s.raw(f'<circle cx="{x:.2f}" cy="{y}" r="3.8" class="wire" style="stroke-width:1.3"/>')
+
+
+def _margin_rule(s: Figure, x: float, y0: float, y1: float) -> None:
+    s.raw(f'<path d="M{x:.2f} {y0}V{y1}" class="axis" style="stroke-dasharray:4 3"/>')
+
+
+def _legend(s: Figure, x: float, y: float, entries) -> None:
+    for label, fill in entries:
+        s.rect(x, y - 10, 12, 12, fill)
+        box = s.text(x + 18, y, label, size=NOTE, cls="soft")
+        x = box.x1 + 22
+
+
+def render_apple() -> None:
     record = ROOT / APPLE_RECORD
     data = json.loads((record / "summary.json").read_text())
     consumer = json.loads((record / "consumer-summary.json").read_text())
-    first_session = json.loads((record / data["sessions"][0]).read_text())
-    metadata = first_session["metadata"]
-    device = metadata["device"]["device_name"]
-    mlx_version = metadata["versions"]["mlx"]
+    session = json.loads((record / data["sessions"][0]).read_text())
+    device = session["metadata"]["device"]["device_name"]
+    mlx_version = session["metadata"]["versions"]["mlx"]
     ratios = [cell["compiled_ratio"] for cell in data["cells"]]
-    height, canvas_width = (1380, 420) if narrow else (672, WIDTH)
-    fig = _figure(height, canvas_width)
-    fig.text(24 / canvas_width, 1 - 30 / height, "Latency (µs)", fontsize=LABEL)
-    fig.legend(
-        handles=[
-            Patch(facecolor=COMPARISON, edgecolor=INK, linewidth=0.45, label="Compiled MLX"),
-            Patch(facecolor=ACCENT, edgecolor=INK, linewidth=0.45, label="Compiled Metal"),
-        ],
-        loc="upper right",
-        bbox_to_anchor=((canvas_width - 24) / canvas_width, 1 - (52 if narrow else 10) / height),
-        ncols=2,
-        frameon=False,
-        fontsize=LABEL,
-        handlelength=1.2,
-        handleheight=1,
-        handletextpad=0.55,
-        columnspacing=1.5,
-        borderpad=0,
-        borderaxespad=0,
-    )
-    for index, width in enumerate((128, 2048, 4096, None)):
-        x, y = (
-            (64, 150 + index * 320)
-            if narrow
-            else (80 + (index % 2) * 570, 108 + (index // 2) * 300)
-        )
-        is_consumer = width is None
-        cells = (
-            consumer["cells"]
-            if is_consumer
-            else sorted(
-                (c for c in data["cells"] if c["geometry"]["width"] == width),
-                key=lambda c: c["geometry"]["batch"],
-            )
-        )
-        title = "Selected attention" if is_consumer else f"Localization, width {width:,}"
-        _panel_title(fig, 24 if narrow else x - 56, y - 32, "abcd"[index], title)
-        ax = _bar_panel(
-            fig,
-            [
-                x / canvas_width,
-                1 - (y + 185) / height,
-                (332 if narrow else 428) / canvas_width,
-                185 / height,
-            ],
-            cells,
-            limit=440 if is_consumer else 240,
-            ticks=[0, 100, 200, 300, 400] if is_consumer else [0, 50, 100, 150, 200],
-            labels=[
-                f"{c['geometry']['batch']} × {c['geometry']['width']:,}"
-                if is_consumer
-                else str(c["geometry"]["batch"])
-                for c in cells
-            ],
-            narrow=narrow,
-        )
-        ax.set_xlabel(
-            "Batch × selection width" if is_consumer else "Batch size", labelpad=14, fontsize=LABEL
-        )
-    _save_svg(
-        fig,
-        "fig-apple-performance-narrow.svg" if narrow else "fig-apple-performance.svg",
-        f"{device} compiled localization and selected-attention measurements",
-        f"Grouped bars compare compiled compositional MLX in gray with compiled custom Metal in blue on {device}, MLX {mlx_version}. "
-        f"Four panels form {'one vertical column' if narrow else 'a two-by-two grid'}. "
-        "Panels a, b, c are localization at widths 128, 2048, 4096, "
-        "with batch sizes 1, 8, 32 and identical zero-based 0–240 microsecond scales. "
-        f"Metal is {min(ratios):.2f} to {max(ratios):.2f} times faster across the nine localization geometries. "
-        "Panel d covers complete selected attention at batch 1 / width 128 and batch 8 / width 2048 "
-        "on a separate zero-based 0–440 microsecond scale. Each consumer uses two logical shards on one device, "
-        "fixed caches and 64-dimensional keys and values. Direct labels give latency to one decimal place. "
-        "Bars are medians of three process-session medians; timings include dispatch, allocation, execution and synchronization. "
-        "Warmup and first-use compilation are excluded. No confidence intervals are implied. These are not full-model or distributed results. "
-        f"Source: {APPLE_RECORD.as_posix()}/summary.json and consumer-summary.json.",
+    widths = sorted({cell["geometry"]["width"] for cell in data["cells"]})
+    batches = sorted({cell["geometry"]["batch"] for cell in data["cells"]})
+    consumer_shapes = " and ".join(
+        f"batch {c['geometry']['batch']} with width {c['geometry']['width']}"
+        for c in consumer["cells"]
     )
 
-
-def render_cuda(*, narrow=False) -> None:
-    segments = json.loads((ROOT / "evidence/05-full-decode-canary/segments.json").read_text())
-    analysis = json.loads((ROOT / "evidence/05-full-decode-canary/analysis.json").read_text())
-    fig = _figure(790, 420) if narrow else _figure(422)
-    ax = _axis(
-        fig,
-        [120 / 420, 1 - 320 / 790, 270 / 420, 220 / 790] if narrow else [0.165, 0.21, 0.292, 0.56],
+    s = Figure(WIDTH, 286, f"{device} compiled localization and selected-attention latency", "")
+    s.description = (
+        "Paired horizontal bars compare compiled compositional MLX (gray) with compiled custom "
+        f"Metal (blue) on {device} with MLX {mlx_version}. Panels a, b and c are localization at "
+        f"selection widths {', '.join(map(str, widths))} for batch sizes "
+        f"{', '.join(map(str, batches))}, on one zero-based 0 to {LOCALIZATION_TOP} microsecond "
+        f"scale. Metal is {min(ratios):.2f} to {max(ratios):.2f} times faster across the "
+        f"{len(ratios)} geometries. Panel d is complete selected attention at {consumer_shapes}, "
+        f"on a separate zero-based 0 to {CONSUMER_TOP} microsecond scale, with two logical shards "
+        "on one device, fixed caches and 64-dimensional keys and values. Direct labels give each "
+        "median to one decimal place. Bars are medians of three process-session medians and "
+        "include dispatch, allocation, execution and synchronization; warmup and first-use "
+        "compilation are excluded. No confidence intervals are implied, and these are not "
+        f"full-model results. Source: {APPLE_RECORD.as_posix()}/summary.json and "
+        "consumer-summary.json."
     )
-    ax2 = _axis(
-        fig,
-        [170 / 420, 1 - 720 / 790, 224 / 420, 240 / 790] if narrow else [0.689, 0.21, 0.285, 0.56],
-    )
-    _panel_title(fig, 24, 36, "a", "Converter, 32K context")
-    _panel_title(
-        fig, 24 if narrow else 626, 416 if narrow else 36, "b", "Complete decode vs atomic"
-    )
-    arms = [
-        ("row_stable", "Rowwise", ACCENT, "o"),
-        ("pinned_atomic", "Atomic", NEUTRAL, "s"),
-        ("hierarchical_stable", "Hierarchical", NEUTRAL, "D"),
-    ]
-    for y, (arm, _label, color, _marker) in zip([2, 1, 0], arms, strict=True):
-        value = segments["contexts"]["32768"][f"converter.{arm}"]["pooled_median_us"]
-        ax.barh(y, value, height=0.52, color=color if arm == "row_stable" else COMPARISON, zorder=3)
-        ax.annotate(
-            f"{value:.1f}",
-            (value, y),
-            xytext=(8, 0),
-            textcoords="offset points",
-            va="center",
-            fontsize=LABEL,
-            color=INK,
+    _legend(s, 24, 30, (("compiled MLX", "compare"), ("compiled Metal", "accent tint")))
+    s.text(WIDTH - 24, 30, "median latency, lower is better", size=NOTE, anchor="end", cls="mute")
+    y0, length = 72, 148
+    panels = []
+    for index, width in enumerate(widths):
+        x0 = 58 + 252 * index
+        cells = sorted(
+            (c for c in data["cells"] if c["geometry"]["width"] == width),
+            key=lambda c: c["geometry"]["batch"],
         )
-    ax.set_yticks([2, 1, 0], [arm[1] for arm in arms])
-    ax.set_ylim(-0.5, 2.5)
-    ax.set_xlim(0, 275)
-    ax.set_xticks([0, 100, 200] if narrow else [0, 50, 100, 150, 200, 250])
-    ax.set_xlabel("Converter latency (µs)", labelpad=10, fontsize=LABEL)
+        rows = [
+            (str(c["geometry"]["batch"]), c["median_us"][MLX], c["median_us"][METAL]) for c in cells
+        ]
+        s.text(x0 - 10, y0 - 10, "batch", size=NOTE, anchor="end", cls="faint")
+        _xaxis(
+            s, x0, length, y0 - 4, y0 + 128, (0, 100, 200), LOCALIZATION_TOP, title="latency (µs)"
+        )
+        _paired_bars(s, x0, y0, length, LOCALIZATION_TOP, rows)
+        s.subcaption(x0 + 74, 274, "abc"[index], f"Width {width:,}")
+        panels.append((x0 - 50, 50, 244, 236))
+    x0 = 872
     rows = [
-        ("row_stable", 32768, "Rowwise"),
-        ("hierarchical_stable", 32768, "Hierarchical"),
-        ("row_stable", 65536, "Rowwise"),
-        ("hierarchical_stable", 65536, "Hierarchical"),
-    ]
-    margin = analysis["tier1_margin"]
-    for y, (arm, ctx, _label) in zip([3, 2, 1, 0], rows, strict=True):
-        contrast = analysis["contrasts"][f"{arm}_over_atomic.c{ctx}"]
-        color = ADVERSE if contrast["hi"] > margin else ACCENT if arm == "row_stable" else NEUTRAL
-        ax2.errorbar(
-            contrast["point"],
-            y,
-            xerr=[[contrast["point"] - contrast["lo"]], [contrast["hi"] - contrast["point"]]],
-            color=color,
-            marker="o" if arm == "row_stable" else "D",
-            markersize=8,
-            markerfacecolor=color if arm == "row_stable" else "none",
-            markeredgewidth=1.2,
-            linestyle="none",
-            elinewidth=1.5,
-            capsize=3,
-            capthick=1,
-            zorder=3,
+        (
+            f"{c['geometry']['batch']} × {c['geometry']['width']:,}",
+            c["median_us"][MLX],
+            c["median_us"][METAL],
         )
-    ax2.axvline(1.0, color=NEUTRAL, linewidth=0.9)
-    ax2.axvline(margin, color=NEUTRAL, linewidth=0.9, linestyle=(0, (3, 3)))
-    ax2.text(
-        margin,
-        1.015,
-        f"{margin:.2f} margin",
-        transform=ax2.get_xaxis_transform(),
-        color=MUTED,
-        fontsize=LABEL,
-        ha="center",
-        va="bottom",
+        for c in consumer["cells"]
+    ]
+    s.text(x0 - 10, y0 - 10, "batch × width", size=NOTE, anchor="end", cls="faint")
+    _xaxis(s, x0, 160, y0 - 4, y0 + 128, (0, 200, 400), CONSUMER_TOP, title="latency (µs)")
+    _paired_bars(s, x0, y0 + 22, 160, CONSUMER_TOP, rows)
+    s.subcaption(x0 + 46, 274, "d", "Selected attention")
+    panels.append((x0 - 104, 50, 342, 236))
+    s.save("fig-apple-performance.svg", panels=[(16, 12, 420, 28, 12), *panels])
+
+
+def render_cuda() -> None:
+    segments = json.loads((ROOT / CUDA_RECORD / "segments.json").read_text())
+    analysis = json.loads((ROOT / CUDA_RECORD / "analysis.json").read_text())
+    margin = analysis["tier1_margin"]
+    medians = {
+        arm: segments["contexts"]["32768"][f"converter.{arm}"]["pooled_median_us"]
+        for arm, _ in ARMS
+    }
+    contrasts = {
+        (arm, context): analysis["contrasts"][f"{arm}_over_atomic.c{context}"]
+        for arm, context, _, _ in CONTRASTS
+    }
+    first = next(iter(contrasts.values()))
+    confidence = f"{first['confidence']:.2%}"
+    adverse = [
+        f"{arm_label.capitalize()} at {ctx_label} is {contrasts[arm, context]['point']:.6f} "
+        "times atomic"
+        for arm, context, ctx_label, arm_label in CONTRASTS
+        if contrasts[arm, context]["hi"] > margin
+    ]
+    description = (
+        "Panel a: at 32K context the 48-layer converter segment takes "
+        f"{medians['row_stable']:.3f} microseconds rowwise, {medians['pinned_atomic']:.3f} atomic "
+        f"and {medians['hierarchical_stable']:.3f} hierarchical; rowwise is "
+        f"{1 - medians['row_stable'] / medians['pinned_atomic']:.1%} lower than atomic. Bars start "
+        "at zero and labels round to one decimal place. Panel b: complete-step latency ratios "
+        f"against atomic with {confidence} intervals over {first['sessions']} sessions, on a "
+        f"{RATIO_AXIS[0]:.3f} to {RATIO_AXIS[1]:.3f} axis. The solid line marks equal latency and "
+        f"the dashed line the prespecified {margin:.2f} margin, with the region beyond it shaded; "
+        "the numeric column repeats each estimate and interval. "
+        + "; ".join(adverse)
+        + (", and its interval lies" if len(adverse) == 1 else ", and their intervals lie")
+        + " beyond the margin, a measured regression; the other contrasts meet the margin. "
+        "These are historical two-H100 reference-executor results, "
+        "not serving-runtime performance; no NVIDIA experiments were run for this update. "
+        f"Source: {CUDA_RECORD.as_posix()}/segments.json and analysis.json."
     )
-    ax2.set_yticks([3, 2, 1, 0], [f"{r[1] // 1024}K · {r[2]}" for r in rows])
-    ax2.set_ylim(-0.5, 3.5)
-    ax2.set_xlim(0.993, 1.022)
-    ax2.set_xticks([1.00, 1.01, 1.02])
-    ax2.xaxis.set_major_formatter(FormatStrFormatter("%.2f"))
-    ax2.set_xlabel("Complete-step latency ratio", labelpad=10, fontsize=LABEL)
-    _save_svg(
-        fig,
-        "fig-cost-narrow.svg" if narrow else "fig-cost.svg",
-        "Archived CUDA converter latency and complete decode cost",
-        "Panel (a): at 32K, the 48-layer converter segment takes 119.996 microseconds rowwise, 194.393 atomic, "
-        "and 239.727 hierarchical; rowwise is 38.3 percent lower than atomic. Horizontal bars use a zero baseline; "
-        "visible labels round to one decimal place. Panel (b): complete-step ratio estimates and 98.75 percent intervals "
-        "are shown against atomic on a 0.993 to 1.022 axis. Solid vertical line: equal latency; dashed line: prespecified 1.01 margin. "
-        "Rust marks rowwise at 64K, which is 1.014006 times atomic and whose interval exceeds the margin. "
-        "All other contrasts meet the margin. Lower latency or ratio is better. Five sessions; panel (a) uses pooled segment medians, "
-        "and panel (b) uses session-level complete-step estimates. These are historical two-H100 live-DCP-2 reference-executor results, "
-        "not serving-runtime performance. No NVIDIA experiments were run for this update. "
-        "Source: evidence/05-full-decode-canary/segments.json and analysis.json.",
+    s = Figure(WIDTH, 318, "Archived CUDA converter latency and complete decode cost", description)
+
+    # (a) Converter segment at 32K --------------------------------------------
+    x0, length, top = 132, 196, 250
+    _xaxis(s, x0, length, 56, 232, (0, 100, 200), top, title="converter latency (µs)")
+    _converter_bars(s, segments, x0, 84, length, top)
+    s.subcaption(x0 + length / 2 - 30, 308, "a", "Converter segment, 32K context")
+
+    # (b) Complete-step ratios ----------------------------------------------------
+    px, plength = 590, 300
+
+    def xr(value: float) -> float:
+        return px + plength * (value - RATIO_AXIS[0]) / (RATIO_AXIS[1] - RATIO_AXIS[0])
+
+    yt, yb = 56, 232
+    s.rect(xr(margin), yt, xr(RATIO_AXIS[1]) - xr(margin), yb - yt, "orange wash")
+    for tick in RATIO_TICKS:
+        s.path(f"M{xr(tick):.2f} {yt}V{yb}", "grid")
+        s.text(xr(tick), yb + 20, _ratio_label(tick), size=NOTE, anchor="middle", cls="faint")
+    s.path(f"M{px} {yb}H{px + plength}", "axis")
+    s.path(f"M{xr(1.0):.2f} {yt}V{yb}", "axis")
+    _margin_rule(s, xr(margin), yt, yb)
+    s.text(xr(margin) + 6, yt + 14, f"margin {margin:.2f}", size=NOTE, cls="orange tint")
+    s.text(
+        px + plength / 2,
+        yb + 42,
+        "complete-step latency ratio to atomic",
+        size=NOTE,
+        anchor="middle",
+        cls="mute",
     )
+    s.text(px + plength + 24, yt + 14, f"ratio [{confidence} interval]", size=NOTE, cls="faint")
+    for k, (arm, context, ctx_label, arm_label) in enumerate(CONTRASTS):
+        contrast = contrasts[arm, context]
+        hue, beyond = _contrast_style(arm, contrast, margin)
+        y = yt + 46 + 38 * k
+        s.text(px - 12, y + 6, f"{ctx_label} {arm_label}", anchor="end")
+        _interval(s, xr, contrast, y, hue)
+        s.text(
+            px + plength + 24,
+            y + 6,
+            _estimate(contrast),
+            size=NOTE,
+            cls=f"{hue} tint" if beyond else "soft",
+        )
+    s.subcaption(px + plength / 2 + 80, 308, "b", "Complete decode step relative to atomic")
+    s.save("fig-cost.svg")
+    render_cuda_narrow(segments, contrasts, margin, confidence, description)
+
+
+def render_cuda_narrow(segments, contrasts, margin, confidence, description: str) -> None:
+    """Phone layout: each interval gets its own band under its label and estimate."""
+    s = Figure(NARROW, 640, "Archived CUDA converter latency and complete decode cost", description)
+    x0, length, top = 128, 196, 250
+    _xaxis(s, x0, length, 24, 186, (0, 100, 200), top, title="converter latency (µs)")
+    _converter_bars(s, segments, x0, 40, length, top)
+    s.subcaption(NARROW / 2, 270, "a", "Converter segment, 32K context")
+
+    px, plength = 28, 364
+
+    def xr(value: float) -> float:
+        return px + plength * (value - RATIO_AXIS[0]) / (RATIO_AXIS[1] - RATIO_AXIS[0])
+
+    # Each row owns a text line and a plot band, so no rule crosses a label.
+    top_row, pitch, band = 322, 58, 26
+    yb = top_row + pitch * len(CONTRASTS) + 4
+    s.text(px, top_row - 2, f"ratio [{confidence} interval]", size=NOTE, cls="faint")
+    s.text(xr(margin) + 6, top_row - 2, f"margin {margin:.2f}", size=NOTE, cls="orange tint")
+    for k, (arm, context, ctx_label, arm_label) in enumerate(CONTRASTS):
+        contrast = contrasts[arm, context]
+        hue, beyond = _contrast_style(arm, contrast, margin)
+        y = top_row + 24 + pitch * k
+        s.text(px, y, f"{ctx_label} {arm_label}", size=NOTE)
+        s.text(
+            px + plength,
+            y,
+            _estimate(contrast),
+            size=NOTE,
+            anchor="end",
+            cls=f"{hue} tint" if beyond else "soft",
+        )
+        y0 = y + 8
+        s.rect(xr(margin), y0, xr(RATIO_AXIS[1]) - xr(margin), band, "orange wash")
+        for tick in (t for t in RATIO_TICKS if t not in (1.0, margin)):
+            s.path(f"M{xr(tick):.2f} {y0}v{band}", "grid")
+        s.path(f"M{xr(1.0):.2f} {y0}v{band}", "axis")
+        _margin_rule(s, xr(margin), y0, y0 + band)
+        _interval(s, xr, contrast, y0 + band / 2, hue)
+    s.path(f"M{px} {yb}H{px + plength}", "axis")
+    for tick in RATIO_TICKS:
+        s.path(f"M{xr(tick):.2f} {yb}v5", "axis")
+        s.text(xr(tick), yb + 24, _ratio_label(tick), size=NOTE, anchor="middle", cls="faint")
+    s.text(
+        px + plength / 2,
+        yb + 46,
+        "complete-step latency ratio to atomic",
+        size=NOTE,
+        anchor="middle",
+        cls="mute",
+    )
+    s.subcaption(NARROW / 2, yb + 82, "b", "Complete step relative to atomic")
+    s.height = int(yb + 94)
+    s.save("fig-cost-narrow.svg")
 
 
 def main() -> None:
-    _configure()
-    render_cuda()
     render_apple()
-    render_cuda(narrow=True)
-    render_apple(narrow=True)
+    render_cuda()
 
 
 if __name__ == "__main__":

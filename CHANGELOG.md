@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- Redesign all six figure families as a single typeset system. Text is set in
+  embedded STIX Two subsets with mathematical italics and upright operators;
+  tensors are continuous strips, operations are bands across them, and survivor
+  hues follow each token through every panel.
+- Rebuild the opening figure around physical memory: ownership filtering, a
+  logical-page to physical-block translation through the page table, and stable
+  prefix compaction.
+- Present the worked row as a ruled table, Apple latency as paired horizontal
+  bars with direct labels, and the archived CUDA ratios as a forest plot with
+  the margin region and a column of estimates. Every plotted value is unchanged.
+- Replace the Matplotlib dependency of the `docs` extra with fontTools; both
+  generators reject overlapping labels and connectors that cross text.
+
 ## 2.0.0 — 2026-10-06
 
 First tagged software release. This release includes the Apple/MLX and

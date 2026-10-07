@@ -18,10 +18,10 @@ Deterministic sparse-index localization for **Apple silicon / MLX** and **CUDA /
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-platforms-narrow.svg">
-  <img src="assets/fig-platforms.svg" width="100%" alt="Three-panel worked example showing rank ownership, page-table address translation, and stable prefix compaction with a count of three.">
+  <img src="assets/fig-platforms.svg" width="100%" alt="Three panels follow one selection row on rank 0: six global positions are filtered to three owned tokens and deinterleaved; their logical pages pass through the page table to physical KV blocks 11, 2, and 7, giving slots 708, 129, and 451; stable prefix compaction then writes 708, 129, 451 followed by padding, with count three.">
 </picture>
 
-**Figure 1. From global positions to stable cache addresses.** (a) Rank 0 keeps tokens 8, 130, and 262 and deinterleaves them to local positions 4, 65, and 131. (b) The page table translates these to physical slots 708, 129, and 451. (c) Prefix destinations 0, 1, and 2 preserve selector order; the remaining columns are padding and the count is 3. Only valid destinations are shown. Color tracks each survivor. This worked row uses two ranks, interleave 1, page size 64, and request 0; all retained mappings are in range. K/V gathering remains a consumer operation.
+**Figure 1. From global positions to stable cache addresses.** One selection row on rank 0 of two ranks, with interleave 1, page size 64, and request 0. (a) The owner `o` of each selected global position `t`: rank 0 keeps tokens 8, 130, and 262 and deinterleaves them to local positions 4, 65, and 131. (b) Each local position lies in a logical page at an offset; the request's page table sends pages 0, 1, and 2 to physical KV blocks 11, 2, and 7, giving slots 708, 129, and 451. Crossing lines show that physical order need not follow logical order. (c) Inclusive validity prefixes minus one give destinations 0, 1, and 2, so the output keeps selector order, pads with −1, and reports count 3. Color follows each surviving token. K/V gathering remains a consumer operation.
 
 **SILKern 2.0.0 · October 6, 2026.** Native Apple/MLX localization,
 backend-specific verification, stronger validation, and responsive technical
@@ -104,10 +104,10 @@ assert counts == [3]
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-contract-narrow.svg">
-  <img src="assets/fig-contract.svg" width="100%" alt="Worked example: rank zero keeps input tokens 8, 130, and 262, deinterleaves to local positions 4, 65, and 131, translates through page blocks 11, 2, and 7, and returns physical slots 708, 129, and 451 followed by minus-one padding; count is three.">
+  <img src="assets/fig-contract.svg" width="100%" alt="A table follows six input columns through owner, validity, local position, page and offset, physical page, and physical slot: columns 0, 2, and 5 survive and map to slots 708, 129, and 451. Beside it are the localization equations and the compacted and column-preserving output layouts, both with count three.">
 </picture>
 
-**Figure 2. A worked localization row.** (a) Columns 0, 2, and 5 survive ownership filtering and become physical slots 708, 129, and 451. The example uses rank 0, two ranks (`D = 2`), interleave `I = 1`, page size `S = 64`, and request-0 page table `[11, 2, 7, 5]`. (b) The equations apply to nonnegative tokens; the table is read only for an owned, in-range mapping. Both layouts have count 3, but only front compaction has a valid three-element prefix.
+**Figure 2. A worked localization row.** (a) Shaded columns 0, 2, and 5 survive ownership filtering and become physical slots 708, 129, and 451; dashes mark entries with no mapping. The example uses rank 0, two ranks (`D = 2`), interleave `I = 1`, page size `S = 64`, and request-0 page table `[11, 2, 7, 5]`. (b) The equations apply to nonnegative tokens, where `q` is the row's request; the table is read only for an owned, in-range mapping. Both layouts have count 3, but only front compaction has a valid three-element prefix.
 
 **Two deliberate edge cases:** `dcp_size=1` leaves values in their original
 columns, and negative in-range page-table entries are used verbatim and counted.
@@ -188,10 +188,10 @@ Both baselines are retained; the headline compares compiled with compiled.
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-apple-performance-narrow.svg">
-  <img src="assets/fig-apple-performance.svg" width="100%" alt="Compiled localization and complete selected-attention latency on Apple M5 Max. Gray bars show MLX and blue bars show Metal; direct labels give latency. The four panels separate three localization widths from the attention consumer.">
+  <img src="assets/fig-apple-performance.svg" width="100%" alt="Paired horizontal bars compare compiled MLX in gray with compiled Metal in blue on Apple M5 Max, with direct latency labels in microseconds. Three panels show localization at selection widths 128, 2048, and 4096 by batch size on one scale; a fourth shows the complete selected-attention consumer on a separate scale.">
 </picture>
 
-**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Gray bars show MLX and blue bars show Metal, with latency labeled in microseconds. (a–c) Localization at three selection widths, with identical scales. (d) Complete selected attention with two logical shards, fixed caches, and 64-dimensional keys and values, on a separate scale. All bars start at zero and show medians of three process-session medians, including dispatch, allocation, execution, and synchronization. Warmup and initial compilation are excluded.
+**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Paired bars compare compiled MLX (gray) with compiled Metal (blue) for each geometry, with latency labeled in microseconds. (a–c) Localization at three selection widths, by batch size, on one shared scale. (d) Complete selected attention with two logical shards, fixed caches, and 64-dimensional keys and values, on a separate scale. All bars start at zero and show medians of three process-session medians, including dispatch, allocation, execution, and synchronization. Warmup and initial compilation are excluded.
 
 For batch 8, width 2048, compiled Metal measured **164.20 µs** versus **185.60 µs**
 for compiled MLX. These are synchronized functional calls including Python
@@ -232,10 +232,10 @@ all subsequent changes.
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-cost-narrow.svg">
-  <img src="assets/fig-cost.svg" width="100%" alt="Archived two-H100 converter latencies and complete-step ratio intervals; the 64K rowwise result exceeds the 1.01 margin.">
+  <img src="assets/fig-cost.svg" width="100%" alt="Archived two-H100 measurements: converter-segment latency bars for rowwise, atomic, and hierarchical at 32K, and a forest plot of complete-step ratios to atomic with 98.75% intervals and a column of estimates; only the 64K rowwise interval lies beyond the 1.01 margin.">
 </picture>
 
-**Figure 4. Historical two-H100 measurements.** (a) Pooled median latency for the complete 48-layer converter segment at 32K context. (b) Complete-step ratios relative to atomic, with 98.75% intervals and the prespecified 1.01 margin. The 64K rowwise interval lies above that margin. These archived results are not a new NVIDIA qualification.
+**Figure 4. Historical two-H100 measurements.** (a) Pooled median latency for the complete 48-layer converter segment at 32K context. (b) Complete-step latency ratios relative to atomic, with 98.75% intervals. The dashed line marks the prespecified 1.01 margin and shading the region beyond it; the 64K rowwise interval lies entirely in that region. Open markers denote the hierarchical arm, and the right-hand column repeats each estimate and interval. These archived results are not a new NVIDIA qualification.
 
 | Archived measurement | Result | Interpretation |
 |---|---|---|
@@ -262,10 +262,10 @@ explicit:
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-consumer-narrow.svg">
-  <img src="assets/fig-consumer.svg" width="100%" alt="Three panels show compact versus column-preserving validity, masked K/V gathering with indexed cache rows, and shared attention normalization.">
+  <img src="assets/fig-consumer.svg" width="100%" alt="Three panels show compact versus column-preserving slots and validity masks, masked K/V gathering from a paged cache with a placeholder row, and attention normalization shared across logical shards.">
 </picture>
 
-**Figure 5. Consuming localized addresses.** (a) Filled and open marks reinforce the numeric validity mask; equal counts can describe different layouts. (b) Dashed paths carry the mask to both address selection and post-gather masking. K/V matrices show placeholder row 0 and selected rows 12 and 14; each row glyph is a schematic feature vector. The placeholder may contain NaN. (c) The maximum and both sums cover every logical shard and selected position. An empty selection uses `m = 0` and returns zero. This one-device consumer requires populated nonnegative pages, in-bounds slots, and finite, representable arithmetic.
+**Figure 5. Consuming localized addresses.** (a) Shaded entries are valid; equal counts can describe different layouts. (b) The dashed path carries the mask to both address selection and post-gather selection. The cache shows placeholder row 0 and selected rows 12 and 14 of K and V; each row glyph is a schematic feature vector. The placeholder may contain NaN. (c) The maximum and both sums cover every logical shard `r` and selected position `j`. An empty selection uses `m = 0` and returns zero. This one-device consumer requires populated nonnegative pages, in-bounds slots, and finite, representable arithmetic.
 
 See the [consumer guide](docs/consuming-indices.md) and the
 [runnable selected-attention example](examples/mlx_sparse_attention.py).
@@ -337,9 +337,9 @@ for experiments.
 
 The [wordmark](assets/logo-text.svg), [icon](assets/logo.svg),
 [K mark](assets/logo-k.svg), and [social banner](assets/banner.svg) are
-self-contained SVGs. Technical figures share one font family, two text sizes,
-transparent backgrounds, and accessible descriptions for light and dark themes.
-See the [figure sources and style](assets/README.md). Performance figures are
+self-contained SVGs. Technical figures embed subsets of the STIX Two typefaces,
+adapt to light and dark themes, keep transparent backgrounds, and carry
+accessible descriptions. See the [figure sources and style](assets/README.md). Performance figures are
 regenerated from the checked-in evidence with
 `python tools/render_figures.py`; `python tools/render_diagrams.py` regenerates
 the explanatory diagrams and checks their worked outputs against the Python

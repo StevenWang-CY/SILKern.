@@ -8,10 +8,10 @@ of the execution framework, and keeps each backend's memory model explicit.
 
 <picture>
   <source media="(max-width: 767px)" srcset="../assets/fig-platforms-narrow.svg">
-  <img src="../assets/fig-platforms.svg" width="100%" alt="Three-panel worked example showing rank ownership, page-table translation, and stable prefix compaction">
+  <img src="../assets/fig-platforms.svg" width="100%" alt="Three panels follow one selection row on rank 0: six global positions are filtered to three owned tokens and deinterleaved; their logical pages pass through the page table to physical KV blocks 11, 2, and 7, giving slots 708, 129, and 451; stable prefix compaction then writes 708, 129, 451 followed by padding, with count three.">
 </picture>
 
-**Figure 1. From global positions to stable cache addresses.** (a) Rank 0 keeps tokens 8, 130, and 262 and deinterleaves them to local positions 4, 65, and 131. (b) The page table translates these to physical slots 708, 129, and 451. (c) Prefix destinations 0, 1, and 2 preserve selector order; the remaining columns are padding and the count is 3. Only valid destinations are shown. Color tracks each survivor. This worked row uses two ranks, interleave 1, page size 64, and request 0; all retained mappings are in range. K/V gathering remains a consumer operation.
+**Figure 1. From global positions to stable cache addresses.** One selection row on rank 0 of two ranks, with interleave 1, page size 64, and request 0. (a) The owner `o` of each selected global position `t`: rank 0 keeps tokens 8, 130, and 262 and deinterleaves them to local positions 4, 65, and 131. (b) Each local position lies in a logical page at an offset; the request's page table sends pages 0, 1, and 2 to physical KV blocks 11, 2, and 7, giving slots 708, 129, and 451. Crossing lines show that physical order need not follow logical order. (c) Inclusive validity prefixes minus one give destinations 0, 1, and 2, so the output keeps selector order, pads with −1, and reports count 3. Color follows each surviving token. K/V gathering remains a consumer operation.
 
 ## Layers and responsibilities
 

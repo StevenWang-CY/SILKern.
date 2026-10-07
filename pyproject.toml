@@ -41,7 +41,7 @@ dependencies = []
 gpu = ["torch>=2.4", "triton>=3.0"]
 mlx = ["mlx>=0.32.3,<0.33; sys_platform == 'darwin' and platform_machine == 'arm64'"]
 dev = ["pytest>=8.0", "ruff>=0.6", "build>=1.2"]
-docs = ["matplotlib>=3.8,<4"]
+docs = ["fonttools>=4.47"]
 
 [project.urls]
 Homepage = "https://github.com/StevenWang-CY/SILKern."

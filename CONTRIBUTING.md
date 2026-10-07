@@ -93,23 +93,30 @@ layer-stack segments, complete selected-attention consumers, and whole-model
 latency distinct. A converter or consumer speedup alone does not establish a
 serving speedup.
 
-## Regenerating performance figures
+## Regenerating figures
 
 ```bash
 python -m pip install -e ".[docs]"
-python tools/render_figures.py
+python tools/render_figures.py   # charts from evidence/
+python tools/render_diagrams.py  # explanatory diagrams, checked against the oracle
 ```
 
-The generator reads checked-in measurements and runs no hardware experiments.
-The Apple figure uses the current [audit record](evidence/09-apple-mlx-consumer/);
-its ratios, device, runtime, geometry, and session labels are read from that
-record's summary and first session. When adding a new checkpoint, update the
-generator's `APPLE_RECORD`, the documentation tables, and their source links
-together; retain prior measurement JSON files unchanged.
-It uses fixed SVG IDs, omits timestamps, and preserves text and accessible
-descriptions. Inspect both light and dark rendering after changes. Exact output
-bytes may change across Matplotlib releases; use the same version when checking
-repeatability, and keep the same available fonts.
+The chart generator reads checked-in measurements and runs no hardware
+experiments. The Apple figure uses the current
+[audit record](evidence/09-apple-mlx-consumer/); its ratios, device, runtime,
+geometry, and session labels are read from that record's summary and first
+session. When adding a new checkpoint, update the generator's `APPLE_RECORD`,
+the documentation tables, and their source links together; retain prior
+measurement JSON files unchanged.
+
+Both generators share [`tools/figure_style.py`](tools/figure_style.py). They
+embed subsets of the fonts in [`tools/fonts`](tools/fonts/), keep text and
+accessible descriptions as SVG text, and refuse to export overlapping labels,
+connectors that cross labels, or text outside the canvas. Output is
+byte-for-byte repeatable for a given fontTools release; run both generators
+twice and confirm that `git status` reports no further change. Inspect light and
+dark rendering at desktop and phone widths after changes; see
+[the figure guide](assets/README.md).
 
 ## Checking a distribution
 

@@ -234,10 +234,10 @@ controlled before/after experiment.
 
 <picture>
   <source media="(max-width: 767px)" srcset="../assets/fig-apple-performance-narrow.svg">
-  <img src="../assets/fig-apple-performance.svg" width="100%" alt="Compiled MLX and Metal latency comparisons for nine localization geometries and two complete selected-attention consumers">
+  <img src="../assets/fig-apple-performance.svg" width="100%" alt="Paired horizontal bars compare compiled MLX in gray with compiled Metal in blue on Apple M5 Max, with direct latency labels in microseconds. Three panels show localization at selection widths 128, 2048, and 4096 by batch size on one scale; a fourth shows the complete selected-attention consumer on a separate scale.">
 </picture>
 
-**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Gray bars show MLX and blue bars show Metal, with latency labeled in microseconds. (a–c) Localization at three selection widths, with identical scales. (d) Complete selected attention with two logical shards, fixed caches, and 64-dimensional keys and values, on a separate scale. All bars start at zero and show medians of three process-session medians, including dispatch, allocation, execution, and synchronization. Warmup and initial compilation are excluded.
+**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Paired bars compare compiled MLX (gray) with compiled Metal (blue) for each geometry, with latency labeled in microseconds. (a–c) Localization at three selection widths, by batch size, on one shared scale. (d) Complete selected attention with two logical shards, fixed caches, and 64-dimensional keys and values, on a separate scale. All bars start at zero and show medians of three process-session medians, including dispatch, allocation, execution, and synchronization. Warmup and initial compilation are excluded.
 
 All latencies below are microseconds per evaluated functional call. Each value
 is the median of three session medians. Speedup divides compiled MLX latency by
