@@ -2,20 +2,76 @@
 
 ## Unreleased
 
-### Documentation
+### Fixed
 
-- Redesign all six figure families as a single typeset system. Text is set in
-  embedded STIX Two subsets with mathematical italics and upright operators;
-  tensors are continuous strips, operations are bands across them, and survivor
-  hues follow each token through every panel.
-- Rebuild the opening figure around physical memory: ownership filtering, a
-  logical-page to physical-block translation through the page table, and stable
-  prefix compaction.
-- Present the worked row as a ruled table, Apple latency as paired horizontal
-  bars with direct labels, and the archived CUDA ratios as a forest plot with
-  the margin region and a column of estimates. Every plotted value is unchanged.
-- Replace the Matplotlib dependency of the `docs` extra with fontTools; both
-  generators reject overlapping labels and connectors that cross text.
+- Refuse `mx.compile(..., shapeless=True)` around the native MLX path on its
+  first call, as the Metal path already did. Shapeless replays kept the first
+  trace's table and row sizes and skipped validation, so they could return
+  another request's pages, accept rows wider than 4096, and write past a stale
+  output buffer.
+- Create every native MLX operation on the selected stream instead of switching
+  MLX's process-wide default device, which let concurrent CPU and GPU calls
+  move each other's work. Integer division is done by exact multiplication,
+  because MLX 0.32.3's integer `floor_divide` places part of its work on the
+  default stream.
+- Make `silkern.conformance()` fail on defects it previously passed: a captured
+  graph that does no work, a launcher that writes only once or leaks memory, and
+  a graph that replays inputs frozen at capture. Outputs and workspace are
+  poisoned before every checked launch and replay, replays alternate their
+  inputs between two fixtures with different results, and a new `allocation`
+  check measures memory around every launch, the capture, and every replay.
+  Verified on CPU with a stand-in for PyTorch; not yet run on NVIDIA hardware.
+- Treat an installed but unimportable PyTorch, Triton, or MLX as an unavailable
+  backend that names the import error. `import silkern` now survives a broken
+  Triton, and neither verifier nor the CUDA benchmarks print a traceback.
+
+### Changed
+
+- The custom Metal kernel reads the batch, row width, and block-table shape at
+  run time, so new request or page counts reuse the compiled kernel instead of
+  compiling another (about 43 ms each on an M5 Max).
+- One aliasing rule for both CUDA launchers: the read-only inputs may share
+  storage, while outputs and workspace each need storage of their own.
+  `localize_hierarchical` and the vLLM adapter now accept aliased inputs, as
+  `localize_rowwise` did.
+- Conformance geometries accept `compact_valid_to_front` and `num_warps`; the
+  default CUDA matrix adds every vLLM-qualified width-2048 pairing and
+  column-preserving cells with several ranks; `python -m silkern --matrix FILE`
+  checks a deployment's own geometries.
+- The MLX verifier also runs native MLX on the CPU stream, with seeded tables of
+  1–9 requests and 1–48 pages, batch 8, and widths 256, 257, and 4095: 90 cells
+  by default. Without Metal the CPU cells still run. Reports use schema 2 and
+  record the imported module versions.
+- Both verifiers exit 64 on a usage error, so exit 2 means only that the
+  required device is unavailable.
+
+### Tests
+
+- Property tests check the oracle against an independent restatement of the
+  contract and against metamorphic properties; differential fuzzing compares the
+  MLX and Metal paths with the oracle at every scan boundary; the documentation's
+  links, anchors, and Python examples are tested.
+- Negative controls drive the real conformance harnesses with broken localizers
+  and broken optional runtimes, and fail against the previous verifiers.
+
+### Documentation and evidence
+
+- Restructure the README around one figure, plain sections, a runnable
+  quickstart, and a visible citation; move long captions to the guides.
+- Typeset every figure as one system in embedded STIX Two subsets, replacing the
+  `docs` extra's Matplotlib dependency with fontTools, and set the figures in
+  print conventions: ink text, identity carried by cell fills, ruled operation
+  stages, dashed memory outlines, and an Apple dot plot that keeps every
+  geometry on one zero-based scale. Export rejects overlapping labels,
+  connectors across text, text too light to read, and narrow crops that cut a
+  label. The opening figure follows one row from global positions through the
+  page table to compacted physical slots.
+- Add record `10`: the post-audit verifier's 90-cell report and a same-process
+  comparison with record 09's sources, in which the Metal kernel's latency is
+  unchanged and compiled MLX is about 3% faster. Document that one of record
+  09's three sessions ran slower for both arms.
+- List the source distribution's contents explicitly, so local tool folders
+  cannot leak into a release built from a working checkout.
 
 ## 2.0.0 — 2026-10-06
 

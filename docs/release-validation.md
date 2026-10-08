@@ -108,6 +108,41 @@ queueing, or transport. Both implementations compile the same consumer, changing
 only the localization backend. Timing follows MLX's documented
 [fresh-call evaluation pattern](https://ml-explore.github.io/mlx/build/html/usage/compile.html).
 
+## Post-release audit · October 7–8, 2026
+
+An independent audit of the 2.0.0 sources reproduced the defects below on an
+Apple M5 Max; CUDA host code was read and exercised through stand-ins, since no
+NVIDIA GPU was available. Each correction has a test that fails against the
+previous code.
+
+| Finding | Correction | Verification |
+|---|---|---|
+| CUDA conformance passed a captured graph that did no work, a launcher that wrote only once or leaked memory, and a graph that replayed inputs frozen at capture | Outputs and workspace poisoned before every checked launch and replay; replays alternate two fixtures with different results; allocation measured around launches, capture, and replays | The real harness driven through a PyTorch stand-in: 23 of 28 new tests fail against the previous verifier; not yet run on NVIDIA hardware |
+| The CUDA verifier could not check column-preserving layouts, `num_warps`, custom matrices, or three of four vLLM-qualified width-2048 pairings | Both options accepted and passed on; `--matrix FILE`; five default cells added | Schema, CLI, and matrix tests |
+| A broken but installed Triton broke `import silkern`; a broken PyTorch or MLX crashed the verifiers and CUDA benchmarks | Any import failure marks the backend unavailable and names the cause | Subprocess tests with stub packages |
+| `mx.compile(..., shapeless=True)` replayed stale shapes in the native MLX path: another request's pages, rows wider than 4096, writes past a stale buffer | The native path refuses shapeless compilation on its first call, as Metal already did | 21 sequences across both backends and both streams |
+| Native MLX switched the process-wide default device, so concurrent CPU and GPU calls moved each other's work | Every operation names its stream; exact division by multiplication avoids MLX 0.32.3's `floor_divide` stream leak | A streamless default device traps any stray operation; a forced-interleaving race test |
+| The Metal kernel compiled anew for each block-table shape, about 43 ms each | Batch, width, and table shape read at run time | Template invariance test; first call on a new shape 0.21 ms |
+| The MLX verifier ran on the GPU stream only, with one table shape and batch 4 | CPU stream added; 1–9 requests, 1–48 pages, batch 8, widths 256, 257, and 4095 | 12 broken localizers through the real cell runner |
+| The CUDA launchers disagreed on input aliasing | Read-only inputs may alias; outputs and workspace need storage of their own | Host tests; both mutation controls fail |
+| Usage errors and an unavailable device both exited 2 | Usage errors exit 64 | CLI tests for both verifiers |
+| A source archive built locally included `.claude/` agent worktrees | Explicit source-archive contents | Packaging test against `git ls-files` |
+
+The revised sources passed these checks on October 8, 2026, on the same M5 Max
+with macOS 26.6, Python 3.12.12, and MLX 0.32.3:
+
+| Check | Result |
+|---|---|
+| CPU and Apple tests, warnings as errors | 936 passed; two CUDA modules and one CUDA-only documentation file skipped |
+| Base suite without MLX | 540 passed |
+| Property tests at 5,000 cases; MLX fuzzing at 600 cases and 15,000 seeded executions | No mismatch with the oracle |
+| Apple conformance, `--require-device --repeats 16` | 90/90 cells ([record 10](../evidence/10-apple-mlx-post-audit/conformance.json)) |
+| Same-process latency comparison with record 09's sources | Metal unchanged (median ratio 1.004); compiled MLX about 3% faster (0.968) |
+| Source archive, wheel, and strict Twine checks | Passed; the archive lists only project files |
+| Wheel installed outside the checkout | Base install verified with no optional runtime; with `[mlx]`, 90/90 conformance cells |
+| Tests from the extracted source archive in a clean base environment | 535 passed; 11 optional-runtime and checkout-only cases skipped |
+| Evidence, figures, and documentation | 48 checksums match; both figure generators reproduce identical bytes; links, anchors, and examples pass |
+
 ## Qualification boundary
 
 The implementation-checkpoint checks, recorded before release, passed:

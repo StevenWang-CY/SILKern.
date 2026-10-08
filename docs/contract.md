@@ -140,10 +140,9 @@ CUDA metadata validation rejects wrong shapes/dtypes/devices, unsupported
 geometry, storage aliasing, and incompatible workspace. Both launchers apply one
 aliasing rule: the three inputs are only read and may share storage, while every
 output and workspace needs storage of its own, shared with no other buffer even
-as a non-overlapping view. The integration adapter
-also rejects unregistered bindings. MLX validates metadata before constructing
-its computation. Neither API silently changes the mathematical layout to handle
-an unsupported geometry.
+as a non-overlapping view. The integration adapter also rejects unregistered
+bindings. MLX validates metadata before constructing its computation. Neither
+API silently changes the mathematical layout to handle an unsupported geometry.
 
 CUDA tensors must also have resolved value metadata. Triton reads raw memory,
 so a PyTorch lazy-negation view is rejected even when its dtype and strides
