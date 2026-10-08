@@ -72,8 +72,8 @@ For an accelerator backend, write `silkern[mlx]` or `silkern[gpu]` in place of
 | Apple silicon with MLX | `mlx` | `localize_mlx` |
 | NVIDIA GPU with PyTorch and Triton | `gpu` | `localize_rowwise`, `localize_hierarchical` |
 
-Examples, benchmarks, and tests run from a clone. The trailing dot in
-`SILKern.` is part of the repository name.
+The examples and benchmarks run from a clone; the trailing dot in `SILKern.` is
+part of the repository name.
 
 ```bash
 git clone https://github.com/StevenWang-CY/SILKern. silkern
@@ -160,20 +160,23 @@ order their reuse across streams and graph replays.
 
 ### Apple silicon
 
-We timed both MLX backends inside `mx.compile` on an Apple M5 Max with
-MLX 0.32.3. A timed call includes Python dispatch, output allocation,
+We timed both MLX backends of the 2.0.0 sources inside `mx.compile` on an
+Apple M5 Max with MLX 0.32.3. A timed call includes Python dispatch, output allocation,
 execution, and synchronization; compilation and warmup are excluded. Each
 value is the median over three fresh processes, and each process ran 12
 rotating-order blocks of 50 calls per arm.
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-apple-performance-narrow.svg">
-  <img src="assets/fig-apple-performance.svg" width="100%" alt="Dot plot of median latency per call on Apple M5 Max. For nine localization geometries and two selected-attention cases, a hollow gray dot marks compiled MLX and a filled blue dot marks the compiled Metal kernel, joined by a thin line; a right-hand column lists the speedup, from 1.10 to 1.21 times for localization and 1.12 times for selected attention.">
+  <img src="assets/fig-apple-performance.svg" width="100%" alt="Dot plot of median latency per call on Apple M5 Max. For nine localization geometries and two selected-attention cases, a hollow gray dot marks compiled MLX and a filled blue dot marks the compiled Metal kernel, joined by a thin line; a right-hand column lists the ratio, from 1.10 to 1.21 times for localization and 1.12 times for selected attention.">
 </picture>
 
-The Metal kernel is **1.10–1.21× faster** than compiled MLX at every batch and
-width we tested, and latency changes little across either. The advantage
-carries into the complete selected-attention example, at 1.12×. The
+The Metal kernel was **1.10–1.21× faster** than compiled MLX at every batch and
+width we tested, and latency changed little across either. The advantage
+carried into the complete selected-attention example, at 1.12×. Since then the
+compiled MLX path has become about 3% faster while the Metal kernel is
+unchanged ([record 10](evidence/10-apple-mlx-post-audit/)), so the current
+margin is a few percent smaller. The
 [Apple guide](docs/apple-mlx.md#measurement-and-reproduction) lists the eager
 results and the exact session commands:
 
@@ -230,7 +233,7 @@ examples in this README and the guides wherever their backend is available.
 
 | Platform | Recorded result | Record |
 |---|---|---|
-| Apple M5 Max, MLX 0.32.3 | 48/48 conformance cells, 16 repeated evaluations each | [09](evidence/09-apple-mlx-consumer/) |
+| Apple M5 Max, MLX 0.32.3 | 90/90 conformance cells across MLX on CPU and GPU and Metal, 16 repeated evaluations each | [10](evidence/10-apple-mlx-post-audit/) |
 | NVIDIA B200 (archived) | 131/131 conformance cells; 10,000 graph replays per arm | [01](evidence/01-oracle-conformance-b200/analysis.json) |
 | 2 × NVIDIA H100 (archived) | Complete-decode canary and converter timing | [05](evidence/05-full-decode-canary/) |
 | NVIDIA SM120 (archived) | Trained layer-0 semantics and mechanism decomposition | [02](evidence/02-trained-layer0-semantics/), [04](evidence/04-mechanism-decomposition/) |

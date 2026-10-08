@@ -65,11 +65,14 @@ establish a universal context-length dispatch threshold.
 
 ## Apple and current implementation validation
 
-The [current Apple audit artifact](../evidence/09-apple-mlx-consumer/) records
-48/48 conformance cells with 16 repeat evaluations and three process sessions
-on an M5 Max with MLX 0.32.3. Compiled Metal is
-1.10–1.21× faster than compiled compositional MLX across the nine measured
-geometries; all eager and compiled arms are retained. The MLX backend has its
+The [2.0.0 Apple record](../evidence/09-apple-mlx-consumer/) holds 48/48
+conformance cells with 16 repeat evaluations and three process sessions on an
+M5 Max with MLX 0.32.3. Compiled Metal was 1.10–1.21× faster than compiled
+compositional MLX across the nine measured geometries; all eager and compiled
+arms are retained. [Record 10](../evidence/10-apple-mlx-post-audit/) follows the
+post-release audit: the current verifier passes 90/90 cells, and a same-process
+comparison finds the current Metal kernel's latency unchanged and compiled MLX
+about 3% faster than record 09's sources. The MLX backend has its
 own oracle comparisons, repeated evaluations, stream checks, and microbenchmark.
 [Apple measurement and reproduction](apple-mlx.md#measurement-and-reproduction)
 identifies the available machine record and commands. Metal-versus-MLX timings
@@ -78,8 +81,8 @@ compare native implementations of one primitive with evaluated outputs.
 The [initial Apple checkpoint](../evidence/07-apple-mlx/) is retained with its
 original JSON records. It predates the scan-synchronization and arithmetic
 corrections. [Record 08](../evidence/08-apple-mlx-audit/) includes those corrections;
-current implementation claims use record 09 after the large-batch Metal grid
-fix and thread-local stream support. Record 09 also records independent
+latency claims use record 09, after the large-batch Metal grid fix and
+thread-local stream support. Record 09 also records independent
 request/table/token perturbation gates for compiled localization. Records 07
 and 08 checked the original fixture per run and had separate changing-input
 tests; they did not record these stronger per-session gates.

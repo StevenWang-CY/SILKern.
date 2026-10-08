@@ -7,10 +7,13 @@ not correctness or applicability to a different system.
 
 Records `01`–`06` were inherited from the original repository. Record `07`
 preserves the initial Apple checkpoint, and record `08` preserves the first
-audit corrections. Record `09` measures the current implementation, strengthens
+audit corrections. Record `09` measures the 2.0.0 implementation, strengthens
 compiled-input qualification, and adds a complete selected-attention consumer.
-All Apple records include environment metadata and implementation source hashes.
-Current Apple claims use record `09`. No NVIDIA experiments were run for these updates.
+Record `10` follows the post-release audit: it holds the current verifier's
+conformance report and a same-process comparison of the current MLX sources with
+record 09's. All Apple records include environment metadata and implementation
+source hashes. Apple latencies are quoted from record `09`, and current
+conformance from record `10`. No NVIDIA experiments were run for these updates.
 
 In the historical records, only identity strings were altered — absolute paths, email addresses, and
 monetary amounts were redacted. Measurements, gates, decisions, and claim
@@ -44,7 +47,8 @@ Run this command from the repository root.
 | `05-full-decode-canary/` | The complete per-token decode step of a real 48-layer model under live two-GPU context parallelism, three arms, randomized paired blocks, margins fixed before observation. `segments.json` carries the converter/attention/communication segment medians (converter at 32K: row-wide 120.0 µs, atomic 194.4 µs, hierarchical 239.7 µs — the source of the "38% less time" statement). | 2× H100 80GB |
 | [`07-apple-mlx/`](07-apple-mlx/) | Initial Apple JSON records retained unchanged: 48-cell conformance and three-process eager/compiled comparison, before later implementation corrections. | Apple M5 Max |
 | [`08-apple-mlx-audit/`](08-apple-mlx-audit/) | Earlier audit checkpoint: Metal scan synchronization and arithmetic corrections; 48-cell conformance and three timing sessions; original JSON retained. | Apple M5 Max |
-| [`09-apple-mlx-consumer/`](09-apple-mlx-consumer/) | Current checkpoint: 48-cell conformance, compiled per-input gates, three localization sessions, and three complete selected-attention sessions with independent attention checks. | Apple M5 Max |
+| [`09-apple-mlx-consumer/`](09-apple-mlx-consumer/) | 2.0.0 checkpoint: 48-cell conformance, compiled per-input gates, three localization sessions, and three complete selected-attention sessions with independent attention checks. | Apple M5 Max |
+| [`10-apple-mlx-post-audit/`](10-apple-mlx-post-audit/) | Post-audit sources: 90-cell conformance across native MLX on CPU and GPU and Metal on GPU, and three same-process sessions comparing their latency with record 09's sources (Metal unchanged; compiled MLX about 3% faster). | Apple M5 Max |
 
 ## Reading `05-full-decode-canary/analysis.json`
 

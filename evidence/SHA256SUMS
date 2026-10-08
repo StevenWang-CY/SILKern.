@@ -41,3 +41,8 @@ b7fb66103fb1c5f3ca8e7e7b40e8891752c197c55083e8b534a64c76a5c1ab84  ./09-apple-mlx
 456a50ccb4d3009b40acd200a99fc681b1fe293deec0a34cd169830fbd034ad8  ./09-apple-mlx-consumer/sources/silkern/mlx.py.txt
 6ede953f27d43ec3022fb118e3a1554c13942cc9352fa8edbd03547b3fba4f0f  ./09-apple-mlx-consumer/sources/silkern/mlx_verify.py.txt
 9dfc397792dfc148c8f4c58f4988efa89e74922afe2eb31aa091cd56ec3eb013  ./09-apple-mlx-consumer/summary.json
+7cdbec120114af16d29165cd9f0e8b078eb7f31487f056b7009c3c9e67508174  ./10-apple-mlx-post-audit/ab-session-1.json
+5aed353b33a5e937250d84195ff138cc3aa9f530f94657a5ee6b34eba47faf0e  ./10-apple-mlx-post-audit/ab-session-2.json
+634ae8fb7a4beb97859750fbb866d773aabe506f2162047c8653c40209ae9235  ./10-apple-mlx-post-audit/ab-session-3.json
+9460e92d90ed16091e234e966954999103e751b63350b7cd7b8ddfbdc4ec321a  ./10-apple-mlx-post-audit/conformance.json
+6cf50b34810fc574d19669a67ad6836fb71b07a3468b0129ba3d2e6260dd103a  ./10-apple-mlx-post-audit/sources/silkern/mlx.py.txt

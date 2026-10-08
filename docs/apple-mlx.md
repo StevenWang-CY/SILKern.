@@ -250,9 +250,20 @@ input checks. Earlier [07](../evidence/07-apple-mlx/) and
 hashes. Differences between checkpoints are descriptive observations, not a
 controlled before/after experiment.
 
+The post-release audit changed `silkern/mlx.py` after this record: the Metal
+kernel reads its shapes at run time, and the compositional path names its stream
+for every operation and divides by multiplication.
+[Record 10](../evidence/10-apple-mlx-post-audit/) compares the two sources in one
+process, interleaved so that machine load cancels. The Metal kernel's latency is
+unchanged (median ratio 1.004 across the nine geometries), while compiled MLX
+became about 3% faster (median 0.968), so with the current sources the margins
+below are likely a few percent smaller. The record also holds the current
+verifier's report: 90/90 cells with 16 repeated evaluations, now including
+native MLX on the CPU stream.
+
 <picture>
   <source media="(max-width: 767px)" srcset="../assets/fig-apple-performance-narrow.svg">
-  <img src="../assets/fig-apple-performance.svg" width="100%" alt="Dot plot of median latency per call on Apple M5 Max. For nine localization geometries and two selected-attention cases, a hollow gray dot marks compiled MLX and a filled blue dot marks the compiled Metal kernel, joined by a thin line; a right-hand column lists the speedup, from 1.10 to 1.21 times for localization and 1.12 times for selected attention.">
+  <img src="../assets/fig-apple-performance.svg" width="100%" alt="Dot plot of median latency per call on Apple M5 Max. For nine localization geometries and two selected-attention cases, a hollow gray dot marks compiled MLX and a filled blue dot marks the compiled Metal kernel, joined by a thin line; a right-hand column lists the ratio, from 1.10 to 1.21 times for localization and 1.12 times for selected attention.">
 </picture>
 
 **Compiled MLX and Metal latency on Apple M5 Max.** Each row joins compiled compositional MLX (hollow) and the compiled custom Metal kernel (filled) for one geometry, on one zero-based scale; the right-hand column gives their ratio. The first nine rows are localization by selection width and batch size. The last two are the complete selected-attention consumer with two logical shards, fixed caches, and 64-dimensional keys and values. Each value is the median of three process-session medians and includes dispatch, allocation, execution, and synchronization; warmup and initial compilation are excluded. Compiled Metal was faster in all 33 session pairs; per-session localization ratios range from 1.10× to 1.77× because one of three sessions ran slower for both arms.

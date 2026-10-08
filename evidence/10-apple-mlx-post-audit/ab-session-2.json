@@ -1,0 +1,1614 @@
+{
+ "schema_version": 1,
+ "diagnostic": "same-process A/B of record-09 and current MLX localization sources",
+ "metadata": {
+  "platform": "macOS-26.6-arm64-arm-64bit",
+  "python": "3.12.12",
+  "versions": {
+   "silkern": "2.0.0",
+   "mlx": "0.32.3"
+  },
+  "device": {
+   "device_name": "Apple M5 Max",
+   "max_recommended_working_set_size": 40200896512,
+   "memory_size": 51539607552,
+   "architecture": "applegpu_g17s",
+   "max_buffer_length": 30150672384,
+   "resource_limit": 499000
+  },
+  "load_average_before": [
+   14.6630859375,
+   14.935546875,
+   15.18017578125
+  ],
+  "load_average_after": [
+   15.806640625,
+   15.181640625,
+   15.2646484375
+  ],
+  "source_sha256": {
+   "record09 silkern/mlx.py": "456a50ccb4d3009b40acd200a99fc681b1fe293deec0a34cd169830fbd034ad8",
+   "current silkern/mlx.py": "6cf50b34810fc574d19669a67ad6836fb71b07a3468b0129ba3d2e6260dd103a",
+   "bench/bench_mlx.py": "a9387837dbf5dab6f4078efd645ff80e585bb157d5362ddcde194fe15878a620"
+  }
+ },
+ "methodology": {
+  "measurement": "synchronized end-to-end compiled functional call",
+  "units": "microseconds per call",
+  "order": "rotate arm order each block",
+  "warmup": 10,
+  "iterations_per_block": 50,
+  "blocks": 12,
+  "seed": 11,
+  "fixture": "bench.bench_mlx._case"
+ },
+ "script": "\"\"\"Same-process comparison of the record-09 MLX sources with the current ones.\n\nRun from the repository root on Apple silicon, one fresh process per session:\n\n    python ab_post_audit.py <record-09 mlx.py.txt> <output.json>\n\nBoth implementations are loaded into one process and timed on identical inputs\nwith the record-09 protocol: every arm is compiled, checked against the Python\noracle, warmed up, then timed in 12 rotating-order blocks of 50 synchronized\ncalls. Interleaving the arms cancels slow drift in machine load, so the ratio\nof the two implementations is meaningful even where absolute latency is not.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport hashlib\nimport importlib.util\nimport json\nimport os\nimport platform\nimport statistics\nimport sys\nfrom pathlib import Path\n\nimport mlx.core as mx\n\nimport silkern\nimport silkern.mlx as current\nfrom bench.bench_mlx import _case, _measure, _summarize\nfrom silkern import localize_reference\n\nGEOMETRY = dict(block_size=64, dcp_size=2, dcp_rank=0)\nWIDTHS, BATCHES = (128, 2048, 4096), (1, 8, 32)\nWARMUP, ITERATIONS, BLOCKS, SEED = 10, 50, 12, 11\n\n\ndef _load_baseline(path: Path):\n    \"\"\"The archived module, with its Metal kernel renamed so MLX caches it apart.\"\"\"\n    source = path.read_text()\n    renamed = source.replace('name=\"silkern_localize_int32\"', 'name=\"silkern_localize_int32_r09\"')\n    assert renamed != source, \"the archived kernel name was not found\"\n    spec = importlib.util.spec_from_loader(\"silkern_mlx_record09\", loader=None)\n    module = importlib.util.module_from_spec(spec)\n    exec(compile(renamed, str(path), \"exec\"), module.__dict__)\n    return module, hashlib.sha256(source.encode()).hexdigest()\n\n\ndef main() -> int:\n    baseline_path, output = Path(sys.argv[1]), Path(sys.argv[2])\n    baseline, baseline_sha = _load_baseline(baseline_path)\n    stream = mx.default_stream(mx.gpu)\n    load_before = os.getloadavg()\n    cells = []\n    for width in WIDTHS:\n        for batch in BATCHES:\n            req, table, rows = _case(width, batch, GEOMETRY[\"block_size\"],\n                                     GEOMETRY[\"dcp_size\"], SEED)\n            expected = localize_reference(req, table, rows, **GEOMETRY)\n            arrays = [mx.array(values, dtype=mx.int32) for values in (req, table, rows)]\n            mx.eval(*arrays)\n            arms = {}\n            for label, module in ((\"record09\", baseline), (\"current\", current)):\n                for backend in (\"mlx\", \"metal\"):\n                    function = mx.compile(\n                        lambda r, t, x, module=module, backend=backend: module.localize_mlx(\n                            r, t, x, **GEOMETRY, backend=backend, stream=stream\n                        )\n                    )\n                    out, counts = function(*arrays)\n                    mx.eval(out, counts)\n                    assert (out.tolist(), counts.tolist()) == expected, (label, backend)\n                    arms[f\"{label}_{backend}_compiled\"] = (\n                        lambda function=function: function(*arrays)\n                    )\n            samples, schedule = _measure(mx, arms, warmup=WARMUP, iterations=ITERATIONS,\n                                         blocks=BLOCKS, stream=stream)\n            medians = {name: statistics.median(values) for name, values in samples.items()}\n            cells.append({\n                \"geometry\": {\"width\": width, \"batch\": batch, **GEOMETRY},\n                \"oracle_passed\": True,\n                \"results\": {name: _summarize(values) for name, values in samples.items()},\n                \"schedule\": schedule,\n                \"current_over_record09\": {\n                    backend: medians[f\"current_{backend}_compiled\"]\n                    / medians[f\"record09_{backend}_compiled\"]\n                    for backend in (\"mlx\", \"metal\")\n                },\n            })\n    report = {\n        \"schema_version\": 1,\n        \"diagnostic\": \"same-process A/B of record-09 and current MLX localization sources\",\n        \"metadata\": {\n            \"platform\": platform.platform(),\n            \"python\": platform.python_version(),\n            \"versions\": {\"silkern\": silkern.__version__, \"mlx\": mx.__version__},\n            \"device\": mx.device_info(mx.gpu),\n            \"load_average_before\": load_before,\n            \"load_average_after\": os.getloadavg(),\n            \"source_sha256\": {\n                \"record09 silkern/mlx.py\": baseline_sha,\n                \"current silkern/mlx.py\": hashlib.sha256(\n                    Path(current.__file__).read_bytes()).hexdigest(),\n                \"bench/bench_mlx.py\": hashlib.sha256(\n                    Path(\"bench/bench_mlx.py\").read_bytes()).hexdigest(),\n            },\n        },\n        \"methodology\": {\n            \"measurement\": \"synchronized end-to-end compiled functional call\",\n            \"units\": \"microseconds per call\",\n            \"order\": \"rotate arm order each block\",\n            \"warmup\": WARMUP, \"iterations_per_block\": ITERATIONS, \"blocks\": BLOCKS,\n            \"seed\": SEED, \"fixture\": \"bench.bench_mlx._case\",\n        },\n        \"script\": Path(__file__).read_text(),\n        \"cells\": cells,\n    }\n    output.write_text(json.dumps(report, indent=1) + \"\\n\")\n    for cell in cells:\n        geometry, ratio = cell[\"geometry\"], cell[\"current_over_record09\"]\n        print(f\"{geometry['width']:>5} x {geometry['batch']:>2}: \"\n              f\"mlx {ratio['mlx']:.3f}  metal {ratio['metal']:.3f}\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n",
+ "cells": [
+  {
+   "geometry": {
+    "width": 128,
+    "batch": 1,
+    "block_size": 64,
+    "dcp_size": 2,
+    "dcp_rank": 0
+   },
+   "oracle_passed": true,
+   "results": {
+    "record09_mlx_compiled": {
+     "block_samples_us": [
+      336.59666,
+      358.01334,
+      351.66082,
+      345.955,
+      339.695,
+      360.94834,
+      316.685,
+      336.51082,
+      416.8225,
+      844.7475,
+      1208.875,
+      895.95084
+     ],
+     "median_us": 354.83708,
+     "mean_us": 509.371735,
+     "min_us": 316.685,
+     "max_us": 1208.875,
+     "stdev_us": 298.77897142845404
+    },
+    "record09_metal_compiled": {
+     "block_samples_us": [
+      217.75166,
+      259.4825,
+      207.95666,
+      215.0975,
+      194.43584,
+      242.33,
+      199.59,
+      279.48084,
+      252.10834,
+      1479.2675,
+      1151.23584,
+      1073.26666
+     ],
+     "median_us": 247.21917000000002,
+     "mean_us": 481.0002783333333,
+     "min_us": 194.43584,
+     "max_us": 1479.2675,
+     "stdev_us": 464.3113879057066
+    },
+    "current_mlx_compiled": {
+     "block_samples_us": [
+      343.9575,
+      346.2375,
+      326.98332,
+      319.1625,
+      333.6325,
+      341.3625,
+      312.59832,
+      390.25334,
+      418.19834,
+      941.86418,
+      1130.11332,
+      644.04082
+     ],
+     "median_us": 345.09749999999997,
+     "mean_us": 487.36701166666666,
+     "min_us": 312.59832,
+     "max_us": 1130.11332,
+     "stdev_us": 274.4329313611502
+    },
+    "current_metal_compiled": {
+     "block_samples_us": [
+      385.10084,
+      213.38584,
+      187.3725,
+      208.8925,
+      213.76584,
+      202.98834,
+      194.975,
+      194.99582,
+      1281.38332,
+      607.85082,
+      898.07668,
+      1178.26084
+     ],
+     "median_us": 213.57584,
+     "mean_us": 480.58736166666665,
+     "min_us": 187.3725,
+     "max_us": 1281.38332,
+     "stdev_us": 412.33426874812244
+    }
+   },
+   "schedule": [
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ]
+   ],
+   "current_over_record09": {
+    "mlx": 0.9725519666659413,
+    "metal": 0.8639129400847029
+   }
+  },
+  {
+   "geometry": {
+    "width": 128,
+    "batch": 8,
+    "block_size": 64,
+    "dcp_size": 2,
+    "dcp_rank": 0
+   },
+   "oracle_passed": true,
+   "results": {
+    "record09_mlx_compiled": {
+     "block_samples_us": [
+      722.9625,
+      1410.31834,
+      1132.78916,
+      678.12084,
+      491.16168,
+      880.8625,
+      932.93832,
+      1022.72666,
+      800.81,
+      1089.44084,
+      584.2975,
+      1618.35082
+     ],
+     "median_us": 906.90041,
+     "mean_us": 947.06493,
+     "min_us": 491.16168,
+     "max_us": 1618.35082,
+     "stdev_us": 332.1679731754343
+    },
+    "record09_metal_compiled": {
+     "block_samples_us": [
+      810.8075,
+      504.325,
+      315.96084,
+      406.03916,
+      511.87084,
+      243.17834,
+      484.01834,
+      1157.04,
+      633.3,
+      779.46,
+      302.56334,
+      409.98416
+     ],
+     "median_us": 494.17167,
+     "mean_us": 546.5456266666666,
+     "min_us": 243.17834,
+     "max_us": 1157.04,
+     "stdev_us": 261.8686763026333
+    },
+    "current_mlx_compiled": {
+     "block_samples_us": [
+      1235.06334,
+      825.9525,
+      766.50582,
+      1073.1875,
+      988.83666,
+      618.43666,
+      876.0425,
+      1075.54166,
+      870.12082,
+      600.70916,
+      859.38834,
+      1373.92
+     ],
+     "median_us": 873.08166,
+     "mean_us": 930.3087466666667,
+     "min_us": 600.70916,
+     "max_us": 1373.92,
+     "stdev_us": 231.5594538325129
+    },
+    "current_metal_compiled": {
+     "block_samples_us": [
+      507.53,
+      501.28668,
+      456.25584,
+      285.77,
+      537.6225,
+      356.98084,
+      410.86416,
+      284.55668,
+      628.99,
+      383.44666,
+      1309.46418,
+      587.2275
+     ],
+     "median_us": 478.77126,
+     "mean_us": 520.83292,
+     "min_us": 284.55668,
+     "max_us": 1309.46418,
+     "stdev_us": 271.68719071317236
+    }
+   },
+   "schedule": [
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ]
+   ],
+   "current_over_record09": {
+    "mlx": 0.9627095217654605,
+    "metal": 0.9688359108080801
+   }
+  },
+  {
+   "geometry": {
+    "width": 128,
+    "batch": 32,
+    "block_size": 64,
+    "dcp_size": 2,
+    "dcp_rank": 0
+   },
+   "oracle_passed": true,
+   "results": {
+    "record09_mlx_compiled": {
+     "block_samples_us": [
+      1401.71084,
+      356.25334,
+      347.08418,
+      359.34084,
+      318.985,
+      322.86918,
+      354.35582,
+      355.58,
+      331.21082,
+      339.06334,
+      343.18084,
+      358.75082
+     ],
+     "median_us": 350.72,
+     "mean_us": 432.3654183333333,
+     "min_us": 318.985,
+     "max_us": 1401.71084,
+     "stdev_us": 305.5792778677141
+    },
+    "record09_metal_compiled": {
+     "block_samples_us": [
+      1072.1025,
+      199.40916,
+      202.24416,
+      202.405,
+      214.01584,
+      228.9175,
+      195.31418,
+      212.5775,
+      194.35082,
+      199.98334,
+      203.66166,
+      235.89084
+     ],
+     "median_us": 203.03333,
+     "mean_us": 280.0727083333333,
+     "min_us": 194.35082,
+     "max_us": 1072.1025,
+     "stdev_us": 249.7599877143523
+    },
+    "current_mlx_compiled": {
+     "block_samples_us": [
+      1059.1075,
+      320.42584,
+      331.11166,
+      344.505,
+      348.03918,
+      318.0325,
+      339.08584,
+      333.46582,
+      324.235,
+      317.0525,
+      308.54,
+      329.6525
+     ],
+     "median_us": 330.38208,
+     "mean_us": 389.4377783333333,
+     "min_us": 308.54,
+     "max_us": 1059.1075,
+     "stdev_us": 211.21543736541136
+    },
+    "current_metal_compiled": {
+     "block_samples_us": [
+      1190.45084,
+      200.4675,
+      195.60918,
+      195.63,
+      222.95584,
+      199.77834,
+      191.14416,
+      193.71666,
+      199.82416,
+      199.3425,
+      177.95916,
+      199.0575
+     ],
+     "median_us": 199.2,
+     "mean_us": 280.4946533333333,
+     "min_us": 177.95916,
+     "max_us": 1190.45084,
+     "stdev_us": 286.73885280341756
+    }
+   },
+   "schedule": [
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ]
+   ],
+   "current_over_record09": {
+    "mlx": 0.9420109489051094,
+    "metal": 0.9811197008885191
+   }
+  },
+  {
+   "geometry": {
+    "width": 2048,
+    "batch": 1,
+    "block_size": 64,
+    "dcp_size": 2,
+    "dcp_rank": 0
+   },
+   "oracle_passed": true,
+   "results": {
+    "record09_mlx_compiled": {
+     "block_samples_us": [
+      341.93166,
+      345.19832,
+      314.14832,
+      317.2375,
+      325.2675,
+      351.36,
+      344.68168,
+      335.51916,
+      324.625,
+      361.165,
+      349.56334,
+      583.245
+     ],
+     "median_us": 343.30667,
+     "mean_us": 357.82854,
+     "min_us": 314.14832,
+     "max_us": 583.245,
+     "stdev_us": 72.44743555396485
+    },
+    "record09_metal_compiled": {
+     "block_samples_us": [
+      213.69334,
+      215.11416,
+      195.9425,
+      191.72582,
+      201.74084,
+      229.34166,
+      214.88668,
+      220.995,
+      291.915,
+      279.89584,
+      196.32166,
+      212.47084
+     ],
+     "median_us": 214.29001,
+     "mean_us": 222.00361166666667,
+     "min_us": 191.72582,
+     "max_us": 291.915,
+     "stdev_us": 31.934727390988655
+    },
+    "current_mlx_compiled": {
+     "block_samples_us": [
+      339.2075,
+      318.61416,
+      305.77,
+      322.70084,
+      303.77916,
+      344.70334,
+      331.005,
+      305.55168,
+      481.35668,
+      356.075,
+      308.915,
+      293.945
+     ],
+     "median_us": 320.6575,
+     "mean_us": 334.30194666666665,
+     "min_us": 293.945,
+     "max_us": 481.35668,
+     "stdev_us": 49.97130685148052
+    },
+    "current_metal_compiled": {
+     "block_samples_us": [
+      212.32584,
+      212.0225,
+      213.58332,
+      184.62666,
+      214.97332,
+      229.5675,
+      226.76916,
+      222.49916,
+      286.10082,
+      296.25166,
+      251.5925,
+      249.83334
+     ],
+     "median_us": 224.63416,
+     "mean_us": 233.34548166666667,
+     "min_us": 184.62666,
+     "max_us": 296.25166,
+     "stdev_us": 32.359314827372025
+    }
+   },
+   "schedule": [
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ]
+   ],
+   "current_over_record09": {
+    "mlx": 0.9340264201683004,
+    "metal": 1.048271732312673
+   }
+  },
+  {
+   "geometry": {
+    "width": 2048,
+    "batch": 8,
+    "block_size": 64,
+    "dcp_size": 2,
+    "dcp_rank": 0
+   },
+   "oracle_passed": true,
+   "results": {
+    "record09_mlx_compiled": {
+     "block_samples_us": [
+      329.44666,
+      327.96916,
+      344.4025,
+      396.54916,
+      365.27584,
+      352.42832,
+      333.535,
+      345.18168,
+      345.355,
+      363.52582,
+      309.3475,
+      334.56082
+     ],
+     "median_us": 344.79209,
+     "mean_us": 345.631455,
+     "min_us": 309.3475,
+     "max_us": 396.54916,
+     "stdev_us": 22.37291808406213
+    },
+    "record09_metal_compiled": {
+     "block_samples_us": [
+      201.4825,
+      211.40666,
+      217.015,
+      231.37416,
+      228.12334,
+      221.39166,
+      200.485,
+      198.49916,
+      243.4875,
+      209.81584,
+      203.3375,
+      212.02832
+     ],
+     "median_us": 211.71749,
+     "mean_us": 214.87055333333333,
+     "min_us": 198.49916,
+     "max_us": 243.4875,
+     "stdev_us": 13.970434487555455
+    },
+    "current_mlx_compiled": {
+     "block_samples_us": [
+      338.21416,
+      328.01084,
+      320.52,
+      344.46666,
+      340.81668,
+      312.23666,
+      344.88668,
+      340.1925,
+      351.05834,
+      355.69418,
+      321.81168,
+      358.40084
+     ],
+     "median_us": 340.50459,
+     "mean_us": 338.0257683333333,
+     "min_us": 312.23666,
+     "max_us": 358.40084,
+     "stdev_us": 14.56323616598619
+    },
+    "current_metal_compiled": {
+     "block_samples_us": [
+      215.88,
+      203.63,
+      212.7325,
+      267.56332,
+      231.68916,
+      198.82916,
+      206.91168,
+      248.455,
+      211.11,
+      213.25416,
+      204.92916,
+      215.345
+     ],
+     "median_us": 212.99333000000001,
+     "mean_us": 219.194095,
+     "min_us": 198.82916,
+     "max_us": 267.56332,
+     "stdev_us": 20.296469117667865
+    }
+   },
+   "schedule": [
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ]
+   ],
+   "current_over_record09": {
+    "mlx": 0.9875649699504419,
+    "metal": 1.006026143612415
+   }
+  },
+  {
+   "geometry": {
+    "width": 2048,
+    "batch": 32,
+    "block_size": 64,
+    "dcp_size": 2,
+    "dcp_rank": 0
+   },
+   "oracle_passed": true,
+   "results": {
+    "record09_mlx_compiled": {
+     "block_samples_us": [
+      388.53832,
+      392.55,
+      367.40666,
+      369.32666,
+      376.34166,
+      357.88666,
+      357.31918,
+      339.93916,
+      357.8475,
+      375.15584,
+      354.6925,
+      364.4925
+     ],
+     "median_us": 365.94957999999997,
+     "mean_us": 366.79138666666665,
+     "min_us": 339.93916,
+     "max_us": 392.55,
+     "stdev_us": 14.851180617299775
+    },
+    "record09_metal_compiled": {
+     "block_samples_us": [
+      217.73416,
+      200.0775,
+      226.37584,
+      229.675,
+      216.7925,
+      225.3825,
+      212.48168,
+      208.6675,
+      203.24168,
+      227.30832,
+      206.8025,
+      201.03666
+     ],
+     "median_us": 214.63709,
+     "mean_us": 214.63132000000002,
+     "min_us": 200.0775,
+     "max_us": 229.675,
+     "stdev_us": 10.798440348558762
+    },
+    "current_mlx_compiled": {
+     "block_samples_us": [
+      353.00668,
+      363.87418,
+      408.35168,
+      355.46084,
+      357.12832,
+      336.0325,
+      342.025,
+      351.78084,
+      335.545,
+      359.715,
+      357.56334,
+      335.22916
+     ],
+     "median_us": 354.23376,
+     "mean_us": 354.6427116666667,
+     "min_us": 335.22916,
+     "max_us": 408.35168,
+     "stdev_us": 19.70002575638456
+    },
+    "current_metal_compiled": {
+     "block_samples_us": [
+      203.20334,
+      215.98082,
+      214.36166,
+      228.33416,
+      221.5875,
+      204.3125,
+      225.2375,
+      204.60168,
+      212.64916,
+      223.85334,
+      228.7325,
+      195.8925
+     ],
+     "median_us": 215.17124,
+     "mean_us": 214.895555,
+     "min_us": 195.8925,
+     "max_us": 228.7325,
+     "stdev_us": 10.980706463141695
+    }
+   },
+   "schedule": [
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ]
+   ],
+   "current_over_record09": {
+    "mlx": 0.9679851524901328,
+    "metal": 1.0024886192782432
+   }
+  },
+  {
+   "geometry": {
+    "width": 4096,
+    "batch": 1,
+    "block_size": 64,
+    "dcp_size": 2,
+    "dcp_rank": 0
+   },
+   "oracle_passed": true,
+   "results": {
+    "record09_mlx_compiled": {
+     "block_samples_us": [
+      320.28832,
+      342.285,
+      355.12666,
+      365.5,
+      315.12666,
+      318.5875,
+      320.31834,
+      316.31332,
+      338.275,
+      350.95168,
+      342.695,
+      336.9875
+     ],
+     "median_us": 337.63125,
+     "mean_us": 335.2045816666667,
+     "min_us": 315.12666,
+     "max_us": 365.5,
+     "stdev_us": 16.953794968394565
+    },
+    "record09_metal_compiled": {
+     "block_samples_us": [
+      235.285,
+      204.30166,
+      226.12668,
+      212.75916,
+      201.7325,
+      207.29832,
+      215.665,
+      222.605,
+      225.4675,
+      230.71334,
+      233.51,
+      224.83
+     ],
+     "median_us": 223.7175,
+     "mean_us": 220.02451333333332,
+     "min_us": 201.7325,
+     "max_us": 235.285,
+     "stdev_us": 11.446152811075736
+    },
+    "current_mlx_compiled": {
+     "block_samples_us": [
+      322.80666,
+      325.90416,
+      340.14168,
+      318.17834,
+      321.67166,
+      302.14834,
+      302.93166,
+      327.82916,
+      329.73,
+      344.75,
+      332.2325,
+      331.22416
+     ],
+     "median_us": 326.86666,
+     "mean_us": 324.96236,
+     "min_us": 302.14834,
+     "max_us": 344.75,
+     "stdev_us": 12.838838007928057
+    },
+    "current_metal_compiled": {
+     "block_samples_us": [
+      224.1975,
+      234.96,
+      248.93168,
+      227.98582,
+      204.3125,
+      218.1725,
+      217.7025,
+      217.79,
+      241.60916,
+      234.86666,
+      224.5425,
+      219.08168
+     ],
+     "median_us": 224.37,
+     "mean_us": 226.179375,
+     "min_us": 204.3125,
+     "max_us": 248.93168,
+     "stdev_us": 12.258840751736907
+    }
+   },
+   "schedule": [
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ]
+   ],
+   "current_over_record09": {
+    "mlx": 0.9681173173395532,
+    "metal": 1.0029166247611385
+   }
+  },
+  {
+   "geometry": {
+    "width": 4096,
+    "batch": 8,
+    "block_size": 64,
+    "dcp_size": 2,
+    "dcp_rank": 0
+   },
+   "oracle_passed": true,
+   "results": {
+    "record09_mlx_compiled": {
+     "block_samples_us": [
+      371.98082,
+      346.61916,
+      386.78166,
+      354.50082,
+      338.52666,
+      341.35166,
+      349.3925,
+      336.18918,
+      344.24,
+      329.42668,
+      334.17084,
+      370.55
+     ],
+     "median_us": 345.42958,
+     "mean_us": 350.3108316666667,
+     "min_us": 329.42668,
+     "max_us": 386.78166,
+     "stdev_us": 17.56395598187991
+    },
+    "record09_metal_compiled": {
+     "block_samples_us": [
+      219.71,
+      220.90082,
+      234.22,
+      235.3525,
+      219.65332,
+      208.82582,
+      216.945,
+      218.05,
+      209.98168,
+      202.13,
+      208.77584,
+      232.3025
+     ],
+     "median_us": 218.85166,
+     "mean_us": 218.90395666666666,
+     "min_us": 202.13,
+     "max_us": 235.3525,
+     "stdev_us": 10.70064747969897
+    },
+    "current_mlx_compiled": {
+     "block_samples_us": [
+      362.21332,
+      347.92084,
+      339.1375,
+      343.71834,
+      320.30584,
+      317.97666,
+      320.00416,
+      316.87334,
+      319.26582,
+      327.545,
+      333.16084,
+      360.09916
+     ],
+     "median_us": 330.35292000000004,
+     "mean_us": 334.01840166666665,
+     "min_us": 316.87334,
+     "max_us": 362.21332,
+     "stdev_us": 16.47238481736125
+    },
+    "current_metal_compiled": {
+     "block_samples_us": [
+      226.10832,
+      217.49584,
+      235.79832,
+      232.37,
+      210.75,
+      208.07666,
+      207.57166,
+      221.80334,
+      204.0025,
+      232.66834,
+      201.76332,
+      232.755
+     ],
+     "median_us": 219.64959,
+     "mean_us": 219.26360833333334,
+     "min_us": 201.76332,
+     "max_us": 235.79832,
+     "stdev_us": 12.565452302405724
+    }
+   },
+   "schedule": [
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ]
+   ],
+   "current_over_record09": {
+    "mlx": 0.9563538826061163,
+    "metal": 1.0036459855959055
+   }
+  },
+  {
+   "geometry": {
+    "width": 4096,
+    "batch": 32,
+    "block_size": 64,
+    "dcp_size": 2,
+    "dcp_rank": 0
+   },
+   "oracle_passed": true,
+   "results": {
+    "record09_mlx_compiled": {
+     "block_samples_us": [
+      387.92832,
+      439.11,
+      418.8375,
+      390.9375,
+      399.97084,
+      413.59334,
+      435.755,
+      395.01166,
+      394.58668,
+      401.18584,
+      411.67416,
+      392.29084
+     ],
+     "median_us": 400.57834,
+     "mean_us": 406.74014,
+     "min_us": 387.92832,
+     "max_us": 439.11,
+     "stdev_us": 17.27229714954294
+    },
+    "record09_metal_compiled": {
+     "block_samples_us": [
+      223.45084,
+      213.25666,
+      242.94416,
+      210.5975,
+      218.815,
+      225.96168,
+      228.21582,
+      227.92,
+      253.2175,
+      228.38668,
+      215.04416,
+      214.71916
+     ],
+     "median_us": 224.70626,
+     "mean_us": 225.21076333333335,
+     "min_us": 210.5975,
+     "max_us": 253.2175,
+     "stdev_us": 12.576153631532783
+    },
+    "current_mlx_compiled": {
+     "block_samples_us": [
+      369.0825,
+      382.68582,
+      392.865,
+      385.09,
+      383.78834,
+      380.85418,
+      362.1725,
+      372.20584,
+      352.31166,
+      367.82668,
+      378.49666,
+      365.90084
+     ],
+     "median_us": 375.35125000000005,
+     "mean_us": 374.44000166666666,
+     "min_us": 352.31166,
+     "max_us": 392.865,
+     "stdev_us": 11.506475837328082
+    },
+    "current_metal_compiled": {
+     "block_samples_us": [
+      221.97334,
+      225.82918,
+      236.48416,
+      235.12416,
+      236.38332,
+      214.53334,
+      222.04832,
+      219.185,
+      227.28334,
+      221.53918,
+      247.1925,
+      247.84166
+     ],
+     "median_us": 226.55626,
+     "mean_us": 229.618125,
+     "min_us": 214.53334,
+     "max_us": 247.84166,
+     "stdev_us": 10.877018327588674
+    }
+   },
+   "schedule": [
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ],
+    [
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled"
+    ],
+    [
+     "record09_metal_compiled",
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled"
+    ],
+    [
+     "current_mlx_compiled",
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled"
+    ],
+    [
+     "current_metal_compiled",
+     "record09_mlx_compiled",
+     "record09_metal_compiled",
+     "current_mlx_compiled"
+    ]
+   ],
+   "current_over_record09": {
+    "mlx": 0.9370233298185818,
+    "metal": 1.0082329704566309
+   }
+  }
+ ]
+}
