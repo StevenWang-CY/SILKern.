@@ -11,7 +11,7 @@ boundary by preserving the selector's relative order.
   <img src="../assets/fig-problem.svg" width="100%" alt="Three replays of the same four tile groups: atomic reservation emits a different group order on each replay, while offsets from an exclusive scan keep the input order every time.">
 </picture>
 
-**Figure 6. Tile order under repeated execution.** The replay arrays are illustrative: atomic reservation claims output offsets in completion order and can permute whole tile groups, while offsets from an exclusive scan preserve input order. Both return the same eight values and count. Each tile holds two ordered slots, and curves trace the first replay. The separate [historical two-B200 record](../evidence/06-order-instability-b200/orders.json) measured 17–20 atomic orders per 20 replays and one stable order.
+**Tile order under repeated execution.** The replay arrays are illustrative: atomic reservation claims output offsets in completion order and can permute whole tile groups, while offsets from an exclusive scan preserve input order. Both return the same eight values and count. Each tile holds two ordered slots, and curves trace the first replay. The separate [historical two-B200 record](../evidence/06-order-instability-b200/orders.json) measured 17–20 atomic orders per 20 replays and one stable order.
 
 ## Where the order changes
 

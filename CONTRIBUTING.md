@@ -28,7 +28,15 @@ not need PyTorch or Triton; a contract-only installation must not need MLX.
 | Apple / MLX implementation | `.[dev,mlx]`, Apple tests, `python -m silkern.mlx_verify --require-device`, benchmark if performance-relevant |
 | CUDA / Triton implementation | On separately authorized CUDA hardware: GPU tests, `python -m silkern --require-device`, graph/guard checks |
 | vLLM adapter | Adapter unit tests, binding/capture regressions, integration checks on the pinned upstream surface |
-| Documentation or diagrams | Verify example output, relative links, source attribution, and SVG light/dark readability |
+| Documentation or diagrams | `tests/test_docs.py` (links, anchors, runnable examples); source attribution; SVG light/dark readability |
+
+Property and fuzz tests draw from fixed seeds and name the failing case, so a
+failure replays exactly. For a deeper local run, raise their case counts:
+
+```bash
+SILKERN_PROPERTY_CASES=5000 python -m pytest -q tests/test_properties.py
+SILKERN_MLX_FUZZ_CASES=600 python -m pytest -q tests/test_mlx_fuzz.py  # Apple silicon
+```
 
 A skipped accelerator suite is not hardware verification. Report which platforms
 were actually run. Respect the experiment scope of the task: Apple and CPU work
@@ -125,6 +133,11 @@ python -m build
 python -m pip install twine
 python -m twine check --strict dist/*
 ```
+
+The source archive lists its contents explicitly under
+`[tool.hatch.build.targets.sdist]` in `pyproject.toml`, so local tool folders
+never leak into a release built from a working checkout. Add any new top-level
+project file there; a packaging test fails until you do.
 
 The full [README](README.md) is the repository guide. Package-index metadata uses
 [a concise description](docs/package-description.md) with absolute source links,

@@ -57,6 +57,25 @@ silkern-verify-mlx = "silkern.mlx_verify:main"
 [tool.hatch.build.targets.wheel]
 packages = ["silkern"]
 
+# An explicit list keeps local tool folders and caches out of a source release
+# built from a working checkout. Hatch adds pyproject.toml and the license files.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/silkern",
+    "/tests",
+    "/bench",
+    "/examples",
+    "/docs",
+    "/assets",
+    "/evidence",
+    "/tools",
+    "/conftest.py",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/CONTRIBUTING.md",
+    "/CITATION.cff",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # A typo in a marker or a config key should fail the run, not be ignored: the

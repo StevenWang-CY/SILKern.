@@ -12,7 +12,7 @@ runnable gathers and selected attention.
   <img src="../assets/fig-consumer.svg" width="100%" alt="Three panels show compact versus column-preserving slots and validity masks, masked K/V gathering from a paged cache with a placeholder row, and attention normalization shared across logical shards.">
 </picture>
 
-**Figure 5. Consuming localized addresses.** (a) Shaded entries are valid; equal counts can describe different layouts. (b) The dashed path carries the mask to both address selection and post-gather selection. The cache shows placeholder row 0 and selected rows 12 and 14 of K and V; each row glyph is a schematic feature vector. The placeholder may contain NaN. (c) The maximum and both sums cover every logical shard `r` and selected position `j`. An empty selection uses `m = 0` and returns zero. This one-device consumer requires populated nonnegative pages, in-bounds slots, and finite, representable arithmetic.
+**Consuming localized addresses.** (a) Shaded entries are valid; equal counts can describe different layouts. (b) The dashed path carries the mask to both address selection and post-gather selection. The cache shows placeholder row 0 and selected rows 12 and 14 of K and V; each row glyph is a schematic feature vector. The placeholder may contain NaN. (c) The maximum and both sums cover every logical shard `r` and selected position `j`. An empty selection uses `m = 0` and returns zero. This one-device consumer requires populated nonnegative pages, in-bounds slots, and finite, representable arithmetic.
 
 ## Choose the right validity mask
 

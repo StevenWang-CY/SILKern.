@@ -1,4 +1,4 @@
-# Technical figures
+# Figures and brand assets
 
 The six figure families are generated, accessible SVGs with wide and narrow
 layouts. Edit their sources and regenerate them; do not edit exports by hand.
@@ -61,11 +61,12 @@ cells a hue owns.
 - Booktabs rules, without vertical lines, organize tables.
 
 In charts, blue is the measured implementation and gray the comparison; orange
-marks the adverse result and the region beyond a margin. Bars start at zero,
-the three Apple localization panels share one scale, and direct labels repeat
-recorded medians to one decimal place. Interval charts keep their recorded
-confidence levels and margins. Styling must never alter a measurement or its
-interpretation.
+marks the adverse result and the region beyond a margin. Every latency scale
+starts at zero. The Apple dot plot places all eleven geometries on one scale
+and lists each speedup in a column, so no value is repeated as a label; bar
+labels in the CUDA chart repeat recorded medians to one decimal place. Interval
+charts keep their recorded confidence levels and margins. Styling must never
+alter a measurement or its interpretation.
 
 ## Checks
 
@@ -89,3 +90,10 @@ charts for [gpt-oss](https://openai.com/index/introducing-gpt-oss/) and
 [Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5). The
 illustrations are original SILKern diagrams; their data comes only from this
 repository's examples and evidence.
+
+## Brand assets
+
+The wordmark (`logo-text.svg`), icon (`logo.svg`), and K mark (`logo-k.svg`)
+are self-contained SVGs with dark-theme variants. `banner.svg` is the
+1280 × 640 social card; `cover.png` is its raster for the repository's social
+preview setting, so re-export it at the same size whenever the banner changes.

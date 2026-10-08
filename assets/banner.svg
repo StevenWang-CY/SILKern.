@@ -67,7 +67,7 @@
     </g>
   </g>
   <g font-family="Arial,Helvetica,sans-serif">
-    <text x="640" y="415" text-anchor="middle" fill="#171717" font-size="28" font-weight="500">Order, woven in.</text>
+    <text x="640" y="415" text-anchor="middle" fill="#171717" font-size="26" font-weight="500">Deterministic localization for context-parallel sparse attention</text>
     <path d="M64 548H1216" stroke="#d4d4d4" fill="none"/>
     <g font-size="14" fill="#525252">
       <text x="64" y="585">Python oracle</text>

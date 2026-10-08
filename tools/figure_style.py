@@ -139,6 +139,8 @@ BASE_CSS = (
     f".axis{{fill:none;stroke:var(--frame);stroke-width:{THIN}}}"
     ".chip{fill:var(--chip)}.zone{fill:var(--zone)}.paper{fill:var(--paper)}"
     ".compare{fill:var(--compare)}"
+    f".ring{{fill:var(--paper);stroke:var(--wire);stroke-width:{WIRE}}}"
+    ".span{fill:none;stroke:var(--compare);stroke-width:2.5;stroke-linecap:round}"
     ".dot{fill:var(--wire)}"
     ".frac{fill:none;stroke:var(--ink);stroke-width:1}.frac.tint{stroke:var(--c)}"
 )

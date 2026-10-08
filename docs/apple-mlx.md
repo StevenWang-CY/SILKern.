@@ -18,8 +18,8 @@ Install the versioned Apple package:
 python -m pip install "silkern[mlx] @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.0.0/silkern-2.0.0-py3-none-any.whl"
 ```
 
-For examples, benchmarks, or development, use the
-[release checkout](../README.md#get-started):
+For examples, benchmarks, or development, work from a
+[clone of the repository](../README.md#installation):
 
 ```bash
 python3 -m venv .venv
@@ -234,10 +234,10 @@ controlled before/after experiment.
 
 <picture>
   <source media="(max-width: 767px)" srcset="../assets/fig-apple-performance-narrow.svg">
-  <img src="../assets/fig-apple-performance.svg" width="100%" alt="Paired horizontal bars compare compiled MLX in gray with compiled Metal in blue on Apple M5 Max, with direct latency labels in microseconds. Three panels show localization at selection widths 128, 2048, and 4096 by batch size on one scale; a fourth shows the complete selected-attention consumer on a separate scale.">
+  <img src="../assets/fig-apple-performance.svg" width="100%" alt="Dot plot of median latency per call on Apple M5 Max. For nine localization geometries and two selected-attention cases, a hollow gray dot marks compiled MLX and a filled blue dot marks the compiled Metal kernel, joined by a thin line; a right-hand column lists the speedup, from 1.10 to 1.21 times for localization and 1.12 times for selected attention.">
 </picture>
 
-**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Paired bars compare compiled MLX (gray) with compiled Metal (blue) for each geometry, with latency labeled in microseconds. (a–c) Localization at three selection widths, by batch size, on one shared scale. (d) Complete selected attention with two logical shards, fixed caches, and 64-dimensional keys and values, on a separate scale. All bars start at zero and show medians of three process-session medians, including dispatch, allocation, execution, and synchronization. Warmup and initial compilation are excluded.
+**Compiled MLX and Metal latency on Apple M5 Max.** Each row joins compiled compositional MLX (hollow) and the compiled custom Metal kernel (filled) for one geometry, on one zero-based scale; the right-hand column gives their ratio. The first nine rows are localization by selection width and batch size. The last two are the complete selected-attention consumer with two logical shards, fixed caches, and 64-dimensional keys and values. Each value is the median of three process-session medians and includes dispatch, allocation, execution, and synchronization; warmup and initial compilation are excluded.
 
 All latencies below are microseconds per evaluated functional call. Each value
 is the median of three session medians. Speedup divides compiled MLX latency by
@@ -256,6 +256,10 @@ compiled Metal latency; these are descriptive ratios, not confidence bounds.
 | 4096 | 32 | 202.97 | 167.92 | 1.21× | 332.63 | 169.56 |
 
 The compiled comparison spans **1.10–1.21×**, while eager spans **1.76–1.96×**.
+Session 3 ran slower in every arm for six of the nine geometries: compiled MLX
+at width 2048 and batch 1 took 309.7 µs there, against 188.0 µs and 178.7 µs in
+sessions 1 and 2. Taking the median of session medians keeps one perturbed
+process from setting the result; the raw records keep every session's values.
 All four arms passed the original fixture's oracle check before timing. Each
 schema-2 session also checked both compiled arms against the oracle after
 independently changing request IDs, page tables, and token selections. These

@@ -29,6 +29,18 @@ full conformance run on every architecture listed elsewhere in the project.
 
 ## Reading performance correctly
 
+<picture>
+  <source media="(max-width: 767px)" srcset="../assets/fig-cost-narrow.svg">
+  <img src="../assets/fig-cost.svg" width="100%" alt="Archived two-H100 measurements: converter-segment latency bars for rowwise, atomic, and hierarchical at 32K, and a forest plot of complete-step ratios to atomic with 98.75% intervals and a column of estimates; only the 64K rowwise interval lies beyond the 1.01 margin.">
+</picture>
+
+**Historical two-H100 measurements.** (a) Pooled median latency for the complete
+48-layer converter segment at 32K context. (b) Complete-step latency ratios
+relative to atomic, with 98.75% intervals. The dashed line marks the
+prespecified 1.01 margin, and shading marks the region beyond it; only the 64K
+rowwise interval lies entirely in that region. Open markers denote the
+hierarchical arm, and the right-hand column repeats each estimate and interval.
+
 The H100 segment artifact reports **microseconds per complete 48-layer segment**,
 not per localization call. At 32K, rowwise is 119.996 µs versus atomic 194.393 µs;
 `(1 - 119.996 / 194.393) * 100` gives approximately 38.3% lower segment latency.

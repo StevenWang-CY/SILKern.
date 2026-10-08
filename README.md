@@ -1,18 +1,14 @@
 <div align="center">
 
-<img src="assets/logo-text.svg" width="420" alt="SILKern — Sparse-Index Localization Kernels">
+<img src="assets/logo-text.svg" width="400" alt="SILKern — sparse-index localization kernels">
 
-**Order, woven in.**
-
-Deterministic sparse-index localization for **Apple silicon / MLX** and **CUDA / Triton**.
+Deterministic sparse-index localization for context-parallel attention<br>
+on Apple silicon (MLX and Metal) and NVIDIA GPUs (Triton).
 
 [![CI](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml/badge.svg)](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml)
-[![Release 2.0.0](https://img.shields.io/badge/Release-2.0.0-355f86.svg)](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0)
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-525252.svg)](pyproject.toml)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-292824.svg)](LICENSE)
-[![Evidence](https://img.shields.io/badge/Evidence-checksummed-525252.svg)](evidence/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-[Get started](#get-started) · [Apple / MLX](docs/apple-mlx.md) · [Use in attention](#from-slots-to-attention) · [Performance](#performance-with-context) · [Contract](docs/contract.md)
+[Installation](#installation) · [Quickstart](#quickstart) · [Performance](#performance) · [Contract](docs/contract.md) · [Evidence](docs/evidence.md)
 
 </div>
 
@@ -21,71 +17,74 @@ Deterministic sparse-index localization for **Apple silicon / MLX** and **CUDA /
   <img src="assets/fig-platforms.svg" width="100%" alt="Three panels follow one selection row on rank 0: six global positions are filtered to three owned tokens and deinterleaved; their logical pages pass through the page table to physical KV blocks 11, 2, and 7, giving slots 708, 129, and 451; stable prefix compaction then writes 708, 129, 451 followed by padding, with count three.">
 </picture>
 
-**Figure 1. From global positions to stable cache addresses.** One selection row on rank 0 of two ranks, with interleave 1, page size 64, and request 0. (a) The owner `o` of each selected global position `t`: rank 0 keeps tokens 8, 130, and 262 and deinterleaves them to local positions 4, 65, and 131. (b) Each local position lies in a logical page at an offset; the request's page table sends pages 0, 1, and 2 to physical KV blocks 11, 2, and 7, giving slots 708, 129, and 451. Crossing lines show that physical order need not follow logical order. (c) Inclusive validity prefixes minus one give destinations 0, 1, and 2, so the output keeps selector order, pads with −1, and reports count 3. Color follows each surviving token. K/V gathering remains a consumer operation.
+<p align="center"><em>The quickstart row on rank 0 of two: owned tokens become physical KV-cache slots, in selector order.</em></p>
 
-**SILKern 2.0.0 · October 6, 2026.** Native Apple/MLX localization,
-backend-specific verification, stronger validation, and responsive technical
-figures. [Download the release](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0)
-or read the [changelog](CHANGELOG.md).
+## News
 
-## A small kernel at an important boundary
+- **2026-10-06** · [Version 2.0.0](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0)
+  runs natively on Apple silicon: `localize_mlx` takes MLX arrays and executes
+  a custom Metal kernel, and a complete selected-attention example shows how to
+  consume the result. Validation is stricter throughout; see the [changelog](CHANGELOG.md).
+- **2026-08-04** · First public release, with the Python oracle, the rowwise
+  and hierarchical Triton kernels, a fixed-buffer vLLM adapter, and the NVIDIA
+  experiments behind them.
 
-Sparse attention selects global token positions. A rank in context-parallel
-attention needs physical slots in its own paged KV cache. SILKern performs that
-translation, filters ownership, and preserves the selector's order.
+## Overview
 
-An atomic-reservation converter can return the same values and counts in a
-different order on each replay. That order can affect downstream floating-point
-reductions. SILKern assigns each survivor a destination from deterministic
-prefix sums, making this boundary exact and repeatable.
+Sparse attention chooses, for each query, which earlier tokens to read, and it
+names them by global position. Under decode context parallelism the KV cache is
+split across ranks and stored in pages. Before attention can gather anything,
+each selected position must be filtered to the rank that owns it and translated
+through that rank's page table into a physical slot. SILKern performs this step.
 
-Use it to develop sparse-attention pipelines on a Mac, compare an implementation
-against a readable CPU oracle, or replace a qualified CUDA converter with a
-fixed-buffer implementation. It does not select tokens, manage a KV cache, run
-attention, or provide a model-serving runtime.
+The step is small, but its output order is observable. A converter that
+compacts survivors with atomic reservations can return the same entries in a
+different order on every replay, and downstream floating-point reductions see
+that order. SILKern assigns each survivor its destination from a prefix sum, so
+repeated calls return identical values, counts, and order on every backend.
 
-| One contract | Native execution | Inspectable evidence |
-|---|---|---|
-| Exact values, counts, and input-relative order | MLX arrays with a custom Metal path; caller-owned CUDA buffers | Local verification tools, reproducible benchmarks, checksummed historical results |
+- **An exact contract.** A dependency-free Python oracle defines the result, and
+  every accelerated path is tested against it for equality. See the
+  [contract](docs/contract.md).
+- **Apple silicon.** `localize_mlx` runs a custom Metal kernel on a GPU stream
+  and composed MLX operations on a CPU stream.
+- **CUDA.** Two Triton kernels write into caller-owned buffers without
+  allocating, so the same call can be captured in a CUDA graph. A vLLM adapter
+  binds those buffers once.
+- **Evidence.** Each result below links to its raw, checksummed record and to
+  the command that produced it.
 
-## Get started
+## Installation
 
-Install the versioned wheel from the
-[2.0.0 release](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0).
-The base package has no runtime dependencies:
+The base package is pure Python and has no dependencies. Install the 2.0.0
+wheel from its GitHub release:
 
 ```bash
 python -m pip install "silkern @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.0.0/silkern-2.0.0-py3-none-any.whl"
 ```
 
-Use `silkern[mlx]` in place of `silkern` in that command for Apple silicon,
-or `silkern[gpu]` for a compatible CUDA environment. Release downloads include
-SHA-256 checksums and validation reports.
+For an accelerator backend, write `silkern[mlx]` or `silkern[gpu]` in place of
+`silkern`:
 
-For examples, benchmarks, and editable development, clone the release source;
-the trailing dot in `SILKern.` is part of its name. Benchmarks run from the
-checkout and are deliberately excluded from the installed library.
+| Platform | Extra | Entry points |
+|---|---|---|
+| Any Python 3.11+ | none | `localize_reference` |
+| Apple silicon with MLX | `mlx` | `localize_mlx` |
+| NVIDIA GPU with PyTorch and Triton | `gpu` | `localize_rowwise`, `localize_hierarchical` |
+
+Examples, benchmarks, and tests run from a clone. The trailing dot in
+`SILKern.` is part of the repository name.
 
 ```bash
-git clone --branch v2.0.0 --depth 1 https://github.com/StevenWang-CY/SILKern. silkern
+git clone https://github.com/StevenWang-CY/SILKern. silkern
 cd silkern
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
+python -m pip install -e ".[dev]"
 ```
 
-Choose additional dependencies for your environment:
+## Quickstart
 
-| Environment | Install | API |
-|---|---|---|
-| Python 3.11+, no accelerator required | `python -m pip install -e .` | `silkern.localize_reference` |
-| Apple silicon, supported macOS and MLX | `python -m pip install -e ".[mlx]"` | `silkern.localize_mlx` |
-| Compatible NVIDIA GPU, PyTorch and Triton | `python -m pip install -e ".[gpu]"` | `silkern.localize_rowwise`, `silkern.localize_hierarchical` |
-| Development tools | `python -m pip install -e ".[dev]"` | pytest, Ruff, packaging checks |
-
-### Learn the contract in one row
-
-This example is complete and runs with the base install:
+One selection row on rank 0 of two ranks, with 64-token pages. This needs only
+the base install:
 
 ```python
 from silkern import localize_reference
@@ -102,54 +101,37 @@ assert out == [[708, 129, 451, -1, -1, -1]]
 assert counts == [3]
 ```
 
-<picture>
-  <source media="(max-width: 767px)" srcset="assets/fig-contract-narrow.svg">
-  <img src="assets/fig-contract.svg" width="100%" alt="A table follows six input columns through owner, validity, local position, page and offset, physical page, and physical slot: columns 0, 2, and 5 survive and map to slots 708, 129, and 451. Beside it are the localization equations and the compacted and column-preserving output layouts, both with count three.">
-</picture>
+Rank 0 owns tokens 8, 130, and 262. Token 130, for example, is the rank's local
+position 65: offset 1 in logical page 1, which the table maps to physical block
+2, so its slot is 2 × 64 + 1 = 129. Survivors keep their order and the rest of
+the row is padding. Two cases surprise people. With `dcp_size=1`, values stay in
+their original columns. A negative page-table entry is a valid, counted
+mapping, so find valid entries from `counts` and the layout, never from
+`out >= 0`. The [contract](docs/contract.md) specifies every case.
 
-**Figure 2. A worked localization row.** (a) Shaded columns 0, 2, and 5 survive ownership filtering and become physical slots 708, 129, and 451; dashes mark entries with no mapping. The example uses rank 0, two ranks (`D = 2`), interleave `I = 1`, page size `S = 64`, and request-0 page table `[11, 2, 7, 5]`. (b) The equations apply to nonnegative tokens, where `q` is the row's request; the table is read only for an owned, in-range mapping. Both layouts have count 3, but only front compaction has a valid three-element prefix.
-
-**Two deliberate edge cases:** `dcp_size=1` leaves values in their original
-columns, and negative in-range page-table entries are used verbatim and counted.
-Do not infer validity from `out >= 0`; use the documented count and layout.
-See the [full contract](docs/contract.md).
-
-### Apple silicon: MLX arrays, Metal execution
+### Apple silicon
 
 ```python
 import mlx.core as mx
 from silkern import localize_mlx
 
-req_ids = mx.array([0], dtype=mx.int32)
-block_table = mx.array([[11, 2, 7, 5]], dtype=mx.int32)
-token_indices = mx.array([[8, 5, 130, 7, -1, 262]], dtype=mx.int32)
-
 out, counts = localize_mlx(
-    req_ids, block_table, token_indices,
+    mx.array([0], dtype=mx.int32),
+    mx.array([[11, 2, 7, 5]], dtype=mx.int32),
+    mx.array([[8, 5, 130, 7, -1, 262]], dtype=mx.int32),
     block_size=64, dcp_size=2, dcp_rank=0,
-    backend="auto",
 )
-mx.eval(out, counts)  # MLX evaluates lazily; realize before host inspection.
+mx.eval(out, counts)  # MLX is lazy; evaluate before reading on the host
 assert out.tolist() == [[708, 129, 451, -1, -1, -1]]
 assert counts.tolist() == [3]
 ```
 
-`auto` selects the custom Metal path on a Metal GPU and the compositional MLX
-path for a CPU stream. Select `backend="metal"` or `backend="mlx"` explicitly
-when comparing implementations. MLX returns new arrays and may allocate
-intermediates; CUDA's fixed-address and allocation-free promises apply to the
-CUDA APIs only. See [Apple setup, streams, and benchmarking](docs/apple-mlx.md).
+The default `backend="auto"` picks the Metal kernel on a GPU stream and
+composed MLX operations on a CPU stream; pass `backend="metal"` or
+`backend="mlx"` to choose. Each call returns new arrays. The
+[Apple guide](docs/apple-mlx.md) covers streams, threads, and `mx.compile`.
 
-For a complete consumer example, run `python -m examples.mlx_sparse_gather`.
-It localizes into two logical rank caches on one Apple device, safely gathers
-valid entries, and verifies the combined result. See the
-[example source](examples/mlx_sparse_gather.py).
-For a complete selected-attention consumer, run
-`python -m examples.mlx_sparse_attention --backend mlx --device cpu`.
-The [consumer guide](docs/consuming-indices.md) explains single-rank holes,
-padding masks, empty selections, and correct normalization across logical shards.
-
-### CUDA: bind buffers before capture
+### CUDA
 
 ```python
 import torch
@@ -161,189 +143,134 @@ token_indices = torch.tensor([[8, 5, 130, 7, -1, 262]], dtype=torch.int32, devic
 out = torch.empty_like(token_indices)
 counts = torch.empty(1, dtype=torch.int32, device="cuda")
 
-# Reuse these input/output buffers for subsequent calls and graph capture.
 localize_rowwise(
     req_ids, block_table, token_indices, out, counts,
     block_size=64, dcp_size=2, dcp_rank=0,
 )
 ```
 
-`localize_hierarchical` uses deterministic tile scans and caller-owned workspace.
-[Dispatch guidance](docs/dispatch.md) explains the tradeoff.
-[The vLLM adapter](docs/integration-vllm.md) binds outputs once and rejects changed
-geometry or tensor bindings.
-Order buffer reuse after consumer reads; concurrent streams need separate
-writable storage. Graph replay bypasses Python binding checks, so keep captured
-storage alive and unchanged for the graph's lifetime. See the
-[lifetime contract](docs/integration-vllm.md#buffer-lifetime-and-concurrent-consumers).
+The kernel writes into the buffers you pass and never allocates, so this call
+can be captured in a CUDA graph and replayed. `localize_hierarchical` adds a
+caller-owned workspace for tile-parallel scans; the
+[dispatch guide](docs/dispatch.md) compares the two. The
+[vLLM adapter](docs/integration-vllm.md) binds buffers once and documents how to
+order their reuse across streams and graph replays.
 
-## Performance, with context
+## Performance
 
-### Apple / MLX
+### Apple silicon
 
-On an **Apple M5 Max with MLX 0.32.3**, the compiled custom Metal path achieved
-**1.10–1.21× localization speedup over compiled compositional MLX** across all
-nine tested batch/width combinations. The eager comparison was 1.76–1.96×.
-Both baselines are retained; the headline compares compiled with compiled.
+We timed both MLX backends inside `mx.compile` on an Apple M5 Max with
+MLX 0.32.3. A timed call includes Python dispatch, output allocation,
+execution, and synchronization; compilation and warmup are excluded. Each
+value is the median over three fresh processes, and each process ran 12
+rotating-order blocks of 50 calls per arm.
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-apple-performance-narrow.svg">
-  <img src="assets/fig-apple-performance.svg" width="100%" alt="Paired horizontal bars compare compiled MLX in gray with compiled Metal in blue on Apple M5 Max, with direct latency labels in microseconds. Three panels show localization at selection widths 128, 2048, and 4096 by batch size on one scale; a fourth shows the complete selected-attention consumer on a separate scale.">
+  <img src="assets/fig-apple-performance.svg" width="100%" alt="Dot plot of median latency per call on Apple M5 Max. For nine localization geometries and two selected-attention cases, a hollow gray dot marks compiled MLX and a filled blue dot marks the compiled Metal kernel, joined by a thin line; a right-hand column lists the speedup, from 1.10 to 1.21 times for localization and 1.12 times for selected attention.">
 </picture>
 
-**Figure 3. Compiled MLX and Metal latency on Apple M5 Max.** Paired bars compare compiled MLX (gray) with compiled Metal (blue) for each geometry, with latency labeled in microseconds. (a–c) Localization at three selection widths, by batch size, on one shared scale. (d) Complete selected attention with two logical shards, fixed caches, and 64-dimensional keys and values, on a separate scale. All bars start at zero and show medians of three process-session medians, including dispatch, allocation, execution, and synchronization. Warmup and initial compilation are excluded.
+The Metal kernel is **1.10–1.21× faster** than compiled MLX at every batch and
+width we tested, and latency changes little across either. The advantage
+carries into the complete selected-attention example, at 1.12×. The
+[Apple guide](docs/apple-mlx.md#measurement-and-reproduction) lists the eager
+results and the exact session commands:
 
-For batch 8, width 2048, compiled Metal measured **164.20 µs** versus **185.60 µs**
-for compiled MLX. These are synchronized functional calls including Python
-dispatch, output allocation, execution, and evaluation; initial compilation is
-excluded. Reported values are medians of three process-session medians, with
-12 rotating-order blocks × 50 calls per arm per session. They are descriptive
-measurements, without confidence intervals.
+```bash
+python -m bench.bench_mlx --compiled
+python -m bench.bench_mlx_attention
+```
 
-The current audit conformance record passed **48/48 cells** across both
-implementations, with 16 repeated evaluations per cell.
-See the [raw sessions and summary](evidence/09-apple-mlx-consumer/),
-[conformance report](evidence/09-apple-mlx-consumer/conformance.json), and
-[full geometry table and reproduction](docs/apple-mlx.md#measurement-and-reproduction).
-The localization measurements do not establish an MLX-LM integration,
-multi-device decode, or model-level tokens per second.
+### CUDA (archived)
 
-The complete [selected-attention consumer](docs/consuming-indices.md) also has
-a measured result. Both paths compile localization, safe K/V gathers, masked
-softmax, and recombination of two logical shards on the same device:
-
-| Batch × width | Compiled MLX consumer | Compiled Metal consumer | Ratio |
-|---:|---:|---:|---:|
-| 1 × 128 | 294.82 µs | 263.16 µs | 1.12× |
-| 8 × 2048 | 366.67 µs | 326.90 µs | 1.12× |
-
-These are float32 single-head consumers with 64-dimensional keys and values,
-fixed caches, and one outer evaluation per call. Ratios again divide medians of
-three session medians. The [raw consumer records](evidence/09-apple-mlx-consumer/)
-include independent attention-reference and changing-input checks; this bounded
-consumer measurement does not establish whole-model or serving throughput.
-
-### Historical CUDA results
-
-The following measurements were already present in the repository. **No NVIDIA
-GPU experiments were run for the Apple support and hardening update.** They
-describe their recorded implementation and stack, not a fresh qualification of
-all subsequent changes.
+These measurements come from an earlier revision on two NVIDIA H100 GPUs,
+running complete 48-layer decode steps on a reference executor. We did not
+repeat NVIDIA experiments for 2.0.0.
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-cost-narrow.svg">
   <img src="assets/fig-cost.svg" width="100%" alt="Archived two-H100 measurements: converter-segment latency bars for rowwise, atomic, and hierarchical at 32K, and a forest plot of complete-step ratios to atomic with 98.75% intervals and a column of estimates; only the 64K rowwise interval lies beyond the 1.01 margin.">
 </picture>
 
-**Figure 4. Historical two-H100 measurements.** (a) Pooled median latency for the complete 48-layer converter segment at 32K context. (b) Complete-step latency ratios relative to atomic, with 98.75% intervals. The dashed line marks the prespecified 1.01 margin and shading the region beyond it; the 64K rowwise interval lies entirely in that region. Open markers denote the hierarchical arm, and the right-hand column repeats each estimate and interval. These archived results are not a new NVIDIA qualification.
-
-| Archived measurement | Result | Interpretation |
-|---|---|---|
-| 32K converter segment, two H100s, complete 48-layer segment | Rowwise **119.996 µs**; atomic **194.393 µs**; hierarchical **239.727 µs** | Rowwise segment time is about **38.3% lower**, derived from these medians |
-| 32K complete decode step, rowwise / atomic | **1.000031** [0.997373, 1.002696] | Meets the study's prespecified 1.01 non-inferiority margin; no demonstrated end-to-end speedup |
-| 64K complete decode step, rowwise / atomic | **1.014006** [1.010326, 1.017700] | About **1.4% slower**; a measured regression |
-| 64K complete decode step, hierarchical / atomic | **1.002178** [0.995750, 1.008648] | Meets that study's margin |
-
-Complete-step intervals are 98.75% intervals across five sessions. The executor
-uses a dense-weighted MoE implementation and is not a tuned serving system;
-absolute latency and relative overhead need remeasurement in your deployment.
-Source: [segment medians](evidence/05-full-decode-canary/segments.json) and
-[complete-step analysis](evidence/05-full-decode-canary/analysis.json).
-
-**Context length is not a universal dispatch rule.** The 32K/64K contrast comes
-from one recorded workload. Benchmark both CUDA variants in your consumer;
-Apple backend selection is independent of this result.
-
-## From slots to attention
-
-Localized addresses need a layout-aware mask before gathering K/V and a shared
-normalization across logical shards. The complete consumer makes that boundary
-explicit:
-
-<picture>
-  <source media="(max-width: 767px)" srcset="assets/fig-consumer-narrow.svg">
-  <img src="assets/fig-consumer.svg" width="100%" alt="Three panels show compact versus column-preserving slots and validity masks, masked K/V gathering from a paged cache with a placeholder row, and attention normalization shared across logical shards.">
-</picture>
-
-**Figure 5. Consuming localized addresses.** (a) Shaded entries are valid; equal counts can describe different layouts. (b) The dashed path carries the mask to both address selection and post-gather selection. The cache shows placeholder row 0 and selected rows 12 and 14 of K and V; each row glyph is a schematic feature vector. The placeholder may contain NaN. (c) The maximum and both sums cover every logical shard `r` and selected position `j`. An empty selection uses `m = 0` and returns zero. This one-device consumer requires populated nonnegative pages, in-bounds slots, and finite, representable arithmetic.
-
-See the [consumer guide](docs/consuming-indices.md) and the
-[runnable selected-attention example](examples/mlx_sparse_attention.py).
-
-## Verification and compatibility
-
-| Surface | Evidence and limits |
-|---|---|
-| Python oracle | Dependency-free contract and validation tests |
-| Apple M5 Max / MLX 0.32.3 | 48/48 conformance cells; three-session localization and complete selected-attention measurements; [details](docs/apple-mlx.md) |
-| B200 / SM100, historical | 131/131 conformance cells, guarded buffers, 10,000 graph replays per arm; [analysis](evidence/01-oracle-conformance-b200/analysis.json) |
-| H100 / SM90, historical | Two-device complete-decode canary and segment measurements; [evidence](evidence/05-full-decode-canary/) |
-| SM120, historical | Trained layer-0 semantics and mechanism decomposition; [evidence](evidence/02-trained-layer0-semantics/), [decomposition](evidence/04-mechanism-decomposition/) |
-| vLLM adapter | Pinned upstream signature and narrow geometry envelope; CUDA only; [integration guide](docs/integration-vllm.md) |
-
-SILKern is a focused library with explicit validation and evidence boundaries.
-It does not certify end-to-end determinism or production serving performance.
-Device arrays must use signed `int32`, and physical-slot arithmetic must fit
-that range. Accelerator row width is capped at 4096. CUDA request IDs must be
-valid upstream; MLX masks invalid request rows safely. Read the
-[contract](docs/contract.md) before integrating.
-
-Run the checks for the platform you intend to use:
+At 32K context the rowwise kernel took **38% less time** than atomic
+reservation over the converter segment, and the complete decode step stayed
+within the study's prespecified 1% non-inferiority margin. At 64K, rowwise was
+**1.4% slower**, a measured regression, while hierarchical stayed within the
+margin. Intervals are 98.75% intervals across five sessions. The
+[evidence guide](docs/evidence.md#reading-performance-correctly) explains how
+to read these records. They describe one workload, so benchmark both kernels in
+your own model before choosing:
 
 ```bash
-python -m pip install -e ".[dev]"
-python -m pytest -q -m "not gpu and not mlx"  # base suite; no GPU experiments
-python -m ruff check .
-```
-
-On Apple silicon with the MLX extra:
-
-```bash
-python -m silkern.mlx_verify --require-device
-python -m bench.bench_mlx --compiled
-```
-
-For a separately authorized CUDA qualification on your own hardware:
-
-```bash
-python -m silkern --require-device
 python -m bench.bench_converter --with-atomic
 ```
 
-## Explore the project
+## Using the output
 
-| Start here | What you will find |
-|---|---|
-| [Architecture](docs/architecture.md) | Dependency boundaries, execution paths, ownership, and integration design |
-| [Contract](docs/contract.md) | Exact mapping rules, integer requirements, and edge cases |
-| [Consuming indices](docs/consuming-indices.md) | Safe cache gathers, layout masks, and a complete selected-attention example |
-| [Apple / MLX](docs/apple-mlx.md) | Installation, API, streams, conformance, and honest measurements |
-| [Dispatch](docs/dispatch.md) | Backend choice and CUDA algorithm tradeoffs |
-| [Determinism](docs/determinism.md) | Why atomic reservation changes order and what stable ordering guarantees |
-| [Evidence](docs/evidence.md) | Provenance, unfavorable results, and untested claims |
-| [vLLM integration](docs/integration-vllm.md) | Fixed-buffer adapter, upstream pinning, and deployment checks |
-| [Release validation](docs/release-validation.md) | Audit findings, changes, completed checks, and outstanding platform qualification |
-| [Contributing](CONTRIBUTING.md) | Development workflow and evidence standards |
+Localized slots are the input to attention. Before gathering K/V, mask padding
+according to the layout: a prefix of length `counts` after compaction, and per
+column otherwise. Gather padded entries from a safe address, then mask the
+gathered values as well, because an unused slot may hold NaN and a zero weight
+times NaN is still NaN. Across logical shards, normalize the softmax over the
+whole selection. The [consumer guide](docs/consuming-indices.md) works through
+these rules, and its runnable example checks itself against unsharded
+attention:
 
-## License and citation
+```bash
+python -m examples.mlx_sparse_attention --backend mlx --device cpu
+```
 
-Apache-2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE), and
-[CITATION.cff](CITATION.cff). Author metadata follows the accompanying manuscript's
-review policy. Please cite the software release and identify the revision used
-for experiments.
+## Verification
 
-<details>
-<summary>Brand assets and citation</summary>
+The Python oracle is the reference for every backend. Our tests check it
+against an independent restatement of the contract and against metamorphic
+properties, fuzz the MLX and Metal paths against it, and execute the Python
+examples in this README and the guides wherever their backend is available.
 
-The [wordmark](assets/logo-text.svg), [icon](assets/logo.svg),
-[K mark](assets/logo-k.svg), and [social banner](assets/banner.svg) are
-self-contained SVGs. Technical figures embed subsets of the STIX Two typefaces,
-adapt to light and dark themes, keep transparent backgrounds, and carry
-accessible descriptions. See the [figure sources and style](assets/README.md). Performance figures are
-regenerated from the checked-in evidence with
-`python tools/render_figures.py`; `python tools/render_diagrams.py` regenerates
-the explanatory diagrams and checks their worked outputs against the Python
-oracle. Install the editable checkout with `pip install -e ".[docs]"` first.
+| Platform | Recorded result | Record |
+|---|---|---|
+| Apple M5 Max, MLX 0.32.3 | 48/48 conformance cells, 16 repeated evaluations each | [09](evidence/09-apple-mlx-consumer/) |
+| NVIDIA B200 (archived) | 131/131 conformance cells; 10,000 graph replays per arm | [01](evidence/01-oracle-conformance-b200/analysis.json) |
+| 2 × NVIDIA H100 (archived) | Complete-decode canary and converter timing | [05](evidence/05-full-decode-canary/) |
+| NVIDIA SM120 (archived) | Trained layer-0 semantics and mechanism decomposition | [02](evidence/02-trained-layer0-semantics/), [04](evidence/04-mechanism-decomposition/) |
+
+```bash
+python -m pytest -q -m "not gpu and not mlx"   # any machine
+python -m silkern.mlx_verify --require-device  # Apple silicon: Metal conformance
+python -m silkern --require-device             # NVIDIA: CUDA conformance
+cd evidence && shasum -a 256 -c SHA256SUMS     # integrity of the records
+```
+
+## Scope and limits
+
+- SILKern converts indices. It does not select tokens, manage the KV cache, or
+  compute attention; the attention example is a single-device reference
+  consumer.
+- Device arrays are signed `int32`, accelerator rows hold at most 4096 entries,
+  and physical-slot arithmetic must fit in `int32`.
+- The CUDA kernels require valid request IDs and page entries that lie inside
+  your cache. The MLX backend masks invalid request rows to empty.
+- The NVIDIA results predate 2.0.0. Requalify on your own hardware with
+  `python -m silkern --require-device` before deploying.
+
+## Documentation
+
+- [Contract](docs/contract.md): exact mapping rules, integer bounds, and edge cases
+- [Consuming indices](docs/consuming-indices.md): layout masks, safe gathers, and selected attention
+- [Apple silicon and MLX](docs/apple-mlx.md): setup, streams, conformance, and measurements
+- [Architecture](docs/architecture.md): layers, execution paths, and memory ownership
+- [Choosing a backend](docs/dispatch.md): Apple and CUDA paths and their tradeoffs
+- [Determinism](docs/determinism.md): why atomic reservation reorders output
+- [vLLM integration](docs/integration-vllm.md): the fixed-buffer adapter and its lifetime rules
+- [Evidence](docs/evidence.md) and [release validation](docs/release-validation.md): provenance and claim boundaries
+- [Contributing](CONTRIBUTING.md): development workflow, evidence standards, and figure regeneration
+
+## Citation
+
+SILKern is released under the Apache-2.0 license ([LICENSE](LICENSE),
+[NOTICE](NOTICE)). If you use it in your work, please cite the release and name
+the revision you ran:
 
 ```bibtex
 @software{silkern2026,
@@ -355,5 +282,3 @@ oracle. Install the editable checkout with `pip install -e ".[docs]"` first.
   url     = {https://github.com/StevenWang-CY/SILKern.}
 }
 ```
-
-</details>

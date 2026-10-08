@@ -126,3 +126,22 @@ else:
         check=False, capture_output=True, text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_source_distribution_lists_every_tracked_top_level_entry() -> None:
+    """The explicit sdist list keeps local tool folders out; it must not drop project files."""
+    try:
+        listed = subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, check=True, capture_output=True, text=True
+        ).stdout.splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        pytest.skip("not a git checkout")
+    tracked = {path.split("/")[0] for path in listed}
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    included = {
+        entry.strip("/") for entry in pyproject["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    }
+    added_by_hatch = {"pyproject.toml", ".gitignore", *pyproject["project"]["license-files"]}
+    repository_only = {".github"}
+    assert tracked - included - added_by_hatch - repository_only == set()
+    assert included <= tracked, included - tracked

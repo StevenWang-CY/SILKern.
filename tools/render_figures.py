@@ -5,8 +5,8 @@
 
 Every plotted value and every number in the accessible descriptions is read from
 ``evidence/``; nothing here runs a benchmark. Charts share the typography and
-palette of the explanatory diagrams. Bars start at zero, and direct labels
-repeat the recorded medians to one decimal place.
+palette of the explanatory diagrams. Every latency scale starts at zero, and
+bar labels repeat the recorded medians to one decimal place.
 """
 
 from __future__ import annotations
@@ -19,7 +19,8 @@ from figure_style import NARROW, NOTE, ROOT, WIDTH, Figure
 APPLE_RECORD = Path("evidence/09-apple-mlx-consumer")
 CUDA_RECORD = Path("evidence/05-full-decode-canary")
 MLX, METAL = "mlx_compiled", "metal_compiled"
-LOCALIZATION_TOP, CONSUMER_TOP = 240, 400  # shared zero-based latency scales, µs
+LATENCY_TOP = 400  # one zero-based latency scale for every Apple row, µs
+LATENCY_TICKS = (0, 100, 200, 300, 400)
 ARMS = (
     ("row_stable", "rowwise"),
     ("pinned_atomic", "atomic"),
@@ -42,20 +43,6 @@ def _xaxis(s: Figure, x0, length, y_top, y_axis, ticks, top, *, title: str) -> N
         s.path(f"M{x:.2f} {y_top:.2f}V{y_axis:.2f}", "grid" if tick else "axis")
         s.text(x, y_axis + 20, f"{tick:g}", size=NOTE, anchor="middle", cls="faint")
     s.text(x0 + length / 2, y_axis + 42, title, size=NOTE, anchor="middle", cls="mute")
-
-
-def _paired_bars(s: Figure, x0, y0, length, top, rows) -> None:
-    """Rows of (label, comparison, highlighted) values as paired horizontal bars."""
-    for k, (label, compare, highlight) in enumerate(rows):
-        y = y0 + 44 * k
-        s.text(x0 - 10, y + 19, label, size=NOTE, anchor="end")
-        for dy, value, fill, cls, weight in (
-            (0, compare, "compare", "soft", "regular"),
-            (15, highlight, "accent tint", "accent tint", "semibold"),
-        ):
-            w = length * value / top
-            s.rect(x0, y + dy, w, 12, fill)
-            s.text(x0 + w + 6, y + dy + 10.5, f"{value:.1f}", size=NOTE, cls=cls, weight=weight)
 
 
 def _converter_bars(s: Figure, segments, x0, y0, length, top) -> None:
@@ -109,11 +96,70 @@ def _margin_rule(s: Figure, x: float, y0: float, y1: float) -> None:
     s.raw(f'<path d="M{x:.2f} {y0}V{y1}" class="axis" style="stroke-dasharray:4 3"/>')
 
 
-def _legend(s: Figure, x: float, y: float, entries) -> None:
-    for label, fill in entries:
-        s.rect(x, y - 10, 12, 12, fill)
-        box = s.text(x + 18, y, label, size=NOTE, cls="soft")
-        x = box.x1 + 22
+def _apple_rows(cells) -> list[tuple[int, int, float, float, float]]:
+    """(width, batch, compiled MLX, compiled Metal, speedup) rows, ordered by width then batch."""
+    rows = []
+    for cell in sorted(cells, key=lambda c: (c["geometry"]["width"], c["geometry"]["batch"])):
+        mlx, metal = cell["median_us"][MLX], cell["median_us"][METAL]
+        # The recorded ratio must be the ratio of the plotted medians.
+        assert abs(cell["compiled_ratio"] - mlx / metal) < 1e-9, cell["geometry"]
+        rows.append((cell["geometry"]["width"], cell["geometry"]["batch"], mlx, metal,
+                     cell["compiled_ratio"]))
+    return rows
+
+
+def _latency_dots(s: Figure, groups, *, columns, x0, length, y, pitch, ticks, radius) -> None:
+    """Dumbbell rows on one zero-based scale, with a right-hand column of speedups.
+
+    ``columns`` gives the left edge of the group headings and the right edges of
+    the width, batch and speedup columns. A hollow dot marks compiled MLX, a
+    filled dot compiled Metal; a light span joins each pair. Gridlines run only
+    through each group's rows, so no rule crosses a heading.
+    """
+    heading_x, width_x, batch_x, ratio_x = columns
+
+    def xs(value: float) -> float:
+        return x0 + length * value / LATENCY_TOP
+
+    s.text(width_x, y, "width", size=NOTE, anchor="end", cls="faint")
+    s.text(batch_x, y, "batch", size=NOTE, anchor="end", cls="faint")
+    s.text(ratio_x, y, "speedup", size=NOTE, anchor="end", cls="faint")
+    marks = []
+    for name, rows in groups:
+        y += pitch + 10
+        s.text(heading_x, y, name, size=NOTE, cls="mute", weight="italic")
+        top, previous = y + 8, None
+        for width, batch, mlx, metal, ratio in rows:
+            y += pitch + (6 if previous is not None and width != previous else 0)
+            if width != previous:
+                s.text(width_x, y, f"{width:,}", size=NOTE, anchor="end")
+            s.text(batch_x, y, str(batch), size=NOTE, anchor="end")
+            s.text(ratio_x, y, f"{ratio:.2f}×", size=NOTE, anchor="end", cls="soft")
+            marks.append((y - 6, mlx, metal))
+            previous = width
+        bottom = y + pitch / 2
+        for tick in LATENCY_TICKS:
+            s.path(f"M{xs(tick):.2f} {top:.2f}V{bottom:.2f}", "grid" if tick else "axis")
+    axis_y = y + pitch / 2 + 6
+    s.path(f"M{x0} {axis_y:.2f}H{x0 + length}", "axis")
+    for tick in ticks:
+        s.path(f"M{xs(tick):.2f} {axis_y:.2f}v5", "axis")
+        s.text(xs(tick), axis_y + 24, f"{tick:g}", size=NOTE, anchor="middle", cls="faint")
+    s.text(x0 + length / 2, axis_y + 48, "median latency per call (µs)", size=NOTE,
+           anchor="middle", cls="mute")
+    for cy, mlx, metal in marks:
+        s.path(f"M{xs(metal):.2f} {cy:.2f}H{xs(mlx):.2f}", "span")
+        s.circle(xs(mlx), cy, radius, "ring")
+        s.circle(xs(metal), cy, radius, "accent tint")
+    s.height = int(axis_y + 64)
+
+
+def _dot_legend(s: Figure, x: float, y: float, radius: float) -> None:
+    s.circle(x + radius, y - 6, radius, "accent tint")
+    box = s.text(x + 2 * radius + 8, y, "compiled Metal", size=NOTE, cls="soft")
+    x = box.x1 + 24
+    s.circle(x + radius, y - 6, radius, "ring")
+    s.text(x + 2 * radius + 8, y, "compiled MLX", size=NOTE, cls="soft")
 
 
 def render_apple() -> None:
@@ -123,65 +169,38 @@ def render_apple() -> None:
     session = json.loads((record / data["sessions"][0]).read_text())
     device = session["metadata"]["device"]["device_name"]
     mlx_version = session["metadata"]["versions"]["mlx"]
-    ratios = [cell["compiled_ratio"] for cell in data["cells"]]
-    widths = sorted({cell["geometry"]["width"] for cell in data["cells"]})
-    batches = sorted({cell["geometry"]["batch"] for cell in data["cells"]})
-    consumer_shapes = " and ".join(
-        f"batch {c['geometry']['batch']} with width {c['geometry']['width']}"
-        for c in consumer["cells"]
+    localization, attention = _apple_rows(data["cells"]), _apple_rows(consumer["cells"])
+    ratios = [row[4] for row in localization]
+    groups = (("Localization", localization), ("Selected attention", attention))
+    title = f"{device} compiled localization and selected-attention latency"
+    description = (
+        f"Dot plot of median latency per synchronized call on {device} with MLX {mlx_version}, "
+        f"on one zero-based 0 to {LATENCY_TOP} microsecond scale. Each row joins compiled "
+        "compositional MLX (hollow gray dot) and the compiled custom Metal kernel (filled blue "
+        f"dot). The first {len(localization)} rows are localization at selection widths "
+        f"{', '.join(f'{w:,}' for w in sorted({r[0] for r in localization}))} and batch sizes "
+        f"{', '.join(map(str, sorted({r[1] for r in localization})))}; Metal is "
+        f"{min(ratios):.2f} to {max(ratios):.2f} times faster. The last {len(attention)} rows are "
+        "complete selected attention with two logical shards on one device, fixed caches and "
+        "64-dimensional keys and values: "
+        + "; ".join(f"batch {b} with width {w:,}, {r:.2f} times" for w, b, _, _, r in attention)
+        + ". The right-hand column gives each speedup, compiled MLX latency divided by compiled "
+        "Metal latency. Values are medians of three process-session medians and include "
+        "dispatch, allocation, execution and synchronization; warmup and first-use compilation "
+        f"are excluded. Source: {APPLE_RECORD.as_posix()}/summary.json and consumer-summary.json."
     )
 
-    s = Figure(WIDTH, 286, f"{device} compiled localization and selected-attention latency", "")
-    s.description = (
-        "Paired horizontal bars compare compiled compositional MLX (gray) with compiled custom "
-        f"Metal (blue) on {device} with MLX {mlx_version}. Panels a, b and c are localization at "
-        f"selection widths {', '.join(map(str, widths))} for batch sizes "
-        f"{', '.join(map(str, batches))}, on one zero-based 0 to {LOCALIZATION_TOP} microsecond "
-        f"scale. Metal is {min(ratios):.2f} to {max(ratios):.2f} times faster across the "
-        f"{len(ratios)} geometries. Panel d is complete selected attention at {consumer_shapes}, "
-        f"on a separate zero-based 0 to {CONSUMER_TOP} microsecond scale, with two logical shards "
-        "on one device, fixed caches and 64-dimensional keys and values. Direct labels give each "
-        "median to one decimal place. Bars are medians of three process-session medians and "
-        "include dispatch, allocation, execution and synchronization; warmup and first-use "
-        "compilation are excluded. No confidence intervals are implied, and these are not "
-        f"full-model results. Source: {APPLE_RECORD.as_posix()}/summary.json and "
-        "consumer-summary.json."
-    )
-    _legend(s, 24, 30, (("compiled MLX", "compare"), ("compiled Metal", "accent tint")))
-    s.text(WIDTH - 24, 30, "median latency, lower is better", size=NOTE, anchor="end", cls="mute")
-    y0, length = 72, 148
-    panels = []
-    for index, width in enumerate(widths):
-        x0 = 58 + 252 * index
-        cells = sorted(
-            (c for c in data["cells"] if c["geometry"]["width"] == width),
-            key=lambda c: c["geometry"]["batch"],
-        )
-        rows = [
-            (str(c["geometry"]["batch"]), c["median_us"][MLX], c["median_us"][METAL]) for c in cells
-        ]
-        s.text(x0 - 10, y0 - 10, "batch", size=NOTE, anchor="end", cls="faint")
-        _xaxis(
-            s, x0, length, y0 - 4, y0 + 128, (0, 100, 200), LOCALIZATION_TOP, title="latency (µs)"
-        )
-        _paired_bars(s, x0, y0, length, LOCALIZATION_TOP, rows)
-        s.subcaption(x0 + 74, 274, "abc"[index], f"Width {width:,}")
-        panels.append((x0 - 50, 50, 244, 236))
-    x0 = 872
-    rows = [
-        (
-            f"{c['geometry']['batch']} × {c['geometry']['width']:,}",
-            c["median_us"][MLX],
-            c["median_us"][METAL],
-        )
-        for c in consumer["cells"]
-    ]
-    s.text(x0 - 10, y0 - 10, "batch × width", size=NOTE, anchor="end", cls="faint")
-    _xaxis(s, x0, 160, y0 - 4, y0 + 128, (0, 200, 400), CONSUMER_TOP, title="latency (µs)")
-    _paired_bars(s, x0, y0 + 22, 160, CONSUMER_TOP, rows)
-    s.subcaption(x0 + 46, 274, "d", "Selected attention")
-    panels.append((x0 - 104, 50, 342, 236))
-    s.save("fig-apple-performance.svg", panels=[(16, 12, 420, 28, 12), *panels])
+    s = Figure(WIDTH, 600, title, description)
+    _dot_legend(s, 256, 30, 5.5)
+    _latency_dots(s, groups, columns=(40, 152, 212, 1062), x0=256, length=700, y=70,
+                  pitch=26, ticks=LATENCY_TICKS, radius=5.5)
+    s.save("fig-apple-performance.svg")
+
+    n = Figure(NARROW, 600, title, description)
+    _dot_legend(n, 14, 30, 4.5)
+    _latency_dots(n, groups, columns=(14, 56, 108, 406), x0=128, length=220, y=70,
+                  pitch=24, ticks=(0, 200, 400), radius=4.5)
+    n.save("fig-apple-performance-narrow.svg")
 
 
 def render_cuda() -> None:

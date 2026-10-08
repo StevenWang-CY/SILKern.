@@ -37,7 +37,7 @@ serves as the specification beyond that accelerator storage limit.
   <img src="../assets/fig-contract.svg" width="100%" alt="A table follows six input columns through owner, validity, local position, page and offset, physical page, and physical slot: columns 0, 2, and 5 survive and map to slots 708, 129, and 451. Beside it are the localization equations and the compacted and column-preserving output layouts, both with count three.">
 </picture>
 
-**Figure 2. A worked localization row.** (a) Shaded columns 0, 2, and 5 survive ownership filtering and become physical slots 708, 129, and 451; dashes mark entries with no mapping. The example uses rank 0, two ranks (`D = 2`), interleave `I = 1`, page size `S = 64`, and request-0 page table `[11, 2, 7, 5]`. (b) The equations apply to nonnegative tokens, where `q` is the row's request; the table is read only for an owned, in-range mapping. Both layouts have count 3, but only front compaction has a valid three-element prefix.
+**A worked localization row.** (a) Shaded columns 0, 2, and 5 survive ownership filtering and become physical slots 708, 129, and 451; dashes mark entries with no mapping. The example uses rank 0, two ranks (`D = 2`), interleave `I = 1`, page size `S = 64`, and request-0 page table `[11, 2, 7, 5]`. (b) The equations apply to nonnegative tokens, where `q` is the row's request; the table is read only for an owned, in-range mapping. Both layouts have count 3, but only front compaction has a valid three-element prefix.
 
 For each input token, in its original column order:
 
