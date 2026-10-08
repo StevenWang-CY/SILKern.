@@ -52,14 +52,30 @@ do not rely on the launcher to discover an invalid physical page.
 ## Mask both addresses and values
 
 For a compacted multi-rank result, `out` has shape `(batch, width)`, `counts` has
-shape `(batch,)`, and a nonempty `cache` has shape `(physical_slots, value_dim)`:
+shape `(batch,)`, and a nonempty `cache` has shape `(physical_slots, value_dim)`.
+This example runs with the MLX extra; slot 0 deliberately holds NaN:
 
 ```python
+import mlx.core as mx
+from silkern import localize_mlx
+
+out, counts = localize_mlx(
+    mx.array([0], dtype=mx.int32),
+    mx.array([[3]], dtype=mx.int32),
+    mx.array([[4, -1, 0, 99]], dtype=mx.int32),
+    block_size=4, dcp_size=2, dcp_rank=0,
+)
+cache = mx.arange(16 * 2, dtype=mx.float32).reshape(16, 2)
+cache[0] = float("nan")  # an unused slot may hold anything
+
 columns = mx.arange(out.shape[1], dtype=mx.int32)[None, :]
 valid = columns < counts[:, None]
 safe_slots = mx.where(valid, out, 0)
 gathered = mx.take(cache, safe_slots, axis=0)
 gathered = mx.where(valid[..., None], gathered, 0)
+
+assert out.tolist() == [[14, 12, -1, -1]] and counts.tolist() == [2]
+assert not mx.isnan(gathered).any().item()
 ```
 
 Substituting address zero makes every padded gather address legal. Masking the
