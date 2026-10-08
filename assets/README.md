@@ -45,33 +45,40 @@ around relations, binary operators, and sums.
 
 ## Color and marks
 
-Ink, rules, and fills follow GitHub's own neutrals, with a separate dark
-palette selected by `prefers-color-scheme`. In diagrams, blue, orange, and green
-follow individual surviving tokens, derived from the identity's two threads;
-violet marks the fourth tile in the replay figure. Pale washes tint only the
-cells a hue owns.
+Text is set in ink, as in print. Gray is kept for quiet marks such as padding,
+indices, and tick labels, and every label clears 4.5:1 contrast in both themes.
+Neutrals follow GitHub's, with a separate dark palette selected by
+`prefers-color-scheme`. In diagrams, blue, orange, and green follow individual
+surviving tokens, derived from the identity's two threads; violet marks the
+fourth tile in the replay figure. A hue fills the cells it owns strongly enough
+to read as an object, with digits left in ink; large regions, such as table
+columns and the margin band, take a pale area tint instead.
 
 - Continuous strips with hairline dividers are tensors; dots after an open end
   mean the strip continues.
-- A light band across a strip is an operation applied to every column;
+- An operation applied to every column is a stage ruled above and below;
   connectors pass beneath it.
 - Solid connectors carry values, dashed connectors carry masks, and a junction
-  dot joins branches.
-- A shaded zone holds physical KV memory.
+  dot joins branches. Where curves cross, the one drawn later is cased in the
+  page color and passes over.
+- A dashed outline holds physical KV memory.
 - Booktabs rules, without vertical lines, organize tables.
 
 In charts, blue is the measured implementation and gray the comparison; orange
 marks the adverse result and the region beyond a margin. Every latency scale
-starts at zero. The Apple dot plot places all eleven geometries on one scale
-and lists each speedup in a column, so no value is repeated as a label; bar
-labels in the CUDA chart repeat recorded medians to one decimal place. Interval
-charts keep their recorded confidence levels and margins. Styling must never
-alter a measurement or its interpretation.
+starts at zero. The Apple dot plot places all eleven geometries on one scale,
+names its two marks in place, and lists each ratio in a column reached by a
+dotted leader, so no value is repeated as a label; bar labels in the CUDA chart
+repeat recorded medians to one decimal place. Interval charts keep their
+recorded confidence levels and margins, with labeled ticks only where the
+precision is uniform. Styling must never alter a measurement or its
+interpretation.
 
 ## Checks
 
-`Figure.save` rejects overlapping labels, connectors that cross a label, and
-text outside the canvas. Regenerating must reproduce identical bytes: run both
+`Figure.save` rejects overlapping labels, connectors that cross a label, text
+outside the canvas, a narrow-layout crop that would cut through a label, and
+text set in a gray too light to read. Regenerating must reproduce identical bytes: run both
 generators twice and confirm that `git status` shows no further change. Then
 inspect every figure at desktop and 340-pixel widths in light and dark themes,
 and confirm that captions still match panel letters, units, scales, and source

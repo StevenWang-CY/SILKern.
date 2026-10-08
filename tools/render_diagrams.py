@@ -88,7 +88,6 @@ def render_overview():
         "rank $r = 0$ of $D = 2$,  $I = 1$",
         size=NOTE,
         anchor="middle",
-        cls="mute",
     )
     s.band(x0, 110, 6 * cell, "$\\lfloor t/I \\rfloor \\bmod D$")
     s.band(x0, 188, 6 * cell, "$\\lfloor t/(DI) \\rfloor\\, I + t \\bmod I$")
@@ -105,13 +104,14 @@ def render_overview():
     offsets = {0: (4, "blue"), 1: (1, "orange"), 2: (3, "green")}
     physical = sorted(TABLE)
     tx, px = bx + 134, bx + 284  # page-table column; physical blocks
-    s.rect(px - 68, 40, 220, 238, "zone", rx=6)
-    s.text(bx + 52, 56, "logical page $b$", size=NOTE, anchor="middle", cls="mute")
-    s.text(tx + 21, 56, "$P[b]$", size=NOTE, anchor="middle", cls="mute")
-    s.text(px + 42, 56, "physical KV blocks", size=NOTE, anchor="middle", cls="mute")
+    s.rect(px - 68, 40, 234, 238, "zone")
+    s.text(bx + 52, 56, "logical page $b$", size=NOTE, anchor="middle")
+    s.text(tx + 21, 56, "$P[b]$", size=NOTE, anchor="middle")
+    s.text(px - 56, 56, "physical KV blocks", size=NOTE)
+    s.text(px + 118, 56, "slot $a$", size=NOTE)
     for b, y in enumerate(rows):
         offset, hue = offsets.get(b, (None, None))
-        s.text(bx - 8, y + 30, str(b), size=NOTE, anchor="end", cls="faint")
+        s.text(bx - 8, y + 30, str(b), size=NOTE, anchor="end", cls="mute")
         s.strip(
             bx,
             y + 12,
@@ -127,19 +127,21 @@ def render_overview():
             arrow=True,
         )
     s.column(tx, r1, TABLE, width=42, cell=pitch, hues={b: hue for b, (_, hue) in offsets.items()})
-    for b, block in enumerate(TABLE):
+    # Cased curves, drawn gray first and blue last, read as passing over one another.
+    for b in reversed(range(len(TABLE))):
         hue = offsets.get(b, (None, None))[1]
-        k = physical.index(block)
+        k = physical.index(TABLE[b])
         s.curve(
             (tx + 46, rows[b] + 24),
             (px - 34, rows[k] + 24),
             horizontal=True,
             arrow=True,
+            casing=True,
             cls=f"{hue} trace" if hue else "wire",
         )
     for k, (block, y) in enumerate(zip(physical, rows, strict=True)):
         offset, hue = offsets.get(TABLE.index(block), (None, None))
-        s.text(px - 6, y + 30, str(block), size=NOTE, anchor="end", cls="faint")
+        s.text(px - 6, y + 30, str(block), size=NOTE, anchor="end", cls="mute")
         s.strip(
             px,
             y + 12,
@@ -151,7 +153,7 @@ def render_overview():
         )
         if hue:
             s.text(
-                px + 112,
+                px + 118,
                 y + 31,
                 str(block * 64 + offset),
                 size=VALUE,
@@ -159,12 +161,10 @@ def render_overview():
                 weight="semibold",
             )
         if k < 3:
-            for dy in (-3.5, 0, 3.5):
-                s.circle(px - 15, y + 48 + dy, 0.9, "dot")
-    bc = (bx - 20 + px + 152) / 2  # visual center of panel b
-    s.text(
-        bc, 300, "$a = P[b] \\cdot S + \\delta$,  $S = 64$", size=NOTE, anchor="middle", cls="mute"
-    )
+            for dy in (-4.5, 0, 4.5):
+                s.circle(px - 15, y + 48 + dy, 1.3, "dot")
+    bc = (bx - 20 + px + 166) / 2  # visual center of panel b
+    s.text(bc, 300, "$a = P[b] \\cdot S + \\delta$,  $S = 64$", size=NOTE, anchor="middle")
 
     # (c) Stable compaction ------------------------------------------------------
     x1, cell = 848, 41
@@ -173,7 +173,7 @@ def render_overview():
         s.line([(ccols[j], r1 + 32), (ccols[j], r2)], cls=f"{hue} trace", collide=False)
     for (j, hue), dest in zip(SURVIVORS.items(), range(3), strict=True):
         s.curve((ccols[j], r2 + 26), (ccols[dest], r3 - 1), cls=f"{hue} trace", collide=False)
-    s.text(x1 + 3 * cell, 56, "valid $v = [o = r]$", size=NOTE, anchor="middle", cls="mute")
+    s.text(x1 + 3 * cell, 56, "valid $v = [o = r]$", size=NOTE, anchor="middle")
     s.band(x1, 110, 6 * cell, "$\\mathrm{cumsum}(v) - 1$")
     s.text(x1 - 12, r1 + 22, "$a$", anchor="end")
     s.text(x1 - 12, r2 + 19, "$p$", anchor="end")
@@ -183,8 +183,8 @@ def render_overview():
     s.strip(x1, r3, [708, 129, 451, MINUS, MINUS, MINUS], cell=cell, hues=COMPACT, bold=True)
     s.brace(x1 + 2, x1 + 3 * cell - 2, r3 + 38)
     s.brace(x1 + 3 * cell + 2, x1 + 6 * cell - 2, r3 + 38)
-    s.text(x1 + 1.5 * cell, r3 + 64, "count $= 3$", size=NOTE, anchor="middle", cls="mute")
-    s.text(x1 + 4.5 * cell, r3 + 64, "padding", size=NOTE, anchor="middle", cls="mute")
+    s.text(x1 + 1.5 * cell, r3 + 64, "count $= 3$", size=NOTE, anchor="middle")
+    s.text(x1 + 4.5 * cell, r3 + 64, "padding", size=NOTE, anchor="middle")
 
     for cx, letter, title in (
         (x0 + 3 * 40, "a", "Ownership"),
@@ -197,8 +197,8 @@ def render_overview():
         panels=(
             (22, 36, 306, 236, 6),
             (22, 306, 306, 30),
-            (334, 36, 462, 304),
-            (806, 36, 300, 304),
+            (334, 36, 472, 304),
+            (808, 36, 300, 304),
         ),
     )
 
@@ -223,27 +223,26 @@ def render_contract():
     rows = TRANSLATION
     bottom = top + 34 + pitch * len(rows) + 4
     for j, hue in SURVIVORS.items():
-        s.rect(x0 + j * width + 3, top + 2, width - 6, bottom - top - 4, f"{hue} wash")
+        s.rect(x0 + j * width + 3, top + 2, width - 6, bottom - top - 4, f"{hue} area")
     s.rule(left, x0 + 6 * width, top, weight=1.4)
     s.rule(left, x0 + 6 * width, top + 34, weight=HAIR_RULE)
     s.rule(left, x0 + 6 * width, bottom, weight=1.4)
-    s.text(left, top + 23, "column $j$", cls="mute")
+    s.text(left, top + 23, "column $j$")
     for j, cx in enumerate(centers):
-        s.text(cx, top + 23, str(j), anchor="middle", cls="mute")
+        s.text(cx, top + 23, str(j), anchor="middle")
     for k, (label, values) in enumerate(rows):
         y = top + 34 + pitch * (k + 0.5) + 6.5
         s.text(left, y, label)
         for j, (cx, value) in enumerate(zip(centers, values, strict=True)):
             hue = SURVIVORS.get(j)
             final = k == len(rows) - 1
-            cls = f"{hue} tint" if hue else ("faint" if value in ("—", MINUS) else "mute")
             s.text(
                 cx,
                 y,
                 value,
                 size=VALUE,
                 anchor="middle",
-                cls=cls,
+                cls="mute" if value in ("—", MINUS) else "",
                 weight="semibold" if (final and hue) else "regular",
             )
 
@@ -255,9 +254,9 @@ def render_contract():
         (262, "front compaction", COMPACTED, COMPACT, True),
         (326, "column-preserving", PRESERVED, SURVIVORS, False),
     ):
-        s.text(sx, y, label, size=NOTE, cls="mute")
+        s.text(sx, y, label, size=NOTE)
         s.strip(sx, y + 8, values, cell=cell, hues=hues, bold=bold)
-        s.text(1096, y + 29, "$n = 3$", size=NOTE, anchor="end", cls="mute")
+        s.text(1096, y + 29, "$n = 3$", size=NOTE, anchor="end")
     s.subcaption((left + x0 + 6 * width) / 2, 390, "a", "Coordinate translation")
     s.subcaption(924, 390, "b", "Equations and layouts")
     s.save("fig-contract.svg")
@@ -279,21 +278,17 @@ def render_contract_narrow():
     bottom = top + 34 + pitch * 6 + 4
     for j, hue in SURVIVORS.items():
         y = top + 34 + pitch * j + 2
-        s.rect(16, y, NARROW - 32, pitch, f"{hue} wash")
+        s.rect(16, y, NARROW - 32, pitch, f"{hue} area")
     s.rule(16, NARROW - 16, top, weight=1.4)
     s.rule(16, NARROW - 16, top + 34, weight=HAIR_RULE)
     s.rule(16, NARROW - 16, bottom, weight=1.4)
     for x, head in zip(xs, heads, strict=True):
-        s.text(x, top + 23, head, size=VALUE, anchor="middle", cls="mute")
+        s.text(x, top + 23, head, size=VALUE, anchor="middle")
     for j, values in enumerate(columns):
         hue = SURVIVORS.get(j)
         y = top + 34 + pitch * (j + 0.5) + 6.5
         for k, (x, value) in enumerate(zip(xs, values, strict=True)):
-            cls = (
-                "mute"
-                if k == 0
-                else (f"{hue} tint" if hue else ("faint" if value in ("—", MINUS) else "mute"))
-            )
+            cls = "mute" if value in ("—", MINUS) else ""
             s.text(
                 x,
                 y,
@@ -312,7 +307,7 @@ def render_contract_narrow():
         (24, "front compaction  $n = 3$", COMPACTED, COMPACT, True),
         (88, "column-preserving  $n = 3$", PRESERVED, SURVIVORS, False),
     ):
-        s.text(30, y + dy, label, size=NOTE, cls="mute")
+        s.text(30, y + dy, label, size=NOTE)
         s.strip(30, y + dy + 8, values, cell=60, hues=hues, bold=bold)
     s.subcaption(NARROW / 2, y + 160, "b", "Equations and layouts")
     s.height = int(y + 172)
@@ -356,8 +351,8 @@ def render_consumer():
             "$v_j$ = input-column validity",
         ),
     ):
-        s.text(x0, y, title, size=NOTE, cls="mute")
-        s.text(x0 + 4 * cell, y, "$n = 2$", size=NOTE, anchor="end", cls="mute")
+        s.text(x0, y, title, size=NOTE)
+        s.text(x0 + 4 * cell, y, "$n = 2$", size=NOTE, anchor="end")
         s.text(x0 - 12, y + 32, "$s$", anchor="end")
         s.text(x0 - 12, y + 70, "$v$", anchor="end")
         s.strip(
@@ -405,32 +400,32 @@ def render_consumer():
     s.strip(bx, out, ["$x_{14}$", 0, "$x_{12}$", 0], cell=bc, hues=spread, bold=True)
     # Paged cache: indexed K and V rows; row 0 is the placeholder address.
     kx = 664
-    s.rect(kx - 30, 166, 150, 144, "zone", rx=6)
-    s.text(kx + 45, 188, "paged KV cache", size=NOTE, anchor="middle", cls="mute")
-    for dx, name in ((0, "K"), (52, "V")):
-        s.text(kx + dx + 19, 212, f"${name}$", size=NOTE, anchor="middle", cls="soft")
+    s.rect(kx - 30, 166, 150, 144, "zone")
+    s.text(kx + 45, 188, "paged KV cache", size=NOTE, anchor="middle")
+    for dx, name in ((0, "K"), (60, "V")):
+        s.text(kx + dx + 24, 212, f"${name}$", size=NOTE, anchor="middle")
         for row, hue in enumerate((None, "orange", "blue")):
             y = 222 + row * 22 + (12 if row else 0)
             s.strip(
                 kx + dx,
                 y,
                 [""] * 4,
-                cell=9.5,
-                height=14,
+                cell=12,
+                height=18,
                 hues={k: hue for k in range(4)} if hue else {},
             )
     for row, slot in enumerate((0, 12, 14)):
         s.text(
             kx - 8,
-            234 + row * 22 + (12 if row else 0),
+            237 + row * 22 + (12 if row else 0),
             str(slot),
             size=NOTE,
             anchor="end",
-            cls="faint",
+            cls="mute",
         )
-    for dy in (-3, 0, 3):
-        s.circle(kx + 19, 247 + dy, 0.85, "dot")
-        s.circle(kx + 71, 247 + dy, 0.85, "dot")
+    for dy in (-4.5, 0, 4.5):
+        s.circle(kx + 24, 248 + dy, 1.3, "dot")
+        s.circle(kx + 84, 248 + dy, 1.3, "dot")
     s.line([(kx - 32, g + 12), (bx + 4 * bc + 1, g + 12)], arrow=True, collide=False)
 
     # (c) Shared normalization -----------------------------------------------
@@ -442,23 +437,25 @@ def render_consumer():
         "$z_{rj} \\gets -\\infty$ where $v_{rj} = 0$",
         size=NOTE,
         anchor="middle",
-        cls="mute",
+        cls="soft",
     )
-    s.line([(cx, 114), (cx, 140)], arrow=True)
+    s.line([(cx, 114), (cx, 140)], cls="flow", arrow=True)
     s.text(cx, 164, "$m = \\max_{r, j} z_{rj}$", anchor="middle")
-    s.line([(cx, 176), (cx, 202)], arrow=True)
+    s.line([(cx, 176), (cx, 202)], cls="flow", arrow=True)
     s.text(cx, 226, "$w_{rj} = v_{rj} \\exp(z_{rj} - m)$", anchor="middle")
-    s.line([(cx, 238), (cx, 252), (cx - 74, 252), (cx - 74, 272)], arrow=True, radius=5)
-    s.line([(cx, 252), (cx + 74, 252), (cx + 74, 272)], arrow=True, radius=5)
-    s.circle(cx, 252, 2.2, "dot")
+    s.line([(cx, 238), (cx, 252), (cx - 74, 252), (cx - 74, 272)], cls="flow", arrow=True,
+           radius=5)
+    s.line([(cx, 252), (cx + 74, 252), (cx + 74, 272)], cls="flow", arrow=True, radius=5)
+    s.circle(cx, 252, 2.2, "flow-head")
     s.text(cx - 74, 296, "$N = \\sum_{r, j} w_{rj} V_{rj}$", anchor="middle")
     s.text(cx + 74, 296, "$Z = \\sum_{r, j} w_{rj}$", anchor="middle")
-    s.line([(cx - 74, 308), (cx - 74, 322), (cx + 74, 322), (cx + 74, 308)], radius=5)
-    s.circle(cx, 322, 2.2, "dot")
-    s.line([(cx, 322), (cx, 340)], arrow=True)
+    s.line([(cx - 74, 308), (cx - 74, 322), (cx + 74, 322), (cx + 74, 308)], cls="flow",
+           radius=5)
+    s.circle(cx, 322, 2.2, "flow-head")
+    s.line([(cx, 322), (cx, 340)], cls="flow", arrow=True)
     s.text(cx - 6, 372, "$y =$", anchor="end", cls="accent tint")
     s.fraction(cx, 372, "$N$", "$Z$", cls="accent tint")
-    s.text(cx, 412, "$y = 0$ if $Z = 0$", size=NOTE, anchor="middle", cls="mute")
+    s.text(cx, 412, "$y = 0$ if $Z = 0$", size=NOTE, anchor="middle", cls="soft")
 
     for x, letter, title in (
         (x0 + 2 * cell, "a", "Layout and validity"),
@@ -471,7 +468,7 @@ def render_consumer():
         panels=(
             (0, 40, 334, 324, 6),
             (0, 420, 334, 32),
-            (346, 40, 444, 412),
+            (338, 40, 460, 412),
             (806, 40, 300, 412),
         ),
     )
@@ -508,14 +505,14 @@ def render_order():
         )
     ):
         centers = [x + (2 * k + 1) * cell for k in range(4)]
-        s.text(x + 4 * cell, 50, note, size=NOTE, anchor="middle", cls="mute")
+        s.text(x + 4 * cell, 50, note, size=NOTE, anchor="middle")
         for k, hue in enumerate(TILE_HUES):
             s.text(centers[k], 80, f"$T_{k}$", size=NOTE, anchor="middle", cls=f"{hue} tint")
-        s.text(x - 14, 110, "input", anchor="end", cls="mute")
+        s.text(x - 14, 110, "input", anchor="end")
         _tile_row(s, x, 88, [0, 1, 2, 3], cell)
         for r, order in enumerate(orders):
             y = 174 + 46 * r
-            s.text(x - 14, y + 22, f"replay {r + 1}", anchor="end", cls="mute")
+            s.text(x - 14, y + 22, f"replay {r + 1}", anchor="end")
             _tile_row(s, x, y, order, cell)
         for t in range(4):
             dest = orders[0].index(t)
@@ -523,7 +520,7 @@ def render_order():
                 (centers[t], 118), (centers[dest], 173), cls=f"{TILE_HUES[t]} trace", collide=False
             )
         s.subcaption(x + 4 * cell, 334, "ab"[panel], title)
-    s.save("fig-problem.svg", panels=((40, 36, 462, 310), (606, 36, 462, 310)))
+    s.save("fig-problem.svg", panels=((32, 36, 472, 310), (598, 36, 472, 310)))
 
 
 def main():

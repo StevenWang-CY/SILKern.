@@ -71,6 +71,14 @@ are retained. The compiled functions accept arrays as dynamic arguments; each
 session's separate input perturbation gates check that they respond to each
 input class before timing. Earlier schema-1 records lack this per-run gate.
 
+Session 3 ran slower in every arm for six of the nine geometries (width × batch
+128 × 32, 2048 × 1, 2048 × 8, 2048 × 32, 4096 × 1, and 4096 × 8). There,
+compiled MLX took 34–82% longer than in sessions 1 and 2 and compiled Metal
+7–26% longer, so session 3's ratios for those geometries reach 1.44–1.77×.
+Compiled Metal was faster in all 27 localization session pairs and all 6
+consumer session pairs. The median of session medians keeps the shifted session
+from setting either summary; every session's values stay in its record.
+
 ## Complete selected-attention measurement
 
 The actual [consumer helper](../../examples/mlx_sparse_attention.py) is compiled

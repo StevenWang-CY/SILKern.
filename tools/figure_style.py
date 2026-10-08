@@ -59,28 +59,32 @@ FACES = {
     "math": ("STIXTwoMath-Regular.ttf", MATH_FAMILY, "normal", 400),
 }
 
-# Colors follow GitHub's own neutrals so figures sit naturally in either theme.
-# Survivor hues derive from the identity's blue and orange threads.
+# Neutrals follow GitHub's so figures sit naturally in either theme; text is set
+# in ink, as in print, and gray is kept for quiet marks. Survivor hues derive
+# from the identity's blue and orange threads: a cell carries its hue in a fill
+# strong enough to read as an object ("-w"), while large regions take a pale
+# area tint ("-a").
 LIGHT = {
     "ink": "#1f2328",
     "soft": "#3d444d",
     "mute": "#656d76",
-    "faint": "#8c959f",
     "frame": "#57606a",
     "wire": "#6e7781",
     "rule": "#d0d7de",
     "grid": "#e8ebef",
-    "chip": "#eff2f5",
-    "zone": "#f6f8fa",
     "paper": "#ffffff",
     "blue": "#2563b0",
-    "blue-w": "#e5eefa",
+    "blue-w": "#c0d6f2",
+    "blue-a": "#e5eefa",
     "orange": "#bd5521",
-    "orange-w": "#fbeadf",
+    "orange-w": "#f7d2bb",
+    "orange-a": "#fbeadf",
     "green": "#257a58",
-    "green-w": "#e1f1e9",
+    "green-w": "#c9e8da",
+    "green-a": "#e1f1e9",
     "violet": "#6e52a3",
-    "violet-w": "#ede8f6",
+    "violet-w": "#d3c8ea",
+    "violet-a": "#ede8f6",
     "accent": "#2563b0",
     "compare": "#c5cbd2",
 }
@@ -88,22 +92,23 @@ DARK = {
     "ink": "#e6edf3",
     "soft": "#c9d1d9",
     "mute": "#9198a1",
-    "faint": "#6e7681",
     "frame": "#8b949e",
     "wire": "#7d8590",
     "rule": "#3d444d",
     "grid": "#262c34",
-    "chip": "#1c222a",
-    "zone": "#151b23",
     "paper": "#0d1117",
     "blue": "#6fa8ee",
-    "blue-w": "#132840",
+    "blue-w": "#203d5f",
+    "blue-a": "#131b25",
     "orange": "#ef9a63",
-    "orange-w": "#3a2417",
+    "orange-w": "#65371a",
+    "orange-a": "#271911",
     "green": "#5ec49a",
-    "green-w": "#11301f",
+    "green-w": "#2d5341",
+    "green-a": "#16221c",
     "violet": "#b49ce6",
-    "violet-w": "#29203f",
+    "violet-w": "#392a55",
+    "violet-a": "#1d1828",
     "accent": "#6fa8ee",
     "compare": "#4f5761",
 }
@@ -121,15 +126,19 @@ BASE_CSS = (
     f"text{{font-family:'{TEXT_FAMILY}','{MATH_FAMILY}',serif;fill:var(--ink);"
     "font-synthesis:none;font-kerning:normal;white-space:pre}"
     ".i{font-style:italic}.b{font-weight:600}"
-    ".mute{fill:var(--mute)}.faint{fill:var(--faint)}.soft{fill:var(--soft)}"
-    + "".join(f".{h}{{--c:var(--{h});--w:var(--{h}-w)}}" for h in HUES)
-    + ".tint{fill:var(--c)}.wash{fill:var(--w)}"
+    ".mute{fill:var(--mute)}.soft{fill:var(--soft)}"
+    + "".join(f".{h}{{--c:var(--{h});--w:var(--{h}-w);--a:var(--{h}-a)}}" for h in HUES)
+    + ".tint{fill:var(--c)}.wash{fill:var(--w)}.area{fill:var(--a)}"
     f".wire{{fill:none;stroke:var(--wire);stroke-width:{WIRE};"
     "stroke-linecap:round;stroke-linejoin:round}"
     ".head{fill:var(--wire)}"
     f".trace{{fill:none;stroke:var(--c);stroke-width:{TRACE};"
     "stroke-linecap:round;stroke-linejoin:round}"
     ".trace-head{fill:var(--c)}"
+    f".flow{{fill:none;stroke:var(--soft);stroke-width:{WIRE};"
+    "stroke-linecap:round;stroke-linejoin:round}"
+    ".flow-head{fill:var(--soft)}"
+    ".casing{fill:none;stroke:var(--paper);stroke-width:5.5;stroke-linecap:round}"
     f".mask{{fill:none;stroke:var(--wire);stroke-width:{WIRE};stroke-dasharray:3.5 3;"
     "stroke-linecap:butt}"
     f".frame{{fill:none;stroke:var(--frame);stroke-width:{THIN}}}"
@@ -137,10 +146,12 @@ BASE_CSS = (
     f".rule{{fill:none;stroke:var(--rule);stroke-width:{THIN}}}"
     f".grid{{fill:none;stroke:var(--grid);stroke-width:{THIN}}}"
     f".axis{{fill:none;stroke:var(--frame);stroke-width:{THIN}}}"
-    ".chip{fill:var(--chip)}.zone{fill:var(--zone)}.paper{fill:var(--paper)}"
+    f".zone{{fill:none;stroke:var(--wire);stroke-width:{HAIR};stroke-dasharray:4 3}}"
+    ".paper{fill:var(--paper)}"
     ".compare{fill:var(--compare)}"
     f".ring{{fill:var(--paper);stroke:var(--wire);stroke-width:{WIRE}}}"
-    ".span{fill:none;stroke:var(--compare);stroke-width:2.5;stroke-linecap:round}"
+    ".span{fill:none;stroke:var(--compare);stroke-width:2.5;stroke-linecap:butt}"
+    f".leader{{fill:none;stroke:var(--rule);stroke-width:{HAIR};stroke-dasharray:1 3}}"
     ".dot{fill:var(--wire)}"
     ".frac{fill:none;stroke:var(--ink);stroke-width:1}.frac.tint{stroke:var(--c)}"
 )
@@ -409,6 +420,8 @@ class Figure:
         collide: bool = True,
         name: str | None = None,
     ) -> Box:
+        if "faint" in cls.split():  # retired: below 4.5:1 against the page
+            raise ValueError(f"text needs ink, soft or mute, not faint: {markup!r}")
         spans = parse(str(markup), weight)
         width = measure(str(markup), size, weight)
         parts, level = [], 0.0
@@ -506,6 +519,8 @@ class Figure:
         head_cls = (
             cls.replace("trace", "trace-head")
             if trace
+            else "flow-head"
+            if "flow" in cls.split()
             else cls.replace("wire", "head").replace("mask", "head")
         )
         draw = list(points)
@@ -541,10 +556,15 @@ class Figure:
         arrow: bool = True,
         bend: float = 0.5,
         horizontal: bool = False,
+        casing: bool = False,
         collide: bool = True,
         ignore: tuple[str, ...] = (),
     ) -> None:
-        """A cubic S-curve between two ports, leaving and entering on the axis."""
+        """A cubic S-curve between two ports, leaving and entering on the axis.
+
+        ``casing`` lays a paper-colored stroke beneath the curve, so a curve drawn
+        later crosses earlier ones visibly over them.
+        """
         (x0, y0), (x1, y1) = start, end
         if horizontal:
             c1, c2 = (x0 + (x1 - x0) * bend, y0), (x1 - (x1 - x0) * bend, y1)
@@ -562,6 +582,8 @@ class Figure:
             f"M{_fmt(x0)} {_fmt(y0)}C{_fmt(c1[0])} {_fmt(c1[1])} "
             f"{_fmt(c2[0])} {_fmt(c2[1])} {_fmt(end_draw[0])} {_fmt(end_draw[1])}"
         )
+        if casing:
+            self.path(d, "casing")
         self.path(d, cls)
         if arrow:
             head = cls.replace("trace", "trace-head") if trace else cls.replace("wire", "head")
@@ -607,7 +629,7 @@ class Figure:
                 f"M{_fmt(right)} {_fmt(y)}H{_fmt(x)}V{_fmt(y + height)}H{_fmt(right)}", "frame"
             )
             for k in (-1, 0, 1):
-                self.circle(right + 7 + 5 * k, y + height / 2, 1.1, "dot")
+                self.circle(right + 7 + 4.5 * k, y + height / 2, 1.3, "dot")
         else:
             self.rect(x, y, n * cell, height, "frame")
         centers = []
@@ -615,7 +637,7 @@ class Figure:
             cx = x + (j + 0.5) * cell
             centers.append(cx)
             hue = hues.get(j)
-            cls = f"{hue} tint" if hue else ("faint" if j in quiet else "mute")
+            cls = "mute" if j in quiet else ""
             weight = "semibold" if (bold and hue) else "regular"
             self.text(
                 cx,
@@ -652,14 +674,12 @@ class Figure:
         for k, value in enumerate(values):
             cy = y + (k + 0.5) * cell
             centers.append(cy)
-            hue = hues.get(k)
             self.text(
                 x + width / 2,
                 cy + size * 0.34,
                 value,
                 size=size,
                 anchor="middle",
-                cls=f"{hue} tint" if hue else "mute",
                 name=f"{name}[{k}]",
             )
         return centers
@@ -667,8 +687,10 @@ class Figure:
     def band(
         self, x: float, y: float, width: float, markup, *, height: float = 26, size: float = LABEL
     ) -> None:
-        """An operation applied across a strip; connectors pass beneath it."""
-        self.rect(x, y, width, height, "chip", rx=3)
+        """An operation applied across a strip: a ruled stage that connectors pass beneath."""
+        self.rect(x, y, width, height, "paper")
+        self.rule(x, x + width, y, weight=THIN, cls="rule")
+        self.rule(x, x + width, y + height, weight=THIN, cls="rule")
         self.text(x + width / 2, y + height / 2 + size * 0.33, markup, size=size, anchor="middle")
 
     def brace(self, x0, x1, y, *, depth: float = 7, cls: str = "wire", up: bool = False) -> None:
@@ -774,10 +796,21 @@ class Figure:
 
     def save(self, name: str, *, panels=(), gap: int = 28, narrow_width: int = NARROW) -> None:
         self.check()
+        for panel in panels:
+            self.check_crop(*panel[:4])
         path = ROOT / "assets" / name
         path.write_text(self.render())
         if panels:
             stack_panels(path, panels, gap=gap, width=narrow_width)
+
+    def check_crop(self, left: float, top: float, width: float, height: float) -> None:
+        """Reject a narrow-layout crop that would cut through a label."""
+        right, bottom = left + width, top + height
+        for box in self.boxes:
+            inside = box.x0 >= left and box.x1 <= right and box.y0 >= top and box.y1 <= bottom
+            outside = box.x1 <= left or box.x0 >= right or box.y1 <= top or box.y0 >= bottom
+            if not (inside or outside):
+                raise ValueError(f"Panel crop {left, top, width, height} clips {box.label!r}")
 
 
 def stack_panels(path: Path, panels, *, gap: int, width: int) -> None:

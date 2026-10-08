@@ -33,7 +33,8 @@ CONTRASTS = (
     ("hierarchical_stable", 65536, "64K", "hierarchical"),
 )
 RATIO_AXIS = (0.995, 1.020)
-RATIO_TICKS = (0.995, 1.0, 1.005, 1.01, 1.015, 1.02)
+RATIO_TICKS = (1.0, 1.01, 1.02)  # labeled; minor gridlines fall halfway between
+RATIO_MINOR = (0.995, 1.005, 1.015)
 
 
 def _xaxis(s: Figure, x0, length, y_top, y_axis, ticks, top, *, title: str) -> None:
@@ -41,7 +42,7 @@ def _xaxis(s: Figure, x0, length, y_top, y_axis, ticks, top, *, title: str) -> N
     for tick in ticks:
         x = x0 + length * tick / top
         s.path(f"M{x:.2f} {y_top:.2f}V{y_axis:.2f}", "grid" if tick else "axis")
-        s.text(x, y_axis + 20, f"{tick:g}", size=NOTE, anchor="middle", cls="faint")
+        s.text(x, y_axis + 20, f"{tick:g}", size=NOTE, anchor="middle", cls="mute")
     s.text(x0 + length / 2, y_axis + 42, title, size=NOTE, anchor="middle", cls="mute")
 
 
@@ -62,10 +63,6 @@ def _converter_bars(s: Figure, segments, x0, y0, length, top) -> None:
             cls="accent tint" if ours else "soft",
             weight="semibold" if ours else "regular",
         )
-
-
-def _ratio_label(value: float) -> str:
-    return f"{value:.3f}".rstrip("0").ljust(4, "0")
 
 
 def _estimate(contrast) -> str:
@@ -108,47 +105,60 @@ def _apple_rows(cells) -> list[tuple[int, int, float, float, float]]:
     return rows
 
 
-def _latency_dots(s: Figure, groups, *, columns, x0, length, y, pitch, ticks, radius) -> None:
-    """Dumbbell rows on one zero-based scale, with a right-hand column of speedups.
+def _latency_dots(
+    s: Figure, groups, *, columns, x0, length, y, pitch, ticks, grid, radius, label_first
+) -> None:
+    """Dumbbell rows on one zero-based scale, with a right-hand column of ratios.
 
-    ``columns`` gives the left edge of the group headings and the right edges of
-    the width, batch and speedup columns. A hollow dot marks compiled MLX, a
-    filled dot compiled Metal; a light span joins each pair. Gridlines run only
-    through each group's rows, so no rule crosses a heading.
+    ``groups`` holds (heading, rows, split) triples; ``split`` adds space between
+    selection widths. ``columns`` gives the left edge of the headings and the
+    right edges of the width, batch and ratio columns. A hollow dot marks
+    compiled MLX and a filled dot compiled Metal; a light span joins each pair
+    and a dotted leader carries the row to its ratio. Gridlines at ``grid`` run
+    only through each group's rows, so no rule crosses a heading.
+    ``label_first`` names the two marks in place, on the first heading line.
     """
     heading_x, width_x, batch_x, ratio_x = columns
 
     def xs(value: float) -> float:
         return x0 + length * value / LATENCY_TOP
 
-    s.text(width_x, y, "width", size=NOTE, anchor="end", cls="faint")
-    s.text(batch_x, y, "batch", size=NOTE, anchor="end", cls="faint")
-    s.text(ratio_x, y, "speedup", size=NOTE, anchor="end", cls="faint")
+    s.text(width_x, y, "width", size=NOTE, anchor="end", cls="mute")
+    s.text(batch_x, y, "batch", size=NOTE, anchor="end", cls="mute")
+    ratio_head = s.text(ratio_x, y, "MLX / Metal", size=NOTE, anchor="end", cls="mute")
+    ratio_left = ratio_head.x0
     marks = []
-    for name, rows in groups:
+    for index, (name, rows, split) in enumerate(groups):
         y += pitch + 10
         s.text(heading_x, y, name, size=NOTE, cls="mute", weight="italic")
+        if index == 0 and label_first:
+            _, _, mlx, metal, _ = rows[0]
+            s.text(xs(metal) - radius - 7, y, "compiled Metal", size=NOTE, anchor="end",
+                   cls="accent tint")
+            s.text(xs(mlx) + radius + 7, y, "compiled MLX", size=NOTE, cls="soft")
         top, previous = y + 8, None
         for width, batch, mlx, metal, ratio in rows:
-            y += pitch + (6 if previous is not None and width != previous else 0)
+            y += pitch + (12 if split and previous is not None and width != previous else 0)
             if width != previous:
                 s.text(width_x, y, f"{width:,}", size=NOTE, anchor="end")
             s.text(batch_x, y, str(batch), size=NOTE, anchor="end")
-            s.text(ratio_x, y, f"{ratio:.2f}×", size=NOTE, anchor="end", cls="soft")
+            box = s.text(ratio_x, y, f"{ratio:.2f}×", size=NOTE, anchor="end")
+            ratio_left = min(ratio_left, box.x0)
             marks.append((y - 6, mlx, metal))
             previous = width
         bottom = y + pitch / 2
-        for tick in LATENCY_TICKS:
+        for tick in grid:
             s.path(f"M{xs(tick):.2f} {top:.2f}V{bottom:.2f}", "grid" if tick else "axis")
     axis_y = y + pitch / 2 + 6
     s.path(f"M{x0} {axis_y:.2f}H{x0 + length}", "axis")
     for tick in ticks:
         s.path(f"M{xs(tick):.2f} {axis_y:.2f}v5", "axis")
-        s.text(xs(tick), axis_y + 24, f"{tick:g}", size=NOTE, anchor="middle", cls="faint")
+        s.text(xs(tick), axis_y + 24, f"{tick:g}", size=NOTE, anchor="middle", cls="mute")
     s.text(x0 + length / 2, axis_y + 48, "median latency per call (µs)", size=NOTE,
            anchor="middle", cls="mute")
     for cy, mlx, metal in marks:
-        s.path(f"M{xs(metal):.2f} {cy:.2f}H{xs(mlx):.2f}", "span")
+        s.path(f"M{xs(mlx) + radius + 5:.2f} {cy:.2f}H{ratio_left - 8:.2f}", "leader")
+        s.path(f"M{xs(metal):.2f} {cy:.2f}H{xs(mlx) - radius:.2f}", "span")
         s.circle(xs(mlx), cy, radius, "ring")
         s.circle(xs(metal), cy, radius, "accent tint")
     s.height = int(axis_y + 64)
@@ -156,10 +166,32 @@ def _latency_dots(s: Figure, groups, *, columns, x0, length, y, pitch, ticks, ra
 
 def _dot_legend(s: Figure, x: float, y: float, radius: float) -> None:
     s.circle(x + radius, y - 6, radius, "accent tint")
-    box = s.text(x + 2 * radius + 8, y, "compiled Metal", size=NOTE, cls="soft")
+    box = s.text(x + 2 * radius + 8, y, "compiled Metal", size=NOTE, cls="accent tint")
     x = box.x1 + 24
     s.circle(x + radius, y - 6, radius, "ring")
     s.text(x + 2 * radius + 8, y, "compiled MLX", size=NOTE, cls="soft")
+
+
+def _session_ratios(record: Path, names, key) -> list[float]:
+    """Compiled MLX over compiled Metal, for every session and geometry."""
+    ratios = []
+    for name in names:
+        for cell in json.loads((record / name).read_text())["cells"]:
+            results = cell["results"]
+            ratios.append(results[MLX]["median_us"] / results[METAL]["median_us"])
+    return ratios
+
+
+def _session_note(record: Path, data, consumer) -> str:
+    localization = _session_ratios(record, data["sessions"], MLX)
+    attention = _session_ratios(record, consumer["sessions"], MLX)
+    every = localization + attention
+    assert min(every) > 1, "a session where compiled Metal was not faster needs saying"
+    return (
+        f"Compiled Metal was faster in all {len(every)} session pairs; per-session ratios "
+        f"range from {min(localization):.2f} to {max(localization):.2f} for localization "
+        "because one of three sessions ran slower for both arms."
+    )
 
 
 def render_apple() -> None:
@@ -171,7 +203,7 @@ def render_apple() -> None:
     mlx_version = session["metadata"]["versions"]["mlx"]
     localization, attention = _apple_rows(data["cells"]), _apple_rows(consumer["cells"])
     ratios = [row[4] for row in localization]
-    groups = (("Localization", localization), ("Selected attention", attention))
+    groups = (("Localization", localization, True), ("Selected attention", attention, False))
     title = f"{device} compiled localization and selected-attention latency"
     description = (
         f"Dot plot of median latency per synchronized call on {device} with MLX {mlx_version}, "
@@ -184,22 +216,26 @@ def render_apple() -> None:
         "complete selected attention with two logical shards on one device, fixed caches and "
         "64-dimensional keys and values: "
         + "; ".join(f"batch {b} with width {w:,}, {r:.2f} times" for w, b, _, _, r in attention)
-        + ". The right-hand column gives each speedup, compiled MLX latency divided by compiled "
+        + ". The right-hand column gives each ratio, compiled MLX latency divided by compiled "
         "Metal latency. Values are medians of three process-session medians and include "
         "dispatch, allocation, execution and synchronization; warmup and first-use compilation "
-        f"are excluded. Source: {APPLE_RECORD.as_posix()}/summary.json and consumer-summary.json."
+        f"are excluded. {_session_note(record, data, consumer)} Source: "
+        f"{APPLE_RECORD.as_posix()}/summary.json, consumer-summary.json and the session records."
     )
 
     s = Figure(WIDTH, 600, title, description)
-    _dot_legend(s, 256, 30, 5.5)
-    _latency_dots(s, groups, columns=(40, 152, 212, 1062), x0=256, length=700, y=70,
-                  pitch=26, ticks=LATENCY_TICKS, radius=5.5)
+    _latency_dots(s, groups, columns=(40, 152, 212, 1062), x0=256, length=700, y=30,
+                  pitch=26, ticks=LATENCY_TICKS, grid=LATENCY_TICKS, radius=5.5,
+                  label_first=True)
     s.save("fig-apple-performance.svg")
 
+    # Phone layout: the labels move into the empty 0-150 µs zone, so the scale
+    # keeps its zero and the gaps stay visible at 340 pixels.
     n = Figure(NARROW, 600, title, description)
-    _dot_legend(n, 14, 30, 4.5)
-    _latency_dots(n, groups, columns=(14, 56, 108, 406), x0=128, length=220, y=70,
-                  pitch=24, ticks=(0, 200, 400), radius=4.5)
+    _dot_legend(n, 14, 30, 4)
+    _latency_dots(n, groups, columns=(14, 60, 112, 406), x0=14, length=340, y=70,
+                  pitch=24, ticks=(0, 200, 400), grid=(200, 300, 400), radius=4,
+                  label_first=False)
     n.save("fig-apple-performance-narrow.svg")
 
 
@@ -255,10 +291,11 @@ def render_cuda() -> None:
         return px + plength * (value - RATIO_AXIS[0]) / (RATIO_AXIS[1] - RATIO_AXIS[0])
 
     yt, yb = 56, 232
-    s.rect(xr(margin), yt, xr(RATIO_AXIS[1]) - xr(margin), yb - yt, "orange wash")
-    for tick in RATIO_TICKS:
+    s.rect(xr(margin), yt, xr(RATIO_AXIS[1]) - xr(margin), yb - yt, "orange area")
+    for tick in RATIO_MINOR + RATIO_TICKS:
         s.path(f"M{xr(tick):.2f} {yt}V{yb}", "grid")
-        s.text(xr(tick), yb + 20, _ratio_label(tick), size=NOTE, anchor="middle", cls="faint")
+    for tick in RATIO_TICKS:
+        s.text(xr(tick), yb + 20, f"{tick:.2f}", size=NOTE, anchor="middle", cls="mute")
     s.path(f"M{px} {yb}H{px + plength}", "axis")
     s.path(f"M{xr(1.0):.2f} {yt}V{yb}", "axis")
     _margin_rule(s, xr(margin), yt, yb)
@@ -271,7 +308,7 @@ def render_cuda() -> None:
         anchor="middle",
         cls="mute",
     )
-    s.text(px + plength + 24, yt + 14, f"ratio [{confidence} interval]", size=NOTE, cls="faint")
+    s.text(px + plength + 24, yt + 14, f"ratio [{confidence} interval]", size=NOTE, cls="mute")
     for k, (arm, context, ctx_label, arm_label) in enumerate(CONTRASTS):
         contrast = contrasts[arm, context]
         hue, beyond = _contrast_style(arm, contrast, margin)
@@ -304,9 +341,10 @@ def render_cuda_narrow(segments, contrasts, margin, confidence, description: str
         return px + plength * (value - RATIO_AXIS[0]) / (RATIO_AXIS[1] - RATIO_AXIS[0])
 
     # Each row owns a text line and a plot band, so no rule crosses a label.
-    top_row, pitch, band = 322, 58, 26
+    top_row, pitch, band = 340, 58, 26
     yb = top_row + pitch * len(CONTRASTS) + 4
-    s.text(px, top_row - 2, f"ratio [{confidence} interval]", size=NOTE, cls="faint")
+    s.text(px + plength, top_row - 28, f"ratio [{confidence} interval]", size=NOTE,
+           anchor="end", cls="mute")
     s.text(xr(margin) + 6, top_row - 2, f"margin {margin:.2f}", size=NOTE, cls="orange tint")
     for k, (arm, context, ctx_label, arm_label) in enumerate(CONTRASTS):
         contrast = contrasts[arm, context]
@@ -322,16 +360,17 @@ def render_cuda_narrow(segments, contrasts, margin, confidence, description: str
             cls=f"{hue} tint" if beyond else "soft",
         )
         y0 = y + 8
-        s.rect(xr(margin), y0, xr(RATIO_AXIS[1]) - xr(margin), band, "orange wash")
-        for tick in (t for t in RATIO_TICKS if t not in (1.0, margin)):
+        s.rect(xr(margin), y0, xr(RATIO_AXIS[1]) - xr(margin), band, "orange area")
+        for tick in (t for t in RATIO_MINOR + RATIO_TICKS if t not in (1.0, margin)):
             s.path(f"M{xr(tick):.2f} {y0}v{band}", "grid")
         s.path(f"M{xr(1.0):.2f} {y0}v{band}", "axis")
         _margin_rule(s, xr(margin), y0, y0 + band)
         _interval(s, xr, contrast, y0 + band / 2, hue)
     s.path(f"M{px} {yb}H{px + plength}", "axis")
+    for tick in RATIO_MINOR + RATIO_TICKS:
+        s.path(f"M{xr(tick):.2f} {yb}v{5 if tick in RATIO_TICKS else 3}", "axis")
     for tick in RATIO_TICKS:
-        s.path(f"M{xr(tick):.2f} {yb}v5", "axis")
-        s.text(xr(tick), yb + 24, _ratio_label(tick), size=NOTE, anchor="middle", cls="faint")
+        s.text(xr(tick), yb + 24, f"{tick:.2f}", size=NOTE, anchor="middle", cls="mute")
     s.text(
         px + plength / 2,
         yb + 46,
