@@ -3,8 +3,10 @@
 This module has no import-time MLX dependency and never selects a CUDA device.
 Run ``python -m silkern.mlx_verify --require-device --json`` on Apple silicon.
 The report covers functional results, stable order, repeatability, input
-immutability and safe handling of out-of-range request ids. It does not claim
-CUDA graph capture or allocation-free execution for the functional MLX API.
+immutability and safe handling of out-of-range request ids. Native MLX runs on
+the CPU stream as well as the GPU; without Metal, only the CPU cells run and the
+GPU cells are reported as skipped. It does not claim CUDA graph capture or
+allocation-free execution for the functional MLX API.
 """
 
 from __future__ import annotations
@@ -12,12 +14,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import platform
 import random
 import sys
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from importlib.metadata import PackageNotFoundError, version
 from numbers import Integral
 from pathlib import Path
 from typing import Any
@@ -27,8 +29,18 @@ from silkern.errors import LocalizationError
 
 MLX_CHECKS = ("oracle", "order", "determinism", "immutability", "shape", "dtype", "request_bounds")
 MLX_BACKENDS = ("mlx", "metal")
+# (backend, device) cells for each ``backend`` choice. Metal needs the GPU.
+MLX_ARMS: dict[str, tuple[tuple[str, str], ...]] = {
+    "both": (("mlx", "cpu"), ("mlx", "gpu"), ("metal", "gpu")),
+    "mlx": (("mlx", "cpu"), ("mlx", "gpu")),
+    "metal": (("metal", "gpu"),),
+    "auto": (("auto", "cpu"), ("auto", "gpu")),
+}
+DEFAULT_BATCH = 8
 MAX_FIXTURE_ELEMENTS = 4_194_304
 _INT32_MAX = 2**31 - 1
+# Widths straddle the SIMD group (32), one element per Metal thread (256 to
+# 257) and the row limit. Each geometry gets its own seeded block-table shape.
 DEFAULT_MLX_MATRIX: tuple[dict[str, int | bool], ...] = tuple(
     dict(
         width=width,
@@ -47,9 +59,12 @@ DEFAULT_MLX_MATRIX: tuple[dict[str, int | bool], ...] = tuple(
         (127, 64, 4, 1, 2),
         (128, 64, 2, 1, 1),
         (129, 64, 8, 7, 4),
+        (256, 32, 2, 1, 1),
+        (257, 64, 4, 2, 2),
         (513, 32, 4, 3, 4),
         (1024, 64, 1, 0, 2),
         (2049, 64, 2, 0, 1),
+        (4095, 32, 8, 3, 4),
         (4096, 64, 8, 7, 2),
     )
     for compact in (False, True)
@@ -64,6 +79,7 @@ class MLXCellReport:
     geometry: dict[str, int | bool]
     checks: dict[str, bool] = field(default_factory=dict)
     error: str | None = None
+    device: str = "gpu"
 
     @property
     def ok(self) -> bool:
@@ -83,6 +99,12 @@ class MLXCellReport:
 
 @dataclass
 class MLXConformanceReport:
+    """``skipped`` names what could not run: everything, or only the GPU cells.
+
+    A report with skipped cells is never ``ok``: CPU cells alone do not
+    qualify the Metal path, though each of them must still pass.
+    """
+
     cells: list[MLXCellReport] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     skipped: str | None = None
@@ -96,7 +118,7 @@ class MLXConformanceReport:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "ok": self.ok,
             "skipped": self.skipped,
             "metadata": self.metadata,
@@ -104,14 +126,19 @@ class MLXConformanceReport:
         }
 
     def summary(self) -> str:
-        if self.skipped is not None:
-            return f"MLX conformance skipped: {self.skipped}"
-        passed = sum(cell.ok for cell in self.cells)
-        lines = [f"SILKern MLX conformance: {passed}/{len(self.cells)} cells passed"]
+        lines = []
+        if self.cells:
+            passed = sum(cell.ok for cell in self.cells)
+            lines.append(f"SILKern MLX conformance: {passed}/{len(self.cells)} cells passed")
         for cell in self.cells:
             if not cell.ok:
                 geometry = " ".join(f"{key}={value}" for key, value in cell.geometry.items())
-                lines.append(f"  FAIL {cell.backend}: {geometry}: {', '.join(cell.failures())}")
+                lines.append(
+                    f"  FAIL {cell.backend} on {cell.device}: {geometry}: "
+                    f"{', '.join(cell.failures())}"
+                )
+        if self.skipped is not None:
+            lines.append(f"MLX conformance skipped: {self.skipped}")
         return "\n".join(lines)
 
 
@@ -121,18 +148,34 @@ def _positive_int(name: str, value: int) -> int:
     return int(value)
 
 
-def _load_mlx() -> tuple[Any, str | None]:
-    """Find Metal explicitly; a Linux MLX CUDA installation is never exercised."""
+def _import_mlx() -> tuple[Any, str | None]:
+    """Import MLX, reporting a missing or broken installation instead of raising."""
     try:
         import mlx.core as mx
-    except (ImportError, OSError) as exc:
-        return None, f"MLX is unavailable; install silkern[mlx] on Apple silicon ({exc})"
+    except Exception as exc:  # A broken installation can fail with any error type.
+        return None, (
+            "MLX is unavailable; install silkern[mlx] on Apple silicon "
+            f"({type(exc).__name__}: {exc})"
+        )
+    return mx, None
+
+
+def _metal_unavailable(mx: Any) -> str | None:
+    """Find Metal explicitly; a Linux MLX CUDA installation is never exercised."""
     try:
         if not mx.metal.is_available():
-            return None, "no Apple Metal device is available"
-    except RuntimeError as exc:
-        return None, f"Apple Metal initialization failed: {exc}"
-    return mx, None
+            return "no Apple Metal device is available"
+    except Exception as exc:  # Report a broken runtime rather than a traceback.
+        return f"Apple Metal initialization failed: {type(exc).__name__}: {exc}"
+    return None
+
+
+def _load_mlx() -> tuple[Any, str | None]:
+    """MLX together with an available Metal device, as the Apple benchmarks need."""
+    mx, reason = _import_mlx()
+    if reason is None:
+        reason = _metal_unavailable(mx)
+    return (None, reason) if reason else (mx, None)
 
 
 def _validate_fixture(
@@ -155,22 +198,24 @@ def _source_hashes() -> dict[str, str]:
     }
 
 
-def _metadata(mx: Any) -> dict[str, Any]:
-    versions = {}
-    for package in ("silkern", "mlx"):
-        try:
-            versions[package] = version(package)
-        except PackageNotFoundError:
-            versions[package] = "not installed"
+def _metadata(mx: Any, *, metal: bool = True) -> dict[str, Any]:
+    import silkern
+
     return {
         "platform": platform.platform(),
         "machine": platform.machine(),
         "python": platform.python_version(),
-        "versions": versions,
-        "device": mx.device_info(mx.gpu),
-        "execution_backend": "apple_metal",
+        # The imported modules are what ran; an installed distribution can differ.
+        "versions": {"silkern": silkern.__version__, "mlx": getattr(mx, "__version__", "unknown")},
+        "device": mx.device_info(mx.gpu if metal else mx.cpu),
+        "execution_backend": "apple_metal" if metal else "mlx_cpu",
         "source_sha256": _source_hashes(),
     }
+
+
+def _table_shape(seed: int) -> tuple[int, int]:
+    """Seeded block-table shape: 1 to 9 requests with 1 to 48 pages each."""
+    return 1 + seed % 9, 1 + seed * 7 % 48
 
 
 def _random_case(
@@ -183,11 +228,16 @@ def _random_case(
 ) -> tuple[list[int], list[list[int]], list[list[int]]]:
     """Generate unsorted duplicate selections, sentinels and fragmented pages."""
     rng = random.Random(seed)
-    requests, table_width = 4, 17
-    req_ids = [(row * 3 + 1) % requests for row in range(batch)]
+    requests, table_width = _table_shape(seed)
+    # A step coprime to the request count visits every request, out of order.
+    step = 3 if math.gcd(3, requests) == 1 else 5
+    req_ids = [(row * step + 1) % requests for row in range(batch)]
     table = [[rng.randrange(4096) for _ in range(table_width)] for _ in range(requests)]
     for row in table:
-        row[0], row[1], row[-1] = -1, -2, 0
+        # Negative entries are valid pages; wider tables also end in page zero.
+        row[: min(2, table_width)] = [-1, -2][:table_width]
+        if table_width > 2:
+            row[-1] = 0
     limit = block_size * table_width * dcp_size
     rows = []
     # Including the first whole ownership period ensures last-rank coverage.
@@ -226,11 +276,24 @@ def _expected_order(
     ]
 
 
-def _run_cell(mx, backend, geometry, *, batch, seed, repeats) -> MLXCellReport:
+def _strided(mx: Any, values: list, stream: Any) -> Any:
+    """The same logical int32 values, viewed through every other element of a copy."""
+    if isinstance(values[0], list):
+        width = len(values[0])
+        doubled = mx.array([[value for value in row for _ in range(2)] for row in values],
+                           dtype=mx.int32)
+        return mx.as_strided(doubled, (len(values), width), (2 * width, 2), stream=stream)
+    doubled = mx.array([value for value in values for _ in range(2)], dtype=mx.int32)
+    return mx.as_strided(doubled, (len(values),), (2,), stream=stream)
+
+
+def _run_cell(mx, backend, geometry, *, batch, seed, repeats, device="gpu") -> MLXCellReport:
     from silkern.mlx import localize_mlx
 
-    cell = MLXCellReport(backend=backend, geometry=dict(geometry))
+    cell = MLXCellReport(backend=backend, geometry=dict(geometry), device=device)
     try:
+        # Every operation names this stream, so MLX's default device is never used.
+        stream = mx.default_stream(mx.cpu if device == "cpu" else mx.gpu)
         width = geometry["width"]
         common = {key: value for key, value in geometry.items() if key != "width"}
         req_ids, table_data, rows = _random_case(
@@ -242,19 +305,11 @@ def _run_cell(mx, backend, geometry, *, batch, seed, repeats) -> MLXCellReport:
         )
         expected, expected_counts = localize_reference(req_ids, table_data, rows, **common)
         # Exercise non-contiguous arrays without changing the logical inputs.
-        req = mx.array([value for value in req_ids for _ in range(2)], dtype=mx.int32)[::2]
-        table = mx.array(
-            [[value for value in row for _ in range(2)] for row in table_data], dtype=mx.int32
-        )[:, ::2]
-        tokens = mx.array(
-            [[value for value in row for _ in range(2)] for row in rows], dtype=mx.int32
-        )[:, ::2]
+        req, table, tokens = (_strided(mx, values, stream) for values in (req_ids, table_data, rows))
         mx.eval(req, table, tokens)
 
         def launch(requests=req):
-            return localize_mlx(
-                requests, table, tokens, **common, backend=backend, stream=mx.default_stream(mx.gpu)
-            )
+            return localize_mlx(requests, table, tokens, **common, backend=backend, stream=stream)
 
         out, counts = launch()
         mx.eval(out, counts)
@@ -304,17 +359,19 @@ def conformance_mlx(
     *,
     backend: str = "both",
     matrix: Sequence[dict[str, int | bool]] | None = None,
-    batch: int = 4,
+    batch: int = DEFAULT_BATCH,
     seed: int = 0,
     repeats: int = 3,
 ) -> MLXConformanceReport:
     """Run exact Apple-device checks; unavailable devices produce a falsy skip.
 
-    ``backend='both'`` independently qualifies the compositional MLX and custom
-    Metal paths. Array evaluation is explicit, so compilation and execution
-    errors are captured in the report rather than deferred to the caller.
+    ``backend='both'`` independently qualifies the compositional MLX path on
+    the CPU and GPU streams and the custom Metal path. Without Metal the CPU
+    cells still run, and the report records the GPU cells as skipped. Array
+    evaluation is explicit, so compilation and execution errors are captured in
+    the report rather than deferred to the caller.
     """
-    if backend not in (*MLX_BACKENDS, "auto", "both"):
+    if not isinstance(backend, str) or backend not in MLX_ARMS:
         raise LocalizationError("backend must be 'both', 'auto', 'metal', or 'mlx'")
     batch = _positive_int("batch", batch)
     repeats = _positive_int("repeats", repeats)
@@ -331,7 +388,7 @@ def conformance_mlx(
         "dcp_interleave",
         "compact_valid_to_front",
     }
-    for cell in geometries:
+    for index, cell in enumerate(geometries):
         cell.setdefault("compact_valid_to_front", True)
         if set(cell) != required:
             raise LocalizationError(f"matrix geometry must contain {', '.join(sorted(required))}")
@@ -345,26 +402,34 @@ def conformance_mlx(
             cell[key] = int(cell[key])
         if block_size % cell["dcp_interleave"]:
             raise LocalizationError("block_size must be divisible by dcp_interleave")
-        _validate_fixture(cell["width"], batch, block_size, cell["dcp_size"], 17)
-    mx, reason = _load_mlx()
+        _, table_width = _table_shape(int(seed) + index)
+        _validate_fixture(cell["width"], batch, block_size, cell["dcp_size"], table_width)
+    mx, reason = _import_mlx()
     if reason:
         return MLXConformanceReport(skipped=reason)
+    metal_reason = _metal_unavailable(mx)
+    arms = [arm for arm in MLX_ARMS[backend] if metal_reason is None or arm[1] == "cpu"]
+    skipped = metal_reason
+    if metal_reason is not None and arms:
+        skipped = f"{metal_reason}; GPU cells were not run"
     report = MLXConformanceReport(
-        metadata={**_metadata(mx), "seed": int(seed), "batch": batch, "repeats": repeats}
+        metadata={**_metadata(mx, metal=metal_reason is None), "seed": int(seed), "batch": batch,
+                  "repeats": repeats},
+        skipped=skipped,
     )
-    arms = MLX_BACKENDS if backend == "both" else (backend,)
     for index, geometry in enumerate(geometries):
-        for arm in arms:
-            report.cells.append(
-                _run_cell(mx, arm, geometry, batch=batch, seed=int(seed) + index, repeats=repeats)
-            )
+        for arm, device in arms:
+            report.cells.append(_run_cell(
+                mx, arm, geometry, batch=batch, seed=int(seed) + index, repeats=repeats,
+                device=device,
+            ))
     return report
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--backend", choices=(*MLX_BACKENDS, "auto", "both"), default="both")
-    parser.add_argument("--batch", type=int, default=4)
+    parser.add_argument("--backend", choices=tuple(MLX_ARMS), default="both")
+    parser.add_argument("--batch", type=int, default=DEFAULT_BATCH)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument(
@@ -380,7 +445,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(str(exc))
     print(json.dumps(report.to_dict(), indent=2) if args.json else report.summary())
     if report.skipped:
-        return 2 if args.require_device else 0
+        if args.require_device:
+            return 2
+        # Without Metal the CPU cells still run, and their failures still count.
+        return 1 if any(not cell.ok for cell in report.cells) else 0
     return 0 if report.ok else 1
 
 

@@ -35,7 +35,7 @@ __version__ = "2.0.0"
 
 def conformance_mlx(
     *, backend: str = "both", matrix: Sequence[dict[str, int | bool]] | None = None,
-    batch: int = 4, seed: int = 0, repeats: int = 3,
+    batch: int = 8, seed: int = 0, repeats: int = 3,
 ) -> MLXConformanceReport:
     """Verify Apple backends; see :func:`silkern.mlx_verify.conformance_mlx`."""
     from silkern.mlx_verify import conformance_mlx as run
