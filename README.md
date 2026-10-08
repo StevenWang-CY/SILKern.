@@ -43,6 +43,13 @@ different order on every replay, and downstream floating-point reductions see
 that order. SILKern assigns each survivor its destination from a prefix sum, so
 repeated calls return identical values, counts, and order on every backend.
 
+<picture>
+  <source media="(max-width: 767px)" srcset="assets/fig-problem-narrow.svg">
+  <img src="assets/fig-problem.svg" width="100%" alt="Three replays of the same four tile groups: atomic reservation emits a different group order on each replay, while offsets from an exclusive scan keep the input order every time.">
+</picture>
+
+<p align="center"><em>Atomic reservation emits the same tiles in a new order on every replay; prefix-sum destinations keep input order.</em></p>
+
 - **An exact contract.** A dependency-free Python oracle defines the result, and
   every accelerated path is tested against it for equality. See the
   [contract](docs/contract.md).
@@ -100,6 +107,13 @@ out, counts = localize_reference(
 assert out == [[708, 129, 451, -1, -1, -1]]
 assert counts == [3]
 ```
+
+<picture>
+  <source media="(max-width: 767px)" srcset="assets/fig-contract-narrow.svg">
+  <img src="assets/fig-contract.svg" width="100%" alt="A table follows six input columns through owner, validity, local position, page and offset, physical page, and physical slot: columns 0, 2, and 5 survive and map to slots 708, 129, and 451. Beside it are the localization equations and the compacted and column-preserving output layouts, both with count three.">
+</picture>
+
+<p align="center"><em>The quickstart row column by column, with the equations and both output layouts.</em></p>
 
 Rank 0 owns tokens 8, 130, and 262. Token 130, for example, is the rank's local
 position 65: offset 1 in logical page 1, which the table maps to physical block
@@ -216,9 +230,17 @@ according to the layout: a prefix of length `counts` after compaction, and per
 column otherwise. Gather padded entries from a safe address, then mask the
 gathered values as well, because an unused slot may hold NaN and a zero weight
 times NaN is still NaN. Across logical shards, normalize the softmax over the
-whole selection. The [consumer guide](docs/consuming-indices.md) works through
-these rules, and its runnable example checks itself against unsharded
-attention:
+whole selection.
+
+<picture>
+  <source media="(max-width: 767px)" srcset="assets/fig-consumer-narrow.svg">
+  <img src="assets/fig-consumer.svg" width="100%" alt="Three panels show compact versus column-preserving slots and validity masks, masked K/V gathering from a paged cache with a placeholder row, and attention normalization shared across logical shards.">
+</picture>
+
+<p align="center"><em>One layout-aware mask selects addresses and gathered values; one softmax spans every logical shard.</em></p>
+
+The [consumer guide](docs/consuming-indices.md) works through these rules, and
+its runnable example checks itself against unsharded attention:
 
 ```bash
 python -m examples.mlx_sparse_attention --backend mlx --device cpu

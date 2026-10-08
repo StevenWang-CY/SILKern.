@@ -56,8 +56,9 @@
 
 ### Documentation and evidence
 
-- Restructure the README around one figure, plain sections, a runnable
-  quickstart, and a visible citation; move long captions to the guides.
+- Restructure the README: plain sections, a runnable quickstart, and a visible
+  citation, with each figure beside the section it explains under a one-line
+  caption. Full captions live in the guides.
 - Typeset every figure as one system in embedded STIX Two subsets, replacing the
   `docs` extra's Matplotlib dependency with fontTools, and set the figures in
   print conventions: ink text, identity carried by cell fills, ruled operation
