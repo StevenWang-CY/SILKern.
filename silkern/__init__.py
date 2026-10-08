@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from silkern.mlx_verify import MLXConformanceReport
 
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 
 def conformance_mlx(

@@ -1,14 +1,16 @@
-# 2.0.0 implementation and release review
+# Implementation and release review
 
 [README](../README.md) · [Architecture](architecture.md) · [Changelog](../CHANGELOG.md) · [Evidence](evidence.md)
 
-This update adds native Apple execution and strengthens the existing API,
-integration lifecycle, verification, and distribution. It remains a focused
-localization library; production serving qualification depends on its consumer.
-The implementation was developed under the unreleased `0.2.0` version and ships
-as `2.0.0`. Historical measurement records keep their original metadata.
+This page records how each release was reviewed and checked. Version 2.0.0
+added native Apple execution and strengthened the existing API, integration
+lifecycle, verification, and distribution; it was developed under the
+unreleased `0.2.0` version, and historical measurement records keep their
+original metadata. [Version 2.1.0](#210-audit-and-release-verification--october-7-2026)
+follows an independent audit of 2.0.0. SILKern remains a focused localization
+library; production serving qualification depends on its consumer.
 
-## Release verification · October 6, 2026
+## 2.0.0 release verification · October 6, 2026
 
 The `2.0.0` package passed fresh release checks on Apple M5 Max, macOS 26.6,
 Python 3.12.12, and MLX 0.32.3:
@@ -108,7 +110,7 @@ queueing, or transport. Both implementations compile the same consumer, changing
 only the localization backend. Timing follows MLX's documented
 [fresh-call evaluation pattern](https://ml-explore.github.io/mlx/build/html/usage/compile.html).
 
-## Post-release audit · October 7–8, 2026
+## 2.1.0 audit and release verification · October 7, 2026
 
 An independent audit of the 2.0.0 sources reproduced the defects below on an
 Apple M5 Max; CUDA host code was read and exercised through stand-ins, since no
@@ -128,7 +130,7 @@ previous code.
 | Usage errors and an unavailable device both exited 2 | Usage errors exit 64 | CLI tests for both verifiers |
 | A source archive built locally included `.claude/` agent worktrees | Explicit source-archive contents | Packaging test against `git ls-files` |
 
-The revised sources passed these checks on October 8, 2026, on the same M5 Max
+The 2.1.0 sources passed these checks on October 7, 2026, on the same M5 Max
 with macOS 26.6, Python 3.12.12, and MLX 0.32.3:
 
 | Check | Result |
@@ -142,6 +144,12 @@ with macOS 26.6, Python 3.12.12, and MLX 0.32.3:
 | Wheel installed outside the checkout | Base install verified with no optional runtime; with `[mlx]`, 90/90 conformance cells |
 | Tests from the extracted source archive in a clean base environment | 535 passed; 11 optional-runtime and checkout-only cases skipped |
 | Evidence, figures, and documentation | 48 checksums match; both figure generators reproduce identical bytes; links, anchors, and examples pass |
+
+The [GitHub release](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.1.0)
+provides the wheel, source archive, SHA-256 checksums, the Apple conformance
+report of the installed wheel, and a validation summary identifying its exact
+commit and CI run. The recorded Apple latencies still come from record 09,
+measured on the 2.0.0 sources; record 10 bounds how they apply to 2.1.0.
 
 ## Qualification boundary
 

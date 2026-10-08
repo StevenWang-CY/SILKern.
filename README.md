@@ -21,10 +21,16 @@ on Apple silicon (MLX and Metal) and NVIDIA GPUs (Triton).
 
 ## News
 
+- **2026-10-07** · [Version 2.1.0](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.1.0)
+  follows an independent audit of 2.0.0. It closes two silent MLX failures,
+  under shapeless compilation and under concurrent CPU and GPU calls, makes
+  the CUDA conformance tool catch graphs that skip work or replay stale inputs,
+  and stops the Metal kernel recompiling for each page-table shape. See the
+  [changelog](CHANGELOG.md).
 - **2026-10-06** · [Version 2.0.0](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.0.0)
   runs natively on Apple silicon: `localize_mlx` takes MLX arrays and executes
   a custom Metal kernel, and a complete selected-attention example shows how to
-  consume the result. Validation is stricter throughout; see the [changelog](CHANGELOG.md).
+  consume the result.
 - **2026-08-04** · First public release, with the Python oracle, the rowwise
   and hierarchical Triton kernels, a fixed-buffer vLLM adapter, and the NVIDIA
   experiments behind them.
@@ -63,11 +69,11 @@ repeated calls return identical values, counts, and order on every backend.
 
 ## Installation
 
-The base package is pure Python and has no dependencies. Install the 2.0.0
+The base package is pure Python and has no dependencies. Install the 2.1.0
 wheel from its GitHub release:
 
 ```bash
-python -m pip install "silkern @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.0.0/silkern-2.0.0-py3-none-any.whl"
+python -m pip install "silkern @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.1.0/silkern-2.1.0-py3-none-any.whl"
 ```
 
 For an accelerator backend, write `silkern[mlx]` or `silkern[gpu]` in place of
@@ -202,8 +208,8 @@ python -m bench.bench_mlx_attention
 ### CUDA (archived)
 
 These measurements come from an earlier revision on two NVIDIA H100 GPUs,
-running complete 48-layer decode steps on a reference executor. We did not
-repeat NVIDIA experiments for 2.0.0.
+running complete 48-layer decode steps on a reference executor. We have not
+repeated NVIDIA experiments since.
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-cost-narrow.svg">
@@ -302,7 +308,7 @@ the revision you ran:
   title   = {SILKern: deterministic sparse-index localization for context-parallel decode},
   author  = {{The SILKern Authors}},
   year    = {2026},
-  version = {2.0.0},
+  version = {2.1.0},
   license = {Apache-2.0},
   url     = {https://github.com/StevenWang-CY/SILKern.}
 }

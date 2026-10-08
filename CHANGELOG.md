@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 — 2026-10-07
+
+A correctness and verification release after an independent audit of 2.0.0.
+The localization contract is unchanged; every fix below has a test that fails
+against 2.0.0. No NVIDIA experiments were run for this release.
 
 ### Fixed
 

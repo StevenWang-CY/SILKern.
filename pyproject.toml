@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "silkern"
-version = "2.0.0"
+version = "2.1.0"
 description = "Deterministic sparse-index localization for CUDA/Triton and Apple silicon/MLX"
 # Index descriptions need absolute links; README.md remains the full repo guide.
 readme = "docs/package-description.md"

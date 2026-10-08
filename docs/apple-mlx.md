@@ -15,7 +15,7 @@ minimum with the [MLX installation requirements](https://ml-explore.github.io/ml
 Install the versioned Apple package:
 
 ```bash
-python -m pip install "silkern[mlx] @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.0.0/silkern-2.0.0-py3-none-any.whl"
+python -m pip install "silkern[mlx] @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.1.0/silkern-2.1.0-py3-none-any.whl"
 ```
 
 For examples, benchmarks, or development, work from a
