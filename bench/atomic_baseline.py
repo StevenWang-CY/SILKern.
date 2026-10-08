@@ -29,7 +29,7 @@ from silkern.errors import LocalizationError
 try:
     import triton
     import triton.language as tl
-except ModuleNotFoundError:  # pragma: no cover - CPU-only environments
+except Exception:  # pragma: no cover - absent or broken install; launches fail closed
     triton = None
     tl = None
 

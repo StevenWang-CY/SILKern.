@@ -46,7 +46,7 @@ from silkern import (
     localize_rowwise,
     workspace_shapes,
 )
-from silkern.kernels import _validate_launch_config
+from silkern.kernels import _import_failure, _validate_launch_config
 
 _MAX_FIXTURE_ELEMENTS = 4_194_304
 
@@ -173,8 +173,8 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         import torch
-    except ModuleNotFoundError:
-        print("torch is not installed; install silkern[gpu]", file=sys.stderr)
+    except Exception as exc:  # absent or broken install
+        print(f"{_import_failure('torch', exc)}; install silkern[gpu]", file=sys.stderr)
         return 2
     if not torch.cuda.is_available():
         print("no CUDA device available", file=sys.stderr)

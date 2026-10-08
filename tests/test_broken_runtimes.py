@@ -88,3 +88,21 @@ def test_cli_reports_a_broken_torch_as_a_skip(tmp_path, flags, status) -> None:
     assert report["skipped"] == TORCH_REASON
     assert report["ok"] is False and report["cells"] == []
     assert "Traceback" not in result.stderr
+
+
+def test_broken_triton_leaves_the_benchmarks_importable(tmp_path) -> None:
+    code = (
+        "import bench.atomic_baseline as atomic, bench.bench_converter, bench.order_instability\n"
+        "print(atomic.triton)"
+    )
+    result = _python(tmp_path, {"triton": BROKEN_TRITON}, "-c", code)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "None"
+
+
+@pytest.mark.parametrize("module", ["bench.bench_converter", "bench.order_instability"])
+def test_benchmarks_report_a_broken_torch(tmp_path, module) -> None:
+    result = _python(tmp_path, {"torch": BROKEN_TORCH}, "-m", module)
+    assert result.returncode == 2, result.stderr
+    assert f"{TORCH_REASON}; install silkern[gpu]" in result.stderr
+    assert "Traceback" not in result.stderr
