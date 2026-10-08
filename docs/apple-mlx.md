@@ -100,8 +100,10 @@ and the `dcp_size=1` compaction bypass.
 `stream` accepts `mx.Stream`, `mx.ThreadLocalStream`, `mx.Device`, a device type
 such as `mx.cpu`/`mx.gpu`, or `None`. A device selects its default stream. With
 `None`, `auto` and `mlx` use the current default device; `metal` selects the GPU.
-Localization restores the caller's default stream and device after building
-its lazy outputs.
+Localization creates every operation on the selected stream explicitly and
+never changes the default device or default streams, not even temporarily. In
+MLX 0.32.3 the default device is shared by all threads, so a temporary switch
+would move other threads' work.
 
 | Choice | Execution | Use when |
 |---|---|---|
@@ -157,17 +159,16 @@ from silkern import localize_mlx
 worker_stream = mx.new_thread_local_stream(mx.cpu)
 
 def localize_row(row):
-    with mx.stream(worker_stream):
-        requests = mx.array([0], dtype=mx.int32)
-        table = mx.array([[3, 1]], dtype=mx.int32)
-        tokens = mx.array([row], dtype=mx.int32)
-        out, counts = localize_mlx(
-            requests, table, tokens,
-            block_size=2, dcp_size=2, dcp_rank=0,
-            backend="mlx", stream=worker_stream,
-        )
-        mx.eval(out, counts)
-        return out.tolist(), counts.tolist()
+    requests = mx.array([0], dtype=mx.int32)
+    table = mx.array([[3, 1]], dtype=mx.int32)
+    tokens = mx.array([row], dtype=mx.int32)
+    out, counts = localize_mlx(
+        requests, table, tokens,
+        block_size=2, dcp_size=2, dcp_rank=0,
+        backend="mlx", stream=worker_stream,
+    )
+    mx.eval(out, counts)
+    return out.tolist(), counts.tolist()
 
 with ThreadPoolExecutor(max_workers=3) as pool:
     results = list(pool.map(localize_row, ([0, 2, -1], [6, 4, 1], [-1, -1, -1])))
@@ -175,6 +176,9 @@ assert results == [([[6, 7, -1]], [2]), ([[3, 2, -1]], [2]), ([[-1, -1, -1]], [0
 ```
 
 For Metal workers, create the handle with `mx.gpu` and select `backend="metal"`.
+Pass `stream=` to your own operations in workers too. In MLX 0.32.3,
+`with mx.stream(...)` sets the process-wide default device, so concurrent CPU
+and GPU workers that each use it can move one another's operations.
 This pattern covers independent per-worker graphs; it does not establish safe
 cross-thread sharing of lazy graphs or a worker-throughput improvement.
 
@@ -193,8 +197,21 @@ out, counts = compiled_localize(req_ids, block_table, token_indices)
 mx.eval(out, counts)
 ```
 
-Compile and warm up before steady-state timing. Changing shapes or static
-geometry can require a new compiled specialization. The recorded comparison
+`mx.compile` traces the function again for each new input shape or static
+geometry, and every trace repeats the full input validation. The custom Metal
+kernel reads the batch, row width, and block-table shape at run time, so only
+the elements per thread, `ceil(width / 256)`, and the scalar geometry select a
+compiled kernel. A serving loop whose request and page counts change does not
+compile new Metal code for each block-table shape.
+
+Do not compile with `shapeless=True`. MLX replays a shapeless function for new
+shapes without running its Python code, which would skip validation and keep
+the shapes of the first trace, such as the block-table width that separates one
+request's pages from the next. Both backends refuse it on the first call, with
+MLX's `ValueError: [Primitive::output_shapes] ... cannot infer output shapes.`
+Use ordinary `mx.compile` instead.
+
+Compile and warm up before steady-state timing. The recorded comparison
 compiles both the native composition and custom Metal call, keeping the
 baseline optimized too.
 
@@ -364,9 +381,12 @@ runtime and executor, and must not be presented as Apple evidence.
 | Symptom | Check |
 |---|---|
 | Missing optional dependency | Install `.[mlx]` in the Python environment running the program |
+| `LocalizationError: MLX is unavailable; ... (OSError: ...)` | MLX is installed but fails to import; the message ends with the cause. Reinstall `.[mlx]` |
 | Metal unavailable | Confirm native arm64 Python, compatible macOS/MLX, and `mx.metal.is_available()` |
 | `LocalizationError` on inputs | Use nonempty `mx.int32` arrays with matching batch dimensions and width ≤ 4096 |
 | `backend="metal"` with a CPU stream | Use `auto`/`mlx` for CPU, or supply a GPU stream |
+| `ValueError: ... cannot infer output shapes` from a compiled call | Compile without `shapeless=True`; see [compiled calls](#compiled-application-calls) |
+| Work runs on another device in threaded code | Pass `stream=` explicitly instead of using `with mx.stream(...)` |
 | Implausibly tiny timing | Evaluate newly returned outputs inside every timed iteration |
 | Values remain in their original columns | Expected when `dcp_size=1` or `compact_valid_to_front=False` |
 | Negative value counted as valid | In-range negative page entries are preserved by the shared contract |
