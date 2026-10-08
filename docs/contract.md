@@ -137,7 +137,10 @@ invalid ID to another request's table.
 | Capture model | Designed for fixed-address CUDA graph replay | No equivalent pointer/capture guarantee |
 
 CUDA metadata validation rejects wrong shapes/dtypes/devices, unsupported
-geometry, storage aliasing, and incompatible workspace. The integration adapter
+geometry, storage aliasing, and incompatible workspace. Both launchers apply one
+aliasing rule: the three inputs are only read and may share storage, while every
+output and workspace needs storage of its own, shared with no other buffer even
+as a non-overlapping view. The integration adapter
 also rejects unregistered bindings. MLX validates metadata before constructing
 its computation. Neither API silently changes the mathematical layout to handle
 an unsupported geometry.
@@ -147,9 +150,9 @@ so a PyTorch lazy-negation view is rejected even when its dtype and strides
 match. Materialize it with
 [`tensor.resolve_neg()`](https://docs.pytorch.org/docs/stable/generated/torch.Tensor.resolve_neg.html)
 before registering buffers or
-capturing a graph. Overlapping writable byte ranges are rejected even when
-different storage objects, such as separate DLPack imports, refer to the same
-physical allocation.
+capturing a graph. A written buffer that overlaps another buffer's bytes is
+rejected even when different storage objects, such as separate DLPack imports,
+refer to the same physical allocation.
 
 CUDA launches are asynchronous. Order input updates, localization, consumer
 reads, and subsequent buffer reuse on the same stream or through CUDA events.

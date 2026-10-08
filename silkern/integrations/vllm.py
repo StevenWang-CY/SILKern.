@@ -36,11 +36,7 @@ from typing import Any, Literal
 
 from silkern.contract import DEFAULT_TILE_SIZE, SUPPORTED_TILE_SIZES
 from silkern.errors import LocalizationError
-from silkern.kernels import (
-    _validate_disjoint_storage,
-    localize_hierarchical,
-    localize_rowwise,
-)
+from silkern.kernels import localize_hierarchical, localize_rowwise
 from silkern.workspace import workspace_shapes
 
 Arm = Literal["row_stable", "hierarchical_stable"]
@@ -306,11 +302,6 @@ class WorkspaceAdapter:
             raise AdapterError("all production inputs must be on the same device")
         if any(not tensor.is_contiguous() for tensor in inputs):
             raise AdapterError("all production inputs must be contiguous")
-        if self.arm == "hierarchical_stable":
-            try:
-                _validate_disjoint_storage(inputs)
-            except LocalizationError as exc:
-                raise AdapterError(str(exc)) from exc
         shapes: dict[str, tuple[int, ...]] = {}
         if self.arm == "hierarchical_stable":
             try:

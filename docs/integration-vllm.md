@@ -94,8 +94,12 @@ Concretely it rejects:
 - being called at all before `prepare()`
 - repeated preparation or preparation while either the caller's current CUDA
   device or the target device is capturing a graph
-- empty, oversized, or aliased hierarchical geometry before workspace allocation
-- overlapping byte ranges even when separate storage objects share memory
+- empty or oversized hierarchical geometry before workspace allocation
+
+The bound inputs may share storage with one another, since the kernels only read
+them. The launchers reject a written buffer that shares or overlaps another
+buffer's memory, even through separate storage objects; the adapter's own
+outputs and workspace are allocated apart from every input.
 
 ## The qualified surface
 

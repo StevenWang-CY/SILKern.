@@ -197,8 +197,8 @@ def test_imported_overlapping_output_storage_rejected_before_launch(cuda_launch_
     assert cuda_launch_metadata.launches == []
 
 
-@pytest.mark.parametrize("pair", [(2, 5), (5, 6), (4, 8), (0, 1)])
-def test_hierarchical_imported_workspace_and_input_aliases_rejected(cuda_launch_metadata, pair):
+@pytest.mark.parametrize("pair", [(2, 5), (5, 6), (4, 8), (0, 7)])
+def test_hierarchical_imported_overlap_with_a_written_buffer_rejected(cuda_launch_metadata, pair):
     tensors = _metadata_tensors("hierarchical")
     first, second = (tensors[index] for index in pair)
     second.pointer = first.pointer + 4
@@ -217,12 +217,34 @@ def test_adjacent_disjoint_memory_spans_are_accepted(cuda_launch_metadata, arm):
     assert cuda_launch_metadata.launches
 
 
-def test_rowwise_read_only_inputs_can_overlap(cuda_launch_metadata):
-    tensors = _metadata_tensors("rowwise")
-    tensors[0].pointer = tensors[2].pointer + 4
-    tensors[0].storage_pointer = tensors[0].pointer
-    _metadata_launch("rowwise", tensors=tensors)
-    assert len(cuda_launch_metadata.launches) == 1
+@pytest.mark.parametrize("arm", ["rowwise", "hierarchical"])
+@pytest.mark.parametrize("shared", ["overlapping", "one storage"])
+def test_read_only_inputs_may_alias_each_other(cuda_launch_metadata, arm, shared):
+    # The kernels only read the three inputs, so both launchers let them alias.
+    tensors = _metadata_tensors(arm)
+    if shared == "overlapping":
+        tensors[0].pointer = tensors[2].pointer + 4
+        tensors[0].storage_pointer = tensors[0].pointer
+    else:
+        tensors[1].pointer = tensors[0].pointer + tensors[0].numel() * tensors[0].element_size()
+        tensors[1].storage_pointer = tensors[0].storage_pointer
+    _metadata_launch(arm, tensors=tensors)
+    assert cuda_launch_metadata.launches
+
+
+@pytest.mark.parametrize("arm, pair", [
+    ("rowwise", (3, 4)), ("rowwise", (2, 3)), ("rowwise", (0, 4)),
+    ("hierarchical", (3, 4)), ("hierarchical", (5, 7)), ("hierarchical", (0, 6)),
+])
+def test_written_buffers_need_storage_of_their_own(cuda_launch_metadata, arm, pair):
+    # Non-overlapping byte ranges are not enough once a buffer is written.
+    tensors = _metadata_tensors(arm)
+    first, second = (tensors[index] for index in pair)
+    second.pointer = first.pointer + first.numel() * first.element_size()
+    second.storage_pointer = first.storage_pointer
+    with pytest.raises(LocalizationError, match="distinct storage"):
+        _metadata_launch(arm, tensors=tensors)
+    assert cuda_launch_metadata.launches == []
 
 
 @pytest.mark.parametrize("other_index", [0, 1, 2, 3])

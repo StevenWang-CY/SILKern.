@@ -286,14 +286,43 @@ def test_prepare_rejects_capture_before_allocating(metadata_backend) -> None:
     assert not adapter.prepared
 
 
-def test_hierarchical_alias_rejected_before_allocation(metadata_backend) -> None:
+@pytest.mark.parametrize("arm", ["row_stable", "hierarchical_stable"])
+@pytest.mark.parametrize("shared", ["one storage", "overlapping"])
+def test_inputs_may_alias_each_other(metadata_backend, arm, shared) -> None:
+    # The launchers only read the inputs, so views of one packed buffer are fine.
     inputs = _metadata_inputs()
-    inputs[1].storage_pointer = inputs[0].storage_pointer
-    adapter = WorkspaceAdapter("hierarchical_stable")
-    with pytest.raises(AdapterError, match="distinct storage"):
-        adapter.prepare(*inputs, dcp_size=2, dcp_rank=0)
-    assert metadata_backend.allocations == 0
-    assert not adapter.prepared
+    if shared == "one storage":
+        inputs[1].storage_pointer = inputs[0].storage_pointer
+    else:
+        inputs[1].pointer = inputs[2].pointer + 4
+        inputs[1].storage_pointer = inputs[1].pointer
+    adapter = WorkspaceAdapter(arm)
+    adapter.prepare(*inputs, dcp_size=2, dcp_rank=0)
+    adapter(*inputs, 2, 0, return_valid_counts=True)
+    assert adapter.calls == metadata_backend.launches == 1
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        {"dcp_size": 4, "dcp_rank": 0},
+        {"dcp_size": 2, "dcp_rank": 1},
+        {"dcp_size": 2, "dcp_rank": 0, "BLOCK_SIZE": 32},
+    ],
+    ids=["dcp_size", "dcp_rank", "block_size"],
+)
+def test_call_geometry_differing_from_registration_rejected_before_launch(
+    metadata_backend, call
+) -> None:
+    # Each call is inside the qualified surface; only the registration differs.
+    inputs = _metadata_inputs()
+    adapter = WorkspaceAdapter("row_stable")
+    adapter.prepare(*inputs, dcp_size=2, dcp_rank=0, block_size=64)
+    with pytest.raises(AdapterError, match=r"call geometry .* differs from registered"):
+        adapter(*inputs, return_valid_counts=True, **call)
+    assert metadata_backend.launches == adapter.calls == 0
+    adapter(*inputs, 2, 0, BLOCK_SIZE=64, return_valid_counts=True)
+    assert metadata_backend.launches == adapter.calls == 1
 
 
 def test_hierarchical_oversized_workspace_rejected_before_allocation(metadata_backend) -> None:
@@ -311,17 +340,6 @@ def test_installation_restores_original_after_exception() -> None:
         with install_converter(module, WorkspaceAdapter("row_stable")):
             raise RuntimeError("caller failed")
     assert module.triton_filter_and_convert_dcp_index is original
-
-
-def test_prepare_rejects_overlapping_imported_input_storage_before_allocation(metadata_backend):
-    inputs = _metadata_inputs()
-    inputs[1].pointer = inputs[2].pointer + 4
-    inputs[1].storage_pointer = inputs[1].pointer
-    adapter = WorkspaceAdapter("hierarchical_stable")
-    with pytest.raises(AdapterError, match="storage|overlap"):
-        adapter.prepare(*inputs, dcp_size=2, dcp_rank=0)
-    assert metadata_backend.allocations == 0
-    assert not adapter.prepared
 
 
 @pytest.mark.parametrize("index", range(3))

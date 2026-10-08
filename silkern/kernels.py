@@ -348,14 +348,16 @@ def _validate_launch_config(
     return block_size, dcp_size, dcp_rank, dcp_interleave, int(num_warps)
 
 
-def _validate_disjoint_storage(tensors, *, read_only_count: int = 0) -> None:
-    """Reject shared storage and overlapping contiguous memory, without device work.
+def _validate_disjoint_storage(tensors, *, read_only_count: int) -> None:
+    """Reject written buffers that share storage or overlap memory, without device work.
 
-    Call only after validating contiguous, nonempty buffers on one device.
-    DLPack imports can wrap overlapping slices in separate storage objects with
-    different base pointers, so storage identity alone is insufficient. The
-    first ``read_only_count`` tensors may alias each other, but no later tensor
-    may share memory with any earlier one.
+    Call only after validating contiguous, nonempty buffers on one device. The
+    first ``read_only_count`` tensors are inputs, which the kernels only read, so
+    they may alias one another. Every later tensor is written and needs storage
+    of its own: it may not share a storage object with any other buffer, even as
+    a non-overlapping view of one tensor, nor overlap one in memory. DLPack
+    imports can wrap overlapping slices in separate storage objects with
+    different base pointers, so storage identity alone is insufficient.
     """
     regions = []
     for tensor in tensors:
@@ -367,7 +369,8 @@ def _validate_disjoint_storage(tensors, *, read_only_count: int = 0) -> None:
         for other_storage, other_start, other_end in regions[:index]:
             if storage == other_storage or (start < other_end and other_start < end):
                 raise LocalizationError(
-                    "localization buffers must use distinct storage and nonoverlapping memory"
+                    "written localization buffers must use distinct storage and "
+                    "nonoverlapping memory"
                 )
 
 
@@ -390,10 +393,13 @@ def localize_rowwise(
     Every buffer is a preallocated contiguous int32 CUDA tensor supplied by the
     caller; nothing is allocated here, so the launch is safe to capture in a
     CUDA graph and replay at fixed addresses. ``out`` must be shaped like
-    ``tokens`` and ``counts`` must hold one element per row. Outputs must not
-    share storage with inputs. Launches use the current stream on the tensors'
-    device and restore the caller's current device afterward. Lazy negation
-    views are rejected: their logical values differ from their raw storage.
+    ``tokens`` and ``counts`` must hold one element per row. The three inputs
+    are only read and may share storage with one another; ``out`` and
+    ``counts`` each need storage of their own, shared with no other buffer even
+    as a non-overlapping view, and must not overlap any buffer in memory.
+    Launches use the current stream on the tensors' device and restore the
+    caller's current device afterward. Lazy negation views are rejected: their
+    logical values differ from their raw storage.
 
     The row width is capped at :data:`silkern.contract.MAX_ROW_WIDTH` because the
     row-wide scan is a single ``cumsum`` over a power-of-two-padded row. The
@@ -504,10 +510,12 @@ def localize_hierarchical(
     ``mapped_workspace`` and ``local_positions_workspace`` must match the input
     shape.  The two tile workspaces must have shape
     ``(batch, ceil(width / tile_size))``.  Every buffer is an int32 contiguous
-    CUDA tensor on one device and must use distinct storage. All stages use the
-    current stream on that device and restore the caller's current device
-    afterward. Lazy negation views are rejected, as are overlapping imported
-    memory ranges even when their storage base pointers differ.
+    CUDA tensor on one device. The three inputs are only read and may share
+    storage with one another; each output and workspace needs storage of its
+    own, shared with no other buffer even as a non-overlapping view, and must
+    not overlap any buffer in memory, even through separately imported storage
+    objects. All stages use the current stream on that device and restore the
+    caller's current device afterward. Lazy negation views are rejected.
 
     The compacting path launches four deterministic stages: per-tile mapping and
     local prefix, per-row tile prefix, output initialization, and stable scatter.
@@ -591,7 +599,7 @@ def localize_hierarchical(
                 f"observed {observed_shapes[name]}"
             )
 
-    _validate_disjoint_storage(tensors)
+    _validate_disjoint_storage(tensors, read_only_count=3)
     block_size, dcp_size, dcp_rank, dcp_interleave, num_warps = _validate_launch_config(
         block_size, dcp_size, dcp_rank, dcp_interleave, compact_valid_to_front, num_warps
     )
