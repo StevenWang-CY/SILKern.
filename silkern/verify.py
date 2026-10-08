@@ -749,15 +749,17 @@ def _load_matrix(path: str, *, batch: int, tile_size: int) -> list[dict[str, int
 
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI
     """``python -m silkern`` -- exits nonzero if any cell fails."""
-    import argparse
     import json
 
-    parser = argparse.ArgumentParser(
+    from silkern._cli import USAGE_ERROR, ArgumentParser
+
+    parser = ArgumentParser(
         description="Run the silkern conformance matrix.",
         epilog=(
             "Exits 1 if any cell fails and 0 otherwise, including when the sweep "
             "is skipped for want of a CUDA device or Triton. Use --require-device "
-            "to treat an unavailable backend as a failure (exit 2)."
+            f"to treat an unavailable backend as a failure (exit 2). A usage error, "
+            f"including an invalid --matrix file, exits {USAGE_ERROR}."
         ),
     )
     parser.add_argument(

@@ -20,6 +20,7 @@ import pytest
 import silkern
 import silkern.mlx as silkern_mlx
 from silkern import mlx_verify
+from silkern._cli import USAGE_ERROR
 from silkern.contract import localize_reference
 from silkern.errors import LocalizationError
 
@@ -68,6 +69,16 @@ def test_unknown_checks_cannot_silently_pass() -> None:
     cell.checks["orcale"] = True
     assert not cell.ok
     assert cell.failures() == ["unexpected check: orcale"]
+
+
+@pytest.mark.parametrize("argv", [["--batch", "0"], ["--backend", "cuda"], ["--no-such-flag"]])
+def test_cli_usage_errors_are_distinct_from_missing_metal(monkeypatch, argv) -> None:
+    # Exit 2 means "no Metal" under --require-device; a mistyped command must not.
+    monkeypatch.setattr(mlx_verify, "_import_mlx", lambda: (None, "no MLX"))
+    assert mlx_verify.main(["--require-device"]) == 2
+    with pytest.raises(SystemExit) as exit_info:
+        mlx_verify.main(["--require-device", *argv])
+    assert exit_info.value.code == USAGE_ERROR
 
 
 @pytest.mark.parametrize("require,code", [(False, 0), (True, 2)])

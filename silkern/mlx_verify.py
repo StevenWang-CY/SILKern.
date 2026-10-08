@@ -11,7 +11,6 @@ allocation-free execution for the functional MLX API.
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import math
@@ -427,7 +426,16 @@ def conformance_mlx(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    from silkern._cli import USAGE_ERROR, ArgumentParser
+
+    parser = ArgumentParser(
+        description=__doc__.splitlines()[0],
+        epilog=(
+            "Exits 1 if any cell fails and 0 otherwise; without Metal the CPU cells "
+            "still run. Use --require-device to treat missing Metal as a failure "
+            f"(exit 2). A usage error exits {USAGE_ERROR}."
+        ),
+    )
     parser.add_argument("--backend", choices=tuple(MLX_ARMS), default="both")
     parser.add_argument("--batch", type=int, default=DEFAULT_BATCH)
     parser.add_argument("--seed", type=int, default=0)

@@ -17,6 +17,7 @@ import pytest
 
 import silkern
 import silkern.verify as verify
+from silkern._cli import USAGE_ERROR
 from silkern.contract import DEFAULT_TILE_SIZE
 from silkern.integrations import vllm
 from silkern.verify import (
@@ -253,8 +254,9 @@ def test_cli_failed_cell_is_nonzero_and_explained_in_json(monkeypatch, capsys) -
 @pytest.mark.parametrize("batch", ["0", str(verify.MAX_FIXTURE_ELEMENTS + 1)])
 def test_cli_rejects_invalid_batch_before_backend(monkeypatch, batch) -> None:
     monkeypatch.setitem(sys.modules, "torch", None)
-    with pytest.raises(SystemExit, match="2"):
+    with pytest.raises(SystemExit) as exit_info:
         verify.main(["--batch", batch])
+    assert exit_info.value.code == USAGE_ERROR
 
 
 def test_cli_passes_a_matrix_file_to_the_sweep(monkeypatch, tmp_path, capsys) -> None:
@@ -311,9 +313,20 @@ def test_cli_rejects_a_bad_matrix_file_before_any_backend(
     path = tmp_path / "matrix.json"
     if content is not None:
         path.write_text(content)
-    with pytest.raises(SystemExit, match="2"):
+    with pytest.raises(SystemExit) as exit_info:
         verify.main(["--matrix", str(path)])
+    assert exit_info.value.code == USAGE_ERROR
     assert re.search(message, capsys.readouterr().err)
+
+
+@pytest.mark.parametrize("argv", [["--batch", "0"], ["--arm", "atomic"], ["--no-such-flag"]])
+def test_cli_usage_errors_are_distinct_from_an_unavailable_device(monkeypatch, argv) -> None:
+    # Exit 2 means "no device" under --require-device; a mistyped command must not.
+    monkeypatch.setitem(sys.modules, "torch", None)
+    assert verify.main(["--require-device"]) == 2
+    with pytest.raises(SystemExit) as exit_info:
+        verify.main(["--require-device", *argv])
+    assert exit_info.value.code == USAGE_ERROR
 
 
 def test_default_matrix_is_well_formed_and_crosses_boundaries() -> None:

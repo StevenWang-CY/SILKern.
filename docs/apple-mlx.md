@@ -218,9 +218,10 @@ baseline optimized too.
 ## Measurement and reproduction
 
 Run correctness before interpreting a performance result. `--require-device`
-returns exit status 2 when Metal is unavailable; a failed check returns 1, and
-a passing run returns 0. Without this flag an unavailable backend is reported as
-skipped, which is useful for portable CI but is not qualification:
+returns exit status 2 when Metal is unavailable; a failed check returns 1, a
+usage error returns 64, and a passing run returns 0. Without this flag the CPU
+cells still run and Metal is reported as skipped, which is useful for portable
+CI but is not qualification:
 
 ```bash
 python -m silkern.mlx_verify --repeats 16 --require-device
