@@ -164,7 +164,13 @@ resize or rebind captured tensors until the graph is no longer used.
 
 Set equality and count equality are insufficient. The compacted result must
 match the input sequence filtered by ownership and table bounds, including
-repeated values. CUDA conformance checks compare with an independently derived
-order as well as the oracle, and verify guard regions and replay stability.
+repeated values. CUDA conformance compares results with the oracle and with an
+independently derived layout. Before each checked launch and each graph replay
+it overwrites outputs and workspace with a value no correct launch writes, so
+skipped work cannot pass on an earlier result. Between replays it rewrites the
+bound inputs in place with a second fixture whose result differs, so a graph
+that replays inputs frozen at capture fails. It measures allocated device
+memory and its peak around every launch, the captured launch, and every
+replay, and it checks guard regions around every written buffer.
 Apple checks exercise its own backend paths. Consult each report for the checks
 actually run; a host-only test does not establish device correctness.

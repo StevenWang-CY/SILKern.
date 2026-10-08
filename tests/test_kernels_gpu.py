@@ -294,31 +294,49 @@ def test_hierarchical_gpu_canaries_and_input_immutability() -> None:
         assert torch.all(backing[guard + view_elements :] == sentinel)
 
 
+#: Fills every written buffer before a replay; no correct launch writes it.
+POISON = -(2**31)
+
+
+def _grows_memory(op: Callable[[], None]) -> bool:
+    """Whether ``op`` raised allocated device memory, at its end or at its peak."""
+    torch.cuda.reset_peak_memory_stats()
+    before = torch.cuda.memory_allocated()
+    op()
+    return torch.cuda.memory_allocated() > before or torch.cuda.max_memory_allocated() > before
+
+
 def _capture(op: Callable[[], None]):
+    """Warm up and capture ``op``, asserting that neither allocates."""
     side = torch.cuda.Stream()
     side.wait_stream(torch.cuda.current_stream())
     with torch.cuda.stream(side):
         for _ in range(3):
-            op()
+            assert not _grows_memory(op)
     torch.cuda.current_stream().wait_stream(side)
     torch.cuda.synchronize()
     graph = torch.cuda.CUDAGraph()
     with torch.cuda.graph(graph):
-        op()
+        # Measured inside the capture: beginning one may allocate PyTorch's
+        # own bookkeeping, which is no launcher's doing.
+        captured_grows = _grows_memory(op)
+    assert not captured_grows
     torch.cuda.synchronize()
     return graph
 
 
 def test_exact_gpu_cuda_graph_replay_and_allocation_stability() -> None:
-    case = _case(width=2048, batch=8, block_size=64, dcp_size=4, seed=654001)
-    expected = localize_reference(
-        *case,
-        block_size=64,
-        dcp_size=4,
-        dcp_rank=2,
-        dcp_interleave=2,
-    )
-    req, table, tokens = (_cuda_int(values) for values in case)
+    geometry = {"block_size": 64, "dcp_size": 4, "dcp_rank": 2, "dcp_interleave": 2}
+    cases = [
+        _case(width=2048, batch=8, block_size=64, dcp_size=4, seed=seed)
+        for seed in (654001, 654002)
+    ]
+    # Route every row of the second case through a different request.
+    cases[1] = ([(request + 1) % 4 for request in cases[1][0]], *cases[1][1:])
+    expected = [localize_reference(*case, **geometry) for case in cases]
+    assert expected[0] != expected[1]  # so a graph replaying stale inputs cannot pass
+    staged = [tuple(_cuda_int(values) for values in case) for case in cases]
+    req, table, tokens = (tensor.clone() for tensor in staged[0])
     out = torch.empty_like(tokens)
     counts = torch.empty(tokens.shape[0], dtype=torch.int32, device="cuda")
     shapes = workspace_shapes(*tokens.shape)
@@ -338,25 +356,22 @@ def test_exact_gpu_cuda_graph_replay_and_allocation_stability() -> None:
             workspace["local_positions"],
             workspace["tile_counts"],
             workspace["tile_offsets"],
-            block_size=64,
-            dcp_size=4,
-            dcp_rank=2,
-            dcp_interleave=2,
+            **geometry,
         )
 
-    pointers = [tensor.data_ptr() for tensor in (req, table, tokens, out, counts)]
-    pointers.extend(tensor.data_ptr() for tensor in workspace.values())
     graph = _capture(op)
-    allocated_before = torch.cuda.memory_allocated()
-    for _ in range(100):
-        graph.replay()
-    torch.cuda.synchronize()
-    assert torch.cuda.memory_allocated() == allocated_before
-    assert pointers == [tensor.data_ptr() for tensor in (req, table, tokens, out, counts)] + [
-        tensor.data_ptr() for tensor in workspace.values()
-    ]
-    assert out.cpu().tolist() == expected[0]
-    assert counts.cpu().tolist() == expected[1]
+    for replay in range(100):
+        # Rewrite the bound inputs in place, starting with the case the graph
+        # did not capture, and poison every written buffer: a replay that does
+        # no work, or reads inputs frozen at capture, cannot match its case.
+        index = (replay + 1) % 2
+        for bound, values in zip((req, table, tokens), staged[index], strict=True):
+            bound.copy_(values)
+        for buffer in (out, counts, *workspace.values()):
+            buffer.fill_(POISON)
+        assert not _grows_memory(graph.replay)
+        torch.cuda.synchronize()
+        assert (out.cpu().tolist(), counts.cpu().tolist()) == expected[index]
 
 
 def test_hierarchical_gpu_rejects_workspace_shape_and_alias() -> None:

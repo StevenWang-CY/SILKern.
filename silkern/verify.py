@@ -1,34 +1,51 @@
 """One call that tries to prove the kernels wrong on *your* stack.
 
 This CUDA verifier checks that the Triton implementations reproduce
-:func:`silkern.contract.localize_reference` exactly at fixed addresses without
-allocating. Run it on the deployment stack before relying on those guarantees.
-The functional Apple API has its own verifier in :mod:`silkern.mlx_verify`.
+:func:`silkern.contract.localize_reference` exactly, read their bound input
+buffers afresh on every launch and graph replay, and allocate no device memory
+while launching, capturing, or replaying. Run it on the deployment stack before
+relying on those guarantees. The functional Apple API has its own verifier in
+:mod:`silkern.mlx_verify`.
 
     >>> import silkern
     >>> report = silkern.conformance()      # doctest: +SKIP
     >>> report.ok                         # doctest: +SKIP
     True
 
-:func:`conformance` sweeps a randomized geometry matrix and runs five checks
-per cell:
+:func:`conformance` sweeps a randomized geometry matrix and runs six checks
+per cell. Before every checked launch and every replay, each output and
+workspace element is overwritten with :data:`POISON`, a value no correct launch
+writes, so a launch that skips its work cannot pass on an earlier result.
 
 ``oracle``
     Every localized array and count equals the pure-Python oracle, elementwise.
 ``order``
-    The valid prefix equals the input row filtered by rank ownership, in input
-    order. Set equality is not enough -- an atomic converter passes set
-    equality and still scrambles the order. This is the check that matters.
+    Each row matches its layout derived independently from the input row. When
+    compacting, the valid prefix is the row filtered by rank ownership and
+    table bounds, in input order. Set equality is not enough -- an atomic
+    converter passes set equality and still scrambles the order. This is the
+    check that matters. Without compaction, every column keeps its own result.
 ``determinism``
-    Repeated launches on identical input produce a bytewise-identical output
-    buffer. A converter whose output depends on tile-reservation race order
-    fails here.
+    Repeated launches on identical input, each into poisoned buffers, reproduce
+    the first launch's output bytewise. A converter whose output depends on
+    tile-reservation race order fails here, as does one that writes only once.
 ``replay``
-    The launch is captured in a CUDA graph and replayed; every buffer pointer
-    is unchanged and ``torch.cuda.memory_allocated()`` does not grow.
+    The launch is captured in a CUDA graph and replayed. Before each replay the
+    bound input buffers are rewritten in place, alternating between two
+    fixtures whose results differ, and each replay must produce its fixture's
+    oracle result. A graph that does no work, or that replays inputs it
+    captured instead of reading its buffers, fails here.
+``allocation``
+    ``torch.cuda.memory_allocated()`` and its peak never rise during an eager
+    launch, the captured launch, or a replay. The captured launch is measured
+    inside the graph context, which excludes PyTorch's own capture bookkeeping.
 ``immutability``
-    Inputs are unmodified, and canaries placed around every output buffer
-    are unchanged -- i.e. nothing was written out of bounds.
+    Inputs keep the values last written to them, and canaries placed around
+    every output and workspace buffer are unchanged -- i.e. nothing was
+    written out of bounds.
+
+The allocation check reads device-wide allocator statistics and resets their
+peak, so run a sweep while nothing else allocates on the device.
 
 A failing cell is reported, not raised. The report tells you which geometry
 failed and which check, so a narrowed geometry is an actionable result rather
@@ -38,7 +55,7 @@ than a stack trace.
 from __future__ import annotations
 
 import random
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from numbers import Integral
 
@@ -48,18 +65,31 @@ from silkern.contract import (
     localize_reference,
 )
 from silkern.errors import LocalizationError
-from silkern.kernels import _validate_launch_config, localize_hierarchical, localize_rowwise
+from silkern.kernels import (
+    _import_failure,
+    _validate_launch_config,
+    localize_hierarchical,
+    localize_rowwise,
+)
 from silkern.workspace import workspace_shapes
 
-CHECKS = ("oracle", "order", "determinism", "replay", "immutability")
+CHECKS = ("oracle", "order", "determinism", "replay", "allocation", "immutability")
 ARMS = ("row_stable", "hierarchical_stable")
+
+#: Every matrix geometry names these launch parameters ...
+GEOMETRY_KEYS = ("width", "block_size", "dcp_size", "dcp_rank", "dcp_interleave")
+#: ... and may also set these. An omitted one keeps the launcher's default:
+#: compaction on, and ``num_warps`` 8 (rowwise) or 4 (hierarchical).
+OPTIONAL_GEOMETRY_KEYS = ("compact_valid_to_front", "num_warps")
 
 #: Geometry matrix used when ``conformance()`` is called with no arguments.
 #: Chosen to cross the interesting boundaries: width below/at/above a tile,
 #: non-power-of-two widths, both qualified page sizes, DCP degrees 1/2/4/8, the
-#: last rank of each degree (most likely to expose an off-by-one), and grouped
-#: interleave.
-DEFAULT_MATRIX: tuple[dict[str, int], ...] = (
+#: last rank of each degree (most likely to expose an off-by-one), grouped
+#: interleave, the column-preserving layout across ranks, and each pairing of
+#: ``dcp_size`` and ``block_size`` the vLLM adapter is qualified on (one rank
+#: apiece; pass a matrix to check every rank of a deployment).
+DEFAULT_MATRIX: tuple[dict[str, int | bool], ...] = (
     {"width": 1, "block_size": 64, "dcp_size": 1, "dcp_rank": 0, "dcp_interleave": 1},
     {"width": 63, "block_size": 32, "dcp_size": 2, "dcp_rank": 1, "dcp_interleave": 1},
     {"width": 128, "block_size": 64, "dcp_size": 2, "dcp_rank": 0, "dcp_interleave": 1},
@@ -69,13 +99,30 @@ DEFAULT_MATRIX: tuple[dict[str, int], ...] = (
     {"width": 2048, "block_size": 64, "dcp_size": 2, "dcp_rank": 1, "dcp_interleave": 2},
     {"width": 2048, "block_size": 64, "dcp_size": 4, "dcp_rank": 2, "dcp_interleave": 1},
     {"width": 4096, "block_size": 64, "dcp_size": 2, "dcp_rank": 0, "dcp_interleave": 1},
+    # With the block_size=64, dcp_size=4 entry: the vLLM-qualified pairings.
+    {"width": 2048, "block_size": 32, "dcp_size": 2, "dcp_rank": 0, "dcp_interleave": 1},
+    {"width": 2048, "block_size": 64, "dcp_size": 2, "dcp_rank": 1, "dcp_interleave": 1},
+    {"width": 2048, "block_size": 32, "dcp_size": 4, "dcp_rank": 3, "dcp_interleave": 1},
+    # Column-preserving layouts that, unlike dcp_size == 1, drop foreign tokens.
+    {"width": 129, "block_size": 64, "dcp_size": 2, "dcp_rank": 1, "dcp_interleave": 1,
+     "compact_valid_to_front": False},
+    {"width": 513, "block_size": 32, "dcp_size": 4, "dcp_rank": 2, "dcp_interleave": 2,
+     "compact_valid_to_front": False},
 )
 
 GUARD_ELEMENTS = 64
 GUARD_VALUE = 0x5A5A5A5A
+#: Written over every output and workspace element before each checked launch
+#: and each replay. No correct launch writes it: fixture page entries are at
+#: least -2 and the fixture bounds keep ``block_size`` below 2**19, so slots
+#: stay above -2**20; counts and workspace entries are at least -1.
+POISON = -(2**31)
 REPLAY_COUNT = 32
 DETERMINISM_REPEATS = 8
 MAX_FIXTURE_ELEMENTS = 4_194_304
+
+_Case = tuple[list[int], list[list[int]], list[list[int]]]
+_Result = tuple[list[list[int]], list[int]]
 
 
 @dataclass
@@ -173,7 +220,7 @@ def _random_case(
     block_size: int,
     dcp_size: int,
     seed: int,
-) -> tuple[list[int], list[list[int]], list[list[int]]]:
+) -> _Case:
     """Build one adversarial case.
 
     Deliberately includes negative tokens, tokens past the end of the page
@@ -207,6 +254,79 @@ def _random_case(
     return req_ids, block_table, rows
 
 
+def _second_case(
+    first: _Case,
+    first_result: _Result,
+    *,
+    seed: int,
+    block_size: int,
+    dcp_size: int,
+    dcp_rank: int,
+    dcp_interleave: int,
+    compact_valid_to_front: bool,
+) -> tuple[_Case, _Result]:
+    """A fixture shaped like ``first``, with fresh pages and tokens and a different result.
+
+    Replays rewrite the bound buffers in place, alternating between the two
+    fixtures, so a graph that replays inputs it captured instead of reading
+    its buffers produces the other fixture's result. Every row's request id is
+    rotated to another table row, and row 0 starts with an owned token in
+    logical page 0; should the two results still coincide, moving that page
+    makes them differ.
+    """
+    req_ids, block_table, rows = _random_case(
+        width=len(first[2][0]),
+        batch=len(first[2]),
+        block_size=block_size,
+        dcp_size=dcp_size,
+        seed=seed,
+    )
+    req_ids = [(request + 1) % len(block_table) for request in req_ids]
+    rows[0][0] = dcp_rank * dcp_interleave
+    geometry = {
+        "block_size": block_size,
+        "dcp_size": dcp_size,
+        "dcp_rank": dcp_rank,
+        "dcp_interleave": dcp_interleave,
+        "compact_valid_to_front": compact_valid_to_front,
+    }
+    result = localize_reference(req_ids, block_table, rows, **geometry)
+    if result == first_result:
+        page = block_table[req_ids[0]]
+        page[0] = page[0] - 1 if page[0] == 4095 else page[0] + 1
+        result = localize_reference(req_ids, block_table, rows, **geometry)
+    return (req_ids, block_table, rows), result
+
+
+def _owned_slots(
+    row: Sequence[int],
+    table_row: Sequence[int],
+    *,
+    block_size: int,
+    dcp_size: int,
+    dcp_rank: int,
+    dcp_interleave: int,
+) -> list[int | None]:
+    """Each column's rank-local physical slot, or ``None``, derived independently.
+
+    Computed as a filter over the input row rather than reusing the oracle's
+    control flow, so agreement is not an artifact of shared code.
+    """
+    slots: list[int | None] = []
+    for raw in row:
+        token = int(raw)
+        slot = None
+        if token >= 0 and (token // dcp_interleave) % dcp_size == dcp_rank:
+            local = (token // (dcp_size * dcp_interleave)) * dcp_interleave + (
+                token % dcp_interleave
+            )
+            logical_block, offset = divmod(local, block_size)
+            if logical_block < len(table_row):
+                slot = int(table_row[logical_block]) * block_size + offset
+        slots.append(slot)
+    return slots
+
+
 def _expected_order(
     row: Sequence[int],
     table_row: Sequence[int],
@@ -216,26 +336,16 @@ def _expected_order(
     dcp_rank: int,
     dcp_interleave: int,
 ) -> list[int]:
-    """The prefix a *stable* converter must produce, derived independently.
-
-    Computed as a filter over the input row rather than reusing the oracle's
-    control flow, so agreement is not an artifact of shared code.
-    """
-    kept: list[int] = []
-    for raw in row:
-        token = int(raw)
-        if token < 0:
-            continue
-        if (token // dcp_interleave) % dcp_size != dcp_rank:
-            continue
-        local = (token // (dcp_size * dcp_interleave)) * dcp_interleave + (
-            token % dcp_interleave
-        )
-        logical_block, offset = divmod(local, block_size)
-        if logical_block >= len(table_row):
-            continue
-        kept.append(int(table_row[logical_block]) * block_size + offset)
-    return kept
+    """The prefix a *stable* converter must produce, derived independently."""
+    slots = _owned_slots(
+        row,
+        table_row,
+        block_size=block_size,
+        dcp_size=dcp_size,
+        dcp_rank=dcp_rank,
+        dcp_interleave=dcp_interleave,
+    )
+    return [slot for slot in slots if slot is not None]
 
 
 def _guarded(torch, shape, device):
@@ -262,10 +372,83 @@ def _guards_clean(storage) -> bool:
     )
 
 
+def _allocation_free(torch, run: Callable[[], object]) -> bool:
+    """Run ``run``; report whether allocated device memory never rose above its start.
+
+    The peak is read as well as the final level, so a buffer allocated and
+    released inside ``run`` still counts. Both are host-side allocator
+    statistics, which may be read while a CUDA graph is capturing.
+    """
+    torch.cuda.reset_peak_memory_stats()
+    before = torch.cuda.memory_allocated()
+    run()
+    return (
+        torch.cuda.memory_allocated() <= before
+        and torch.cuda.max_memory_allocated() <= before
+    )
+
+
+def _check_geometry(
+    geometry: Mapping[str, int | bool], *, batch: int, tile_size: int
+) -> tuple[int, dict[str, int | bool]]:
+    """Validate one matrix geometry before generating values or allocating.
+
+    Returns the row width and the launcher's keyword options as Python scalars.
+    ``num_warps`` is among them only when the geometry sets it, so each
+    launcher otherwise keeps its own default.
+    """
+    if not isinstance(geometry, Mapping):
+        raise LocalizationError("matrix geometry must be a mapping")
+    missing = [key for key in GEOMETRY_KEYS if key not in geometry]
+    if missing:
+        raise LocalizationError(f"matrix geometry is missing {', '.join(missing)}")
+    unknown = sorted(str(key) for key in geometry
+                     if key not in GEOMETRY_KEYS + OPTIONAL_GEOMETRY_KEYS)
+    if unknown:
+        raise LocalizationError(
+            f"matrix geometry has unknown keys {', '.join(unknown)}; "
+            f"beyond {', '.join(GEOMETRY_KEYS)} it may set only "
+            f"{', '.join(OPTIONAL_GEOMETRY_KEYS)}"
+        )
+
+    # Reject invalid geometry before generating values or allocating device
+    # tensors; otherwise a typo in width can allocate an enormous buffer.
+    workspace_shapes(batch, geometry["width"], tile_size=tile_size)
+    compact = geometry.get("compact_valid_to_front", True)
+    # Any supported value validates an omitted num_warps; it is not passed on.
+    block_size, dcp_size, dcp_rank, dcp_interleave, num_warps = _validate_launch_config(
+        geometry["block_size"],
+        geometry["dcp_size"],
+        geometry["dcp_rank"],
+        geometry["dcp_interleave"],
+        compact,
+        geometry.get("num_warps", 4),
+    )
+    width = int(geometry["width"])
+    if batch * width > MAX_FIXTURE_ELEMENTS:
+        raise LocalizationError(
+            f"diagnostic fixtures must not exceed {MAX_FIXTURE_ELEMENTS} elements"
+        )
+    # The random fixture includes one ownership period past its 17-page
+    # table and physical page IDs up to 4095, all materialized as int32.
+    if max(block_size * dcp_size * 18, block_size * 4096) > 2**31 - 1:
+        raise LocalizationError("diagnostic indices and physical slots must fit int32")
+    options: dict[str, int | bool] = {
+        "block_size": block_size,
+        "dcp_size": dcp_size,
+        "dcp_rank": dcp_rank,
+        "dcp_interleave": dcp_interleave,
+        "compact_valid_to_front": compact,
+    }
+    if "num_warps" in geometry:
+        options["num_warps"] = num_warps
+    return width, options
+
+
 def _run_cell(
     torch,
     arm: str,
-    geometry: dict[str, int],
+    geometry: dict[str, int | bool],
     *,
     batch: int,
     seed: int,
@@ -282,71 +465,48 @@ def _run_cell(
             key: int(value) if isinstance(value, Integral) and not isinstance(value, bool) else value
             for key, value in geometry.items()
         }
-        geometry = report.geometry
-        required = {"width", "block_size", "dcp_size", "dcp_rank", "dcp_interleave"}
-        if set(geometry) != required:
-            raise LocalizationError(f"matrix geometry must contain {', '.join(sorted(required))}")
-        width = geometry["width"]
-        block_size = geometry["block_size"]
-        dcp_size = geometry["dcp_size"]
-        dcp_rank = geometry["dcp_rank"]
-        dcp_interleave = geometry["dcp_interleave"]
+        width, options = _check_geometry(report.geometry, batch=batch, tile_size=tile_size)
+        reference = {key: value for key, value in options.items() if key != "num_warps"}
 
-        # Reject invalid geometry before generating values or allocating device
-        # tensors; otherwise a typo in width can allocate an enormous buffer.
-        workspace_shapes(batch, width, tile_size=tile_size)
-        block_size, dcp_size, dcp_rank, dcp_interleave, _ = _validate_launch_config(
-            block_size, dcp_size, dcp_rank, dcp_interleave, True, 4
-        )
-        width = int(width)
-        if batch * width > MAX_FIXTURE_ELEMENTS:
-            raise LocalizationError(
-                f"diagnostic fixtures must not exceed {MAX_FIXTURE_ELEMENTS} elements"
-            )
-        # The random fixture includes one ownership period past its 17-page
-        # table and physical page IDs up to 4095, all materialized as int32.
-        if max(block_size * dcp_size * 18, block_size * 4096) > 2**31 - 1:
-            raise LocalizationError("diagnostic indices and physical slots must fit int32")
-
-        req_ids, block_table, rows = _random_case(
+        first = _random_case(
             width=width,
             batch=batch,
-            block_size=block_size,
-            dcp_size=dcp_size,
+            block_size=options["block_size"],
+            dcp_size=options["dcp_size"],
             seed=seed,
         )
+        first_result = localize_reference(*first, **reference)
+        # A seed offset no other cell of a sweep uses.
+        second, second_result = _second_case(first, first_result, seed=seed + 2**32, **reference)
 
-        req = torch.tensor(req_ids, dtype=torch.int32, device=device)
-        table = torch.tensor(block_table, dtype=torch.int32, device=device)
-        tokens = torch.tensor(rows, dtype=torch.int32, device=device)
-        tokens_before = tokens.clone()
-        table_before = table.clone()
-        req_before = req.clone()
+        def device_ints(values):
+            return torch.tensor(values, dtype=torch.int32, device=device)
+
+        # Device copies of each fixture and its oracle result. Replays copy a
+        # fixture into the bound buffers in place; the copies are never bound.
+        fixtures = [
+            (tuple(device_ints(values) for values in case), *map(device_ints, result))
+            for case, result in ((first, first_result), (second, second_result))
+        ]
+        bound = tuple(staged.clone() for staged in fixtures[0][0])
+        req, table, tokens = bound
 
         out, out_storage = _guarded(torch, (batch, width), device)
         counts, counts_storage = _guarded(torch, (batch,), device)
 
         workspace: dict[str, object] = {}
+        written = [out, counts]
         guards = [out_storage, counts_storage]
         if arm == "hierarchical_stable":
             for name, shape in workspace_shapes(batch, width, tile_size=tile_size).items():
                 view, storage = _guarded(torch, shape, device)
                 workspace[name] = view
+                written.append(view)
                 guards.append(storage)
 
         def launch() -> None:
             if arm == "row_stable":
-                localize_rowwise(
-                    req,
-                    table,
-                    tokens,
-                    out,
-                    counts,
-                    block_size=block_size,
-                    dcp_size=dcp_size,
-                    dcp_rank=dcp_rank,
-                    dcp_interleave=dcp_interleave,
-                )
+                localize_rowwise(req, table, tokens, out, counts, **options)
             else:
                 localize_hierarchical(
                     req,
@@ -358,94 +518,102 @@ def _run_cell(
                     workspace["local_positions"],
                     workspace["tile_counts"],
                     workspace["tile_offsets"],
-                    block_size=block_size,
-                    dcp_size=dcp_size,
-                    dcp_rank=dcp_rank,
-                    dcp_interleave=dcp_interleave,
                     tile_size=tile_size,
+                    **options,
                 )
 
-        launch()
+        def poison() -> None:
+            for buffer in written:
+                buffer.fill_(POISON)
+
+        def holds(fixture) -> bool:
+            """Whether the bound inputs still hold ``fixture``'s values."""
+            return all(
+                bool(torch.equal(tensor, staged))
+                for tensor, staged in zip(bound, fixture[0], strict=True)
+            )
+
+        # One reading per eager launch, the captured launch, and each replay.
+        allocation_free: list[bool] = []
+
+        poison()
+        allocation_free.append(_allocation_free(torch, launch))
         torch.cuda.synchronize()
         observed_out = out.cpu().tolist()
         observed_counts = counts.cpu().tolist()
+        report.checks["oracle"] = (observed_out, observed_counts) == first_result
 
-        expected_out, expected_counts = localize_reference(
-            req_ids,
-            block_table,
-            rows,
-            block_size=block_size,
-            dcp_size=dcp_size,
-            dcp_rank=dcp_rank,
-            dcp_interleave=dcp_interleave,
-        )
-        report.checks["oracle"] = (
-            observed_out == expected_out and observed_counts == expected_counts
-        )
+        req_ids, block_table, rows = first
+        compacting = options["compact_valid_to_front"] and options["dcp_size"] > 1
+        order_ok = True
+        for row_id, row in enumerate(rows):
+            slots = _owned_slots(
+                row,
+                block_table[req_ids[row_id]],
+                block_size=options["block_size"],
+                dcp_size=options["dcp_size"],
+                dcp_rank=options["dcp_rank"],
+                dcp_interleave=options["dcp_interleave"],
+            )
+            kept = [slot for slot in slots if slot is not None]
+            if compacting:
+                want = kept + [-1] * (width - len(kept))
+            else:
+                want = [-1 if slot is None else slot for slot in slots]
+            if observed_out[row_id] != want or observed_counts[row_id] != len(kept):
+                order_ok = False
+        report.checks["order"] = order_ok
 
-        # dcp_size == 1 bypasses compaction by contract, so there is no prefix
-        # to order-check; the oracle check above already covers it.
-        if dcp_size == 1:
-            report.checks["order"] = observed_out == expected_out
-        else:
-            order_ok = True
-            for row_id, row in enumerate(rows):
-                want = _expected_order(
-                    row,
-                    block_table[req_ids[row_id]],
-                    block_size=block_size,
-                    dcp_size=dcp_size,
-                    dcp_rank=dcp_rank,
-                    dcp_interleave=dcp_interleave,
-                )
-                got = observed_out[row_id][: observed_counts[row_id]]
-                tail = observed_out[row_id][observed_counts[row_id] :]
-                if got != want or any(value != -1 for value in tail):
-                    order_ok = False
-                    break
-            report.checks["order"] = order_ok
-
-        first = out.clone()
+        first_out = out.clone()
         first_counts = counts.clone()
         stable = True
         for _ in range(DETERMINISM_REPEATS):
-            launch()
+            poison()
+            allocation_free.append(_allocation_free(torch, launch))
             torch.cuda.synchronize()
-            if not (bool(torch.equal(out, first)) and bool(torch.equal(counts, first_counts))):
-                stable = False
-                break
+            stable = (
+                stable
+                and bool(torch.equal(out, first_out))
+                and bool(torch.equal(counts, first_counts))
+            )
         report.checks["determinism"] = stable
 
-        pointers = [t.data_ptr() for t in (req, table, tokens, out, counts)]
-        pointers += [t.data_ptr() for t in workspace.values()]
+        # PyTorch's capture recipe: warm up on a side stream, then capture.
         stream = torch.cuda.Stream()
         stream.wait_stream(torch.cuda.current_stream())
         with torch.cuda.stream(stream):
             for _ in range(3):
-                launch()
+                allocation_free.append(_allocation_free(torch, launch))
         torch.cuda.current_stream().wait_stream(stream)
         torch.cuda.synchronize()
+        inputs_kept = holds(fixtures[0])
         graph = torch.cuda.CUDAGraph()
         with torch.cuda.graph(graph):
-            launch()
-        allocated_before = torch.cuda.memory_allocated()
-        for _ in range(REPLAY_COUNT):
-            graph.replay()
-        torch.cuda.synchronize()
-        after_pointers = [t.data_ptr() for t in (req, table, tokens, out, counts)]
-        after_pointers += [t.data_ptr() for t in workspace.values()]
-        report.checks["replay"] = (
-            torch.cuda.memory_allocated() == allocated_before
-            and after_pointers == pointers
-            and out.cpu().tolist() == expected_out
-            and counts.cpu().tolist() == expected_counts
-        )
+            # Measured inside the context: beginning a capture may allocate
+            # PyTorch's own bookkeeping, which no launcher can avoid.
+            allocation_free.append(_allocation_free(torch, launch))
 
-        report.checks["immutability"] = (
-            bool(torch.equal(tokens, tokens_before))
-            and bool(torch.equal(table, table_before))
-            and bool(torch.equal(req, req_before))
-            and all(_guards_clean(storage) for storage in guards)
+        replayed = True
+        for replay in range(REPLAY_COUNT):
+            # The capture saw the first fixture: start on the second, alternate,
+            # and end on the first.
+            fixture = fixtures[(replay + 1) % 2]
+            staged_inputs, want_out, want_counts = fixture
+            for tensor, staged in zip(bound, staged_inputs, strict=True):
+                tensor.copy_(staged)
+            poison()
+            allocation_free.append(_allocation_free(torch, graph.replay))
+            torch.cuda.synchronize()
+            replayed = (
+                replayed
+                and bool(torch.equal(out, want_out))
+                and bool(torch.equal(counts, want_counts))
+            )
+            inputs_kept = inputs_kept and holds(fixture)
+        report.checks["replay"] = replayed
+        report.checks["allocation"] = all(allocation_free)
+        report.checks["immutability"] = inputs_kept and all(
+            _guards_clean(storage) for storage in guards
         )
     except LocalizationError as exc:
         report.error = f"{type(exc).__name__}: {exc}"
@@ -458,7 +626,7 @@ def _run_cell(
 
 
 def conformance(
-    matrix: Sequence[dict[str, int]] | None = None,
+    matrix: Sequence[dict[str, int | bool]] | None = None,
     *,
     arms: Sequence[str] = ARMS,
     batch: int = 5,
@@ -469,8 +637,10 @@ def conformance(
 
     Args:
         matrix: Geometry dicts with ``width``, ``block_size``, ``dcp_size``,
-            ``dcp_rank``, ``dcp_interleave``. Defaults to :data:`DEFAULT_MATRIX`.
-            Pass your own deployment geometry before trusting the kernels on it.
+            ``dcp_rank``, ``dcp_interleave``, optionally adding
+            ``compact_valid_to_front`` and ``num_warps``, which apply to every
+            arm. Defaults to :data:`DEFAULT_MATRIX`. Pass your own deployment
+            geometry before trusting the kernels on it.
         arms: Which implementations to check.
         batch: Selection rows per cell. Rows share a small pool of request ids,
             so request routing is exercised, not bypassed.
@@ -479,9 +649,10 @@ def conformance(
 
     Returns:
         A :class:`ConformanceReport`. It is falsy if anything failed, and
-        ``report.summary()`` names the geometry and the check. Missing CUDA or
-        Triton yields a skipped (falsy) report rather than an exception, so this
-        is safe to call unconditionally in CI.
+        ``report.summary()`` names the geometry and the check. A missing or
+        unimportable torch or Triton, or no CUDA device, yields a skipped
+        (falsy) report whose reason names the cause rather than an exception,
+        so this is safe to call unconditionally in CI.
 
     Raises:
         LocalizationError: if a sweep option is invalid. A bad
@@ -519,15 +690,17 @@ def conformance(
         raise LocalizationError("matrix must contain at least one geometry")
 
     report = ConformanceReport()
+    # An installed but broken runtime can raise anything at import; either way
+    # the backend is unavailable, and the skip reason keeps the exception.
     try:
         import torch
-    except ModuleNotFoundError:
-        report.skipped = "torch is not installed"
+    except Exception as exc:
+        report.skipped = _import_failure("torch", exc)
         return report
     try:
         import triton  # noqa: F401
-    except ModuleNotFoundError:
-        report.skipped = "triton is not installed"
+    except Exception as exc:
+        report.skipped = _import_failure("triton", exc)
         return report
     if not torch.cuda.is_available():
         report.skipped = "no CUDA device is available"
@@ -549,6 +722,29 @@ def conformance(
                 )
             )
     return report
+
+
+def _load_matrix(path: str, *, batch: int, tile_size: int) -> list[dict[str, int | bool]]:
+    """Read a ``--matrix`` file: a JSON list of geometry objects.
+
+    Every entry is checked with the schema :func:`conformance` applies, before
+    any backend is imported, so a typo fails even where the sweep would skip.
+    """
+    import json
+
+    try:
+        with open(path, encoding="utf-8") as handle:
+            matrix = json.load(handle)
+    except (OSError, ValueError) as exc:
+        raise LocalizationError(f"cannot read --matrix {path}: {exc}") from exc
+    if not isinstance(matrix, list) or not matrix:
+        raise LocalizationError("--matrix must hold a nonempty JSON list of geometry objects")
+    for index, geometry in enumerate(matrix):
+        try:
+            _check_geometry(geometry, batch=batch, tile_size=tile_size)
+        except LocalizationError as exc:
+            raise LocalizationError(f"--matrix entry {index}: {exc}") from exc
+    return matrix
 
 
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI
@@ -584,12 +780,26 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI
         choices=list(ARMS),
         help="restrict to one arm; repeatable",
     )
+    parser.add_argument(
+        "--matrix",
+        metavar="FILE",
+        help=(
+            "JSON list of geometry objects to check instead of the built-in matrix; "
+            f"keys {', '.join(GEOMETRY_KEYS)}, optionally {', '.join(OPTIONAL_GEOMETRY_KEYS)}"
+        ),
+    )
     args = parser.parse_args(argv)
     if args.batch < 1:
         parser.error("--batch must be at least 1")
 
     try:
+        matrix = (
+            None
+            if args.matrix is None
+            else _load_matrix(args.matrix, batch=args.batch, tile_size=args.tile_size)
+        )
         report = conformance(
+            matrix=matrix,
             arms=tuple(dict.fromkeys(args.arm)) if args.arm else ARMS,
             batch=args.batch,
             tile_size=args.tile_size,

@@ -21,7 +21,8 @@ ordered after consumer reads. Both validate metadata and raise
 :class:`~silkern.errors.LocalizationError` rather than degrade.
 
 ``torch`` is imported lazily inside the launchers. Importing ``silkern`` does not
-require PyTorch; a guarded Triton import defines kernels when it is installed.
+require PyTorch; a guarded Triton import defines kernels when it is installed
+and importable. If it is absent or broken, the launchers raise and name why.
 """
 
 from __future__ import annotations
@@ -37,12 +38,28 @@ from silkern.contract import (
 from silkern.errors import LocalizationError
 from silkern.workspace import workspace_shapes
 
+
+def _import_failure(package: str, exc: Exception) -> str:
+    """Say why an optional runtime is unusable, for errors and skip reports.
+
+    A missing package raises ``ModuleNotFoundError`` naming itself. An installed
+    but broken one can raise anything at import -- ``ImportError`` or ``OSError``
+    for a missing shared library, for example -- and is just as unusable.
+    """
+    if isinstance(exc, ModuleNotFoundError) and exc.name == package:
+        return f"{package} is not installed"
+    return f"{package} failed to import ({type(exc).__name__}: {exc})"
+
+
 try:
     import triton
     import triton.language as tl
-except ModuleNotFoundError:  # CPU-only environments; launchers fail closed.
+except Exception as exc:  # Absent or broken install: launchers fail closed.
     triton = None
     tl = None
+    _TRITON_UNAVAILABLE: str | None = _import_failure("triton", exc)
+else:
+    _TRITON_UNAVAILABLE = None
 
 
 # Kernel definitions are guarded so that ``import silkern`` succeeds without a GPU
@@ -414,7 +431,9 @@ def localize_rowwise(
     or buffer binding rather than falling back to a different code path.
     """
     if triton is None:
-        raise LocalizationError("triton is required for stable localization")
+        raise LocalizationError(
+            f"triton is required for stable localization: {_TRITON_UNAVAILABLE}"
+        )
     import torch
 
     tensors = (req_ids, block_table, tokens, out, counts)
@@ -528,7 +547,9 @@ def localize_hierarchical(
     reads past the table rather than raising. See ``docs/contract.md``.
     """
     if triton is None:
-        raise LocalizationError("triton is required for stable localization")
+        raise LocalizationError(
+            f"triton is required for stable localization: {_TRITON_UNAVAILABLE}"
+        )
     import torch
 
     tensors = (

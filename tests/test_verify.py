@@ -7,7 +7,9 @@ they are the parts most likely to lie about a failure.
 
 from __future__ import annotations
 
+import itertools
 import json
+import re
 import sys
 from types import SimpleNamespace
 
@@ -15,31 +17,43 @@ import pytest
 
 import silkern
 import silkern.verify as verify
+from silkern.contract import DEFAULT_TILE_SIZE
+from silkern.integrations import vllm
 from silkern.verify import (
     CHECKS,
     DEFAULT_MATRIX,
+    GEOMETRY_KEYS,
+    OPTIONAL_GEOMETRY_KEYS,
     CellReport,
     ConformanceReport,
+    _check_geometry,
     _expected_order,
     _random_case,
 )
 
+_NO_DEVICE = SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False))
 
-def test_conformance_skips_cleanly_without_a_device(monkeypatch) -> None:
-    # CPU reporting tests must never start a GPU sweep on a CUDA-equipped host.
-    monkeypatch.setitem(sys.modules, "torch", None)
+
+@pytest.mark.parametrize(
+    "modules, reason",
+    [
+        ({"torch": None}, "torch is not installed"),
+        ({"torch": _NO_DEVICE, "triton": None}, "triton is not installed"),
+        ({"torch": _NO_DEVICE, "triton": SimpleNamespace()}, "no CUDA device is available"),
+    ],
+    ids=["no-torch", "no-triton", "no-device"],
+)
+def test_conformance_skips_cleanly_without_a_backend(monkeypatch, modules, reason) -> None:
+    # The modules are replaced, so these run everywhere: CPU reporting tests
+    # must never start a GPU sweep on a CUDA-equipped host. A skip must be
+    # falsy, not an exception, and must say why.
+    for name, module in modules.items():
+        monkeypatch.setitem(sys.modules, name, module)
     report = silkern.conformance()
-    # In CI there is no CUDA device; a skip must be falsy but not an exception,
-    # and must say why.
-    if report.skipped is not None:
-        assert not report.ok
-        assert not report
-        assert report.skipped in {
-            "torch is not installed",
-            "triton is not installed",
-            "no CUDA device is available",
-        }
-        assert "skipped" in report.summary()
+    assert report.skipped == reason
+    assert not report.ok
+    assert not report
+    assert report.summary() == f"conformance skipped: {reason}"
 
 
 def test_empty_report_is_not_ok() -> None:
@@ -121,8 +135,9 @@ def test_invalid_sweep_options_raise_even_without_backend(monkeypatch, kwargs) -
 @pytest.mark.parametrize(
     "change", [
         {"width": 2**40}, {"width": True}, {"dcp_size": 0}, {"block_size": 0},
-        {"compact_valid_to_front": False}, {"tile_size": 256},
-        {"block_size": 2**20}, {"dcp_size": 2**24},
+        {"tile_size": 256}, {"compact": False}, {"block_size": 2**20}, {"dcp_size": 2**24},
+        {"compact_valid_to_front": 0}, {"compact_valid_to_front": None},
+        {"num_warps": 16}, {"num_warps": True}, {"num_warps": 8.0},
     ]
 )
 def test_bad_geometry_fails_before_any_device_allocation(change: dict[str, int]) -> None:
@@ -134,6 +149,33 @@ def test_bad_geometry_fails_before_any_device_allocation(change: dict[str, int])
     assert not report.ok
     assert report.error.startswith("LocalizationError:")
     assert report.checks == dict.fromkeys(CHECKS, False)
+
+
+@pytest.mark.parametrize("key", GEOMETRY_KEYS)
+def test_geometry_missing_a_launch_parameter_is_named(key: str) -> None:
+    geometry = {name: value for name, value in DEFAULT_MATRIX[0].items() if name != key}
+    with pytest.raises(silkern.LocalizationError, match=f"missing {key}$"):
+        _check_geometry(geometry, batch=1, tile_size=128)
+
+
+@pytest.mark.parametrize(
+    "extra, options",
+    [
+        ({}, {"compact_valid_to_front": True}),
+        ({"compact_valid_to_front": False}, {"compact_valid_to_front": False}),
+        ({"num_warps": 4}, {"compact_valid_to_front": True, "num_warps": 4}),
+        ({"compact_valid_to_front": True, "num_warps": 8},
+         {"compact_valid_to_front": True, "num_warps": 8}),
+    ],
+)
+def test_geometry_accepts_the_optional_launch_keys(extra, options) -> None:
+    geometry = {"width": 513, "block_size": 32, "dcp_size": 4, "dcp_rank": 2,
+                "dcp_interleave": 2, **extra}
+    width, launch = _check_geometry(geometry, batch=3, tile_size=128)
+    assert width == 513
+    # num_warps is passed on only when set, so each launcher keeps its default.
+    assert launch == {"block_size": 32, "dcp_size": 4, "dcp_rank": 2, "dcp_interleave": 2,
+                      **options}
 
 
 def test_large_geometry_rejects_host_fixture_before_allocation() -> None:
@@ -215,10 +257,69 @@ def test_cli_rejects_invalid_batch_before_backend(monkeypatch, batch) -> None:
         verify.main(["--batch", batch])
 
 
+def test_cli_passes_a_matrix_file_to_the_sweep(monkeypatch, tmp_path, capsys) -> None:
+    matrix = [
+        {"width": 2048, "block_size": 32, "dcp_size": 2, "dcp_rank": 1, "dcp_interleave": 1},
+        {"width": 129, "block_size": 64, "dcp_size": 4, "dcp_rank": 0, "dcp_interleave": 1,
+         "compact_valid_to_front": False, "num_warps": 4},
+    ]
+    path = tmp_path / "matrix.json"
+    path.write_text(json.dumps(matrix))
+    seen = {}
+
+    def sweep(**kwargs):
+        seen.update(kwargs)
+        return ConformanceReport(skipped="test backend missing")
+
+    monkeypatch.setattr(verify, "conformance", sweep)
+    assert verify.main(["--matrix", str(path)]) == 0
+    assert seen["matrix"] == matrix
+    assert "conformance skipped" in capsys.readouterr().out
+
+
+def test_cli_without_a_matrix_file_sweeps_the_default_matrix(monkeypatch) -> None:
+    seen = {}
+    monkeypatch.setattr(verify, "conformance", lambda **kwargs: (
+        seen.update(kwargs) or ConformanceReport(skipped="test backend missing")
+    ))
+    assert verify.main([]) == 0
+    assert seen["matrix"] is None
+
+
+@pytest.mark.parametrize(
+    "content, message",
+    [
+        (None, "cannot read --matrix"),
+        ("{not json", "cannot read --matrix"),
+        (json.dumps({"width": 1}), "nonempty JSON list"),
+        (json.dumps([]), "nonempty JSON list"),
+        (json.dumps([DEFAULT_MATRIX[0], 7]), "entry 1: matrix geometry must be a mapping"),
+        (json.dumps([{**DEFAULT_MATRIX[0], "tile_size": 64}]), "entry 0: .*unknown keys tile_size"),
+        (json.dumps([{**DEFAULT_MATRIX[0], "dcp_rank": 1}]), "entry 0: invalid dcp configuration"),
+        (json.dumps([{**DEFAULT_MATRIX[0], "num_warps": 2}]), "entry 0: num_warps must be 4 or 8"),
+        (json.dumps([{**DEFAULT_MATRIX[0], "compact_valid_to_front": "no"}]),
+         "entry 0: compact_valid_to_front must be a bool"),
+    ],
+    ids=["missing-file", "not-json", "object", "empty", "non-mapping-entry",
+         "unknown-key", "bad-rank", "bad-num-warps", "bad-compaction-flag"],
+)
+def test_cli_rejects_a_bad_matrix_file_before_any_backend(
+    monkeypatch, tmp_path, capsys, content, message
+) -> None:
+    # A typo must fail on a machine with no backend, where the sweep would skip.
+    monkeypatch.setitem(sys.modules, "torch", None)
+    path = tmp_path / "matrix.json"
+    if content is not None:
+        path.write_text(content)
+    with pytest.raises(SystemExit, match="2"):
+        verify.main(["--matrix", str(path)])
+    assert re.search(message, capsys.readouterr().err)
+
+
 def test_default_matrix_is_well_formed_and_crosses_boundaries() -> None:
-    required = {"width", "block_size", "dcp_size", "dcp_rank", "dcp_interleave"}
     for geometry in DEFAULT_MATRIX:
-        assert set(geometry) == required
+        assert set(GEOMETRY_KEYS) <= set(geometry) <= set(GEOMETRY_KEYS + OPTIONAL_GEOMETRY_KEYS)
+        _check_geometry(geometry, batch=5, tile_size=DEFAULT_TILE_SIZE)
         assert 0 <= geometry["dcp_rank"] < geometry["dcp_size"]
         assert geometry["width"] <= silkern.MAX_ROW_WIDTH
         assert geometry["block_size"] % geometry["dcp_interleave"] == 0
@@ -230,6 +331,32 @@ def test_default_matrix_is_well_formed_and_crosses_boundaries() -> None:
     assert any(
         g["dcp_rank"] == g["dcp_size"] - 1 for g in DEFAULT_MATRIX if g["dcp_size"] > 1
     )
+    assert len({json.dumps(g, sort_keys=True) for g in DEFAULT_MATRIX}) == len(DEFAULT_MATRIX)
+
+
+def test_default_matrix_keeps_columns_across_ranks() -> None:
+    """The column-preserving layout must be checked where ownership drops tokens."""
+    column_preserving = [
+        g for g in DEFAULT_MATRIX if g.get("compact_valid_to_front", True) is False
+    ]
+    assert any(g["dcp_size"] > 1 for g in column_preserving)
+    assert any(g["dcp_size"] > 1 and g["dcp_interleave"] > 1 for g in column_preserving)
+
+
+def test_default_matrix_covers_the_vllm_qualified_surface() -> None:
+    """A bare ``python -m silkern`` sweeps each qualified vLLM geometry (one rank apiece)."""
+    # The adapter's BLOCK_N is the hierarchical tile; the sweep's default must match.
+    assert DEFAULT_TILE_SIZE == vllm.QUALIFIED_BLOCK_N
+    swept = {
+        (g["width"], g["block_size"], g["dcp_size"], g["dcp_interleave"])
+        for g in DEFAULT_MATRIX
+        if g.get("compact_valid_to_front", True) and "num_warps" not in g
+    }
+    for width, block_size, dcp_size, interleave in itertools.product(
+        vllm.QUALIFIED_TOPK_WIDTHS, vllm.QUALIFIED_BLOCK_SIZES,
+        vllm.QUALIFIED_DCP_SIZES, vllm.QUALIFIED_INTERLEAVES,
+    ):
+        assert (width, block_size, dcp_size, interleave) in swept
 
 
 def test_independent_order_derivation_agrees_with_the_oracle() -> None:

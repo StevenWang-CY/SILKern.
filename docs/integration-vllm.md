@@ -118,7 +118,9 @@ conflating "the kernel handles it" with "the integration was tested on it" is th
 easiest way to ship a wrong index.
 
 To widen it, compare the new upstream signature and semantics with the recorded
-revision, run `silkern.conformance()` on the new geometry, and verify the actual
+revision, run `silkern.conformance()` on the new geometry (from the command
+line, `python -m silkern --matrix FILE` with a JSON list of geometry objects),
+and verify the actual
 integration and graph capture with that consumer. Extend the `QUALIFIED_*`
 constants only after all three checks pass, and record the new revision and
 qualification evidence. Kernel conformance alone does not qualify an upstream
@@ -146,19 +148,36 @@ attribute and raises if it does not, which catches the grossest form of drift.
 ## A capture checklist
 
 1. `python -m silkern --require-device` passes on the device you will deploy on.
+   Its default matrix pairs each qualified `dcp_size` with each qualified
+   `block_size` at width 2048, one rank apiece; add your exact deployment
+   geometry, every rank included, with `--matrix FILE`.
 2. `prepare()` is called once, on the real tensors, before warmup.
 3. Every graph bucket gets its own adapter — a different batch size is a
    different binding.
 4. Your capture gate asserts `adapter.fixed_buffer_signatures` is unchanged
    before and after capture.
-5. `torch.cuda.memory_allocated()` does not grow across replays.
-6. `adapter.calls` increased, i.e. the swap actually took effect and you are not
+5. Neither the eager calls nor the captured call allocate. After
+   `torch.cuda.reset_peak_memory_stats()`, both `torch.cuda.memory_allocated()`
+   and `torch.cuda.max_memory_allocated()` stay at their starting level. Measure
+   the captured call inside the `torch.cuda.graph` block, around the call alone,
+   because entering the block can allocate PyTorch's own bookkeeping. A replay
+   never calls the allocator, so measuring around replays alone cannot fail.
+6. Each replay computes from the bound inputs. Rewrite them in place with a
+   second batch whose correct result differs, overwrite `adapter.output` and
+   `adapter.counts` with a value no launch writes, replay, and compare with the
+   reference result; then switch back to the first batch and compare again.
+   Comparing after replays of unchanged inputs passes even if the graph does
+   nothing.
+7. `adapter.calls` increased, i.e. the swap actually took effect and you are not
    quietly still running the native converter.
-7. Shared-buffer calls, graph replays, and consumer reads have explicit stream
+8. Shared-buffer calls, graph replays, and consumer reads have explicit stream
    ordering; concurrent executions use separate storage.
 
-Kernel conformance checks fixed addresses and replay behavior directly. Repeat
-the relevant checks around the actual integration: a correct kernel can still
-be wired to the wrong tensors. `adapter.calls` is a Python invocation counter;
-a CUDA graph replay does not execute Python again, so check it during eager
-execution/capture rather than expecting it to rise on every replay.
+Kernel conformance poisons outputs before every checked launch and replay,
+alternates replay inputs between two fixtures, and measures allocation around
+every launch, the capture, and every replay. Repeat checks 5 and 6 around the
+actual integration: a correct kernel can still be wired to the wrong tensors,
+or to a copy that a captured graph never refreshes. `adapter.calls` is a Python
+invocation counter; a CUDA graph replay does not execute Python again, so check
+it during eager execution/capture rather than expecting it to rise on every
+replay.
