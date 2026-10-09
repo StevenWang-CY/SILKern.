@@ -6,8 +6,8 @@ may round values or show explicitly derived ratios. A checksum proves integrity,
 not correctness or applicability to a different system.
 
 Records `01`–`06` were inherited from the original repository. Record `07`
-preserves the initial Apple checkpoint, and record `08` preserves the first
-audit corrections. Record `09` measures the 2.0.0 implementation, strengthens
+preserves the initial Apple checkpoint, and record `08` the first audit's host
+and verifier corrections. Record `09` measures the 2.0.0 implementation, strengthens
 compiled-input qualification, and adds a complete selected-attention consumer.
 Record `10` follows the post-release audit: it holds the current verifier's
 conformance report and a same-process comparison of the current MLX sources with
@@ -43,10 +43,10 @@ Run this command from the repository root.
 | `02-trained-layer0-semantics/` | With a real trained selector and real tokenized text, rank-local arrays equal the oracle, each rank's order equals filtering the selector array by ownership, the DCP partitions are disjoint and reconstruct the global set, and recombined attention matches the unsharded result. 24/24 cells at 4K–32K, DCP-2 and DCP-4. | 1× RTX 5060 Ti |
 | `03-subpath-timing/` | A 9-session paired timing study of a trained selection-to-projection subpath. **All four intervals favor the stable arm and none clears the prefixed practical margin, so the decision is an abstention.** Retained because a campaign that only publishes its wins is not evidence. | 1× RTX 5060 Ti |
 | `04-mechanism-decomposition/` | An 8-arm decomposition of where the difference comes from. Converter work resolves (~2 µs); **consumed-prefix order alone does not** — its effect is inconsistently signed across contexts (−1.08 µs at 4K, −0.79 µs at 16K, +2.20 µs at 32K). This is counter-evidence against the tempting story that order itself is what costs. | 1× RTX 5060 Ti |
-| `06-order-instability-b200/` | Unique consumed-prefix orders per 20 replays of byte-identical input on the live two-GPU step: the atomic converter emits 17–20 distinct orders; the stable converter emits exactly 1, in every record. The source of the "17–20 distinct orders" statement. | 2× B200 |
 | `05-full-decode-canary/` | The complete per-token decode step of a real 48-layer model under live two-GPU context parallelism, three arms, randomized paired blocks, margins fixed before observation. `segments.json` carries the converter/attention/communication segment medians (converter at 32K: row-wide 120.0 µs, atomic 194.4 µs, hierarchical 239.7 µs — the source of the "38% less time" statement). | 2× H100 80GB |
+| `06-order-instability-b200/` | Unique consumed-prefix orders per 20 replays of byte-identical input on the live two-GPU step: the atomic converter emits 17–20 distinct orders; the stable converter emits exactly 1, in every record. The source of the "17–20 distinct orders" statement. | 2× B200 |
 | [`07-apple-mlx/`](07-apple-mlx/) | Initial Apple JSON records retained unchanged: 48-cell conformance and three-process eager/compiled comparison, before later implementation corrections. | Apple M5 Max |
-| [`08-apple-mlx-audit/`](08-apple-mlx-audit/) | Earlier audit checkpoint: Metal scan synchronization and arithmetic corrections; 48-cell conformance and three timing sessions; original JSON retained. | Apple M5 Max |
+| [`08-apple-mlx-audit/`](08-apple-mlx-audit/) | Earlier audit checkpoint: host integer normalization and stricter verifier pass criteria, with the Metal kernel of record 07; 48-cell conformance and three timing sessions; original JSON retained. | Apple M5 Max |
 | [`09-apple-mlx-consumer/`](09-apple-mlx-consumer/) | 2.0.0 checkpoint: 48-cell conformance, compiled per-input gates, three localization sessions, and three complete selected-attention sessions with independent attention checks. | Apple M5 Max |
 | [`10-apple-mlx-post-audit/`](10-apple-mlx-post-audit/) | Post-audit sources: 90-cell conformance across native MLX on CPU and GPU and Metal on GPU, and three same-process sessions comparing their latency with record 09's sources (Metal unchanged; compiled MLX about 3% faster). | Apple M5 Max |
 
@@ -77,7 +77,7 @@ establish a universal context-length dispatch threshold; see
 * For historical NVIDIA records `01`–`06`: raw per-session records, session
   logs, protocol documents, preregistration records, retained failure records,
   and profiler counter dumps. The historical campaign retains those separately.
-  Apple records `07`–`09` include their raw timing sessions in this repository.
+  Apple records `07`–`10` include their raw timing sessions in this repository.
 * Any serving-runtime result. Every timing here comes from a single-purpose
   reference executor, not a production serving path under load. The reference
   executor computes a dense-weighted mixture-of-experts to stay

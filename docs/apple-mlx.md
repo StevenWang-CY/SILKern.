@@ -228,6 +228,12 @@ python -m silkern.mlx_verify --repeats 16 --require-device
 python -m bench.bench_mlx --compiled
 ```
 
+Each verifier cell checks the oracle on contiguous inputs, then the same values
+through a strided view, so the Metal path is checked both without and with the
+copy it makes for a strided input. It also checks stable order, repeated
+evaluation, input immutability, output shape and dtype, and request ids on both
+sides of the table. Reports use schema 3, which added the `layouts` check.
+
 The benchmark compares the custom Metal implementation and compositional MLX
 implementation on identical inputs. `--compiled` additionally measures each
 implementation through `mx.compile`, so dispatch and fusion effects are visible.
@@ -344,7 +350,10 @@ confidence interval. Before timing, each arm must match independent unsharded
 float64 attention within `rtol=1e-5, atol=1e-6` and exact per-shard counts, both
 for the original fixture and independently changed queries, request IDs, and
 token selections. Page tables and K/V caches remain static in these checks and
-timings. Unused padding includes NaN to expose incomplete masking.
+timings. Cache slots that no token occupies, including all of placeholder page 0,
+hold NaN, so a consumer that skips masking gathered values fails this gate.
+Record 09's fixture held zeros there; its gate therefore could not detect that
+defect, which the example's own self-check catches.
 
 ```bash
 python -m bench.bench_mlx_attention \

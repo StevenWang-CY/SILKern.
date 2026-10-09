@@ -137,7 +137,7 @@ with macOS 26.6, Python 3.12.12, and MLX 0.32.3:
 |---|---|
 | CPU and Apple tests, warnings as errors | 936 passed; two CUDA modules and one CUDA-only documentation file skipped |
 | Base suite without MLX | 540 passed |
-| Property tests at 5,000 cases; MLX fuzzing at 600 cases and 15,000 seeded executions | No mismatch with the oracle |
+| Property tests at 5,000 cases; MLX fuzzing at 600 cases per execution path, 2,925 seeded `localize_mlx` calls in all | No mismatch with the oracle |
 | Apple conformance, `--require-device --repeats 16` | 90/90 cells ([record 10](../evidence/10-apple-mlx-post-audit/conformance.json)) |
 | Same-process latency comparison with record 09's sources | Metal unchanged (median ratio 1.004); compiled MLX about 3% faster (0.968) |
 | Source archive, wheel, and strict Twine checks | Passed; the archive lists only project files |
@@ -153,7 +153,7 @@ measured on the 2.0.0 sources; record 10 bounds how they apply to 2.1.0.
 
 ## Qualification boundary
 
-The implementation-checkpoint checks, recorded before release, passed:
+The 2.0.0 implementation checkpoint, recorded before that release, passed:
 
 | Check | Result |
 |---|---|
@@ -166,18 +166,22 @@ The implementation-checkpoint checks, recorded before release, passed:
 | Evidence | Historical checksums retained; new source hashes and raw-sample medians verified; aggregate summary reproduced byte-for-byte |
 | Documentation | Local links and heading anchors checked; README and diagrams inspected in light and dark themes |
 
-The [current Apple record](../evidence/09-apple-mlx-consumer/) includes 48 passing
-conformance cells with 16 repeatability evaluations per cell and all raw samples
-from three fresh primitive benchmark processes and three separate consumer processes.
-Current source hashes match those records. Primitive ratios span 1.10–1.21×
-over compiled MLX; both complete-consumer geometries round to 1.12×. The maximum
+[Record 09](../evidence/09-apple-mlx-consumer/), measured on the 2.0.0 sources,
+includes 48 passing conformance cells with 16 repeatability evaluations per cell
+and all raw samples from three fresh primitive benchmark processes and three
+separate consumer processes; its source hashes are those of 2.0.0.
+[Record 10](../evidence/10-apple-mlx-post-audit/) holds the 2.1.0 conformance
+report and bounds how record 09's latencies apply to the later sources. Primitive
+ratios span 1.10–1.21× over compiled MLX; both complete-consumer geometries round
+to 1.12×. The maximum
 consumer oracle error across qualification cases is below `2.91e-8`. All cells
 and raw samples are retained, including sessions with visible latency variation.
 The [initial Apple record](../evidence/07-apple-mlx/) remains intact as a prior
 implementation checkpoint; its source hashes intentionally describe that earlier
-implementation. Both earlier records and the current record retain byte-identical
+implementation. Records 07–09 retain byte-identical
 [source snapshots](../evidence/09-apple-mlx-consumer/sources/) for every source
-digest recorded by their benchmarks. These snapshots are stored as `.py.txt`
+digest recorded by their benchmarks, and record 10 archives the post-audit
+`silkern/mlx.py` it compared. These snapshots are stored as `.py.txt`
 files, separate from the importable implementation. The [test suite](../tests/) also checks scan
 boundaries, partial chunks, duplicate selections, negative page values,
 non-compacting layouts, malformed metadata, and input immutability.

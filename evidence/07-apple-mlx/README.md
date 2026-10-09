@@ -1,10 +1,13 @@
 # Apple MLX initial checkpoint
 
 These Apple-only measurements describe the initial 0.2.0 implementation at the
-source hashes recorded here. They predate the audit's Metal scan-synchronization
-and arithmetic corrections. The original JSON records are retained unchanged;
-use [record 09](../09-apple-mlx-consumer/) for current implementation conformance
-and performance. The archived NVIDIA records were not rerun.
+source hashes recorded here. Its Metal kernel already synchronizes group totals
+before prefix reads and computes physical slots in unsigned arithmetic; record 08
+changed host-side integer normalization and the verifier's pass criteria. The
+original JSON records are retained unchanged. Use
+[record 10](../10-apple-mlx-post-audit/) for current conformance and
+[record 09](../09-apple-mlx-consumer/) for the recorded latencies. The archived
+NVIDIA records were not rerun.
 
 | Environment | Recorded value |
 |---|---|

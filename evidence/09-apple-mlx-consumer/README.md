@@ -98,13 +98,19 @@ processes, 10 warmups, and 12 rotating-order blocks of 50 evaluated calls per ar
 Before timing, both arms must match independent unsharded float64 attention
 within `rtol=1e-5, atol=1e-6`, plus exact per-shard counts. This gate covers the
 original fixture and independently changed queries, request IDs, and token
-selections. Page tables and K/V caches remain static in these checks and timings;
-unused padding contains NaN to expose incomplete masking. Fixture generation,
+selections. Page tables and K/V caches remain static in these checks and timings.
+In this record's fixture, cache slots that no token occupies held zeros, so the
+gate could not see a consumer that skipped masking gathered values; the
+benchmark has since filled them with NaN, which such a consumer cannot pass.
+The example's own self-check always used NaN placeholders. Fixture generation,
 oracle checks, and initial compilation are outside the timed region.
 
 ## Reproduce
 
-From the repository root on compatible Apple silicon:
+From the repository root on compatible Apple silicon. Current sources measure the
+current implementation, not the 2.0.0 sources archived here: the verifier now
+runs 90 cells by default (report schema 3, [record 10](../10-apple-mlx-post-audit/)),
+and the consumer fixture fills unused cache slots with NaN.
 
 ```bash
 python -m pip install -e ".[mlx]"

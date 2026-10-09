@@ -1,11 +1,15 @@
 # Apple MLX audit checkpoint
 
-This record measures the 0.2.0 implementation after the audit synchronized Metal
-group totals before prefix reads and used unsigned physical-slot arithmetic to
-avoid signed-overflow undefined behavior. Supported physical results must still
-fit signed `int32`. This earlier checkpoint predates the large-batch grid and
-thread-local stream updates; use [record 09](../09-apple-mlx-consumer/) for current
-implementation measurements and stronger per-session compiled-input gates.
+This record measures the 0.2.0 implementation after the audit converted geometry
+values to Python integers before checking them, so NumPy integer scalars cannot
+lose low bits, and made the verifier require every check to be exactly `True`.
+Its Metal kernel is identical to record 07's, which already synchronized group
+totals before prefix reads and computed physical slots in unsigned arithmetic;
+supported physical results must still fit signed `int32`. This earlier checkpoint
+predates the large-batch grid and thread-local stream updates. Use
+[record 10](../10-apple-mlx-post-audit/) for current conformance and
+[record 09](../09-apple-mlx-consumer/) for the recorded latencies and stronger
+per-session compiled-input gates.
 The [initial checkpoint](../07-apple-mlx/)
 remains intact with its original source hashes and JSON results. Differences
 between checkpoints are not a controlled before/after performance experiment.

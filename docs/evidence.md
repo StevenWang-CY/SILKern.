@@ -79,10 +79,11 @@ identifies the available machine record and commands. Metal-versus-MLX timings
 compare native implementations of one primitive with evaluated outputs.
 
 The [initial Apple checkpoint](../evidence/07-apple-mlx/) is retained with its
-original JSON records. It predates the scan-synchronization and arithmetic
-corrections. [Record 08](../evidence/08-apple-mlx-audit/) includes those corrections;
-latency claims use record 09, after the large-batch Metal grid fix and
-thread-local stream support. Record 09 also records independent
+original JSON records. Its Metal kernel already synchronized group totals and
+used unsigned slot arithmetic; [record 08](../evidence/08-apple-mlx-audit/) added
+host-side integer normalization and stricter verifier pass criteria. Latency
+claims use record 09, after the large-batch Metal grid fix and thread-local
+stream support. Record 09 also records independent
 request/table/token perturbation gates for compiled localization. Records 07
 and 08 checked the original fixture per run and had separate changing-input
 tests; they did not record these stronger per-session gates.

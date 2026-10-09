@@ -6,6 +6,8 @@ sources after the post-release audit, in one process on the same device. It
 answers one question: did the audit's changes to `silkern/mlx.py` change
 localization latency? It is not a new absolute measurement, and record 09
 remains the source of the recorded latencies. No NVIDIA experiments were run.
+The JSON files report `silkern 2.0.0` because they were recorded before the
+version was raised to 2.1.0; their source hashes are those of the 2.1.0 release.
 
 Between the two sources, the custom Metal kernel began reading the batch, row
 width, and block-table shape at run time instead of compiling them in. The
