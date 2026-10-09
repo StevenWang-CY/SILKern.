@@ -23,6 +23,13 @@ on Apple silicon (MLX and Metal) and NVIDIA GPUs (Triton).
 
 ## News
 
+- **2026-10-09** · [Version 2.2.0](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.2.0)
+  follows a second audit of the repository. Malformed inputs now raise
+  `LocalizationError` from every entry point, the MLX verifier checks contiguous
+  as well as strided inputs, and the attention benchmark pads its cache with NaN,
+  so a consumer that skips masking fails. Figures stay legible when a reader's
+  GitHub theme differs from the system theme, and the opening figure shows where
+  SILKern sits in a decode step. See the [changelog](CHANGELOG.md).
 - **2026-10-07** · [Version 2.1.0](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.1.0)
   follows an independent audit of 2.0.0. It closes two silent MLX failures,
   under shapeless compilation and under concurrent CPU and GPU calls, makes
@@ -78,11 +85,11 @@ repeated calls return identical values, counts, and order on every backend.
 
 ## Installation
 
-The base package is pure Python and has no dependencies. Install the 2.1.0
+The base package is pure Python and has no dependencies. Install the 2.2.0
 wheel from its GitHub release:
 
 ```bash
-python -m pip install "silkern @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.1.0/silkern-2.1.0-py3-none-any.whl"
+python -m pip install "silkern @ https://github.com/StevenWang-CY/SILKern./releases/download/v2.2.0/silkern-2.2.0-py3-none-any.whl"
 ```
 
 For an accelerator backend, write `silkern[mlx]` or `silkern[gpu]` in place of
@@ -317,7 +324,7 @@ the revision you ran:
   title   = {SILKern: deterministic sparse-index localization for context-parallel decode},
   author  = {{The SILKern Authors}},
   year    = {2026},
-  version = {2.1.0},
+  version = {2.2.0},
   license = {Apache-2.0},
   url     = {https://github.com/StevenWang-CY/SILKern.}
 }

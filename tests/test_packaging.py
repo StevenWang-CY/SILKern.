@@ -87,6 +87,23 @@ def test_version_is_the_same_in_every_place_that_states_it() -> None:
     assert silkern.__version__ == declared == cited.group(1).strip()
 
 
+def test_every_install_link_and_citation_names_the_current_release() -> None:
+    """Release links are written by hand; each must follow the package version."""
+    version = silkern.__version__
+    wheel = f"releases/download/v{version}/silkern-{version}-py3-none-any.whl"
+    readme = (ROOT / "README.md").read_text()
+    assert wheel in readme
+    assert f"version = {{{version}}}," in readme
+    assert f"releases/tag/v{version})" in readme  # the News entry
+    assert wheel in (ROOT / "docs" / "apple-mlx.md").read_text()
+    description = (ROOT / "docs" / "package-description.md").read_text()
+    assert wheel in description
+    tags = set(re.findall(r"SILKern\./(?:blob|releases/tag)/v([0-9.]+)", description))
+    assert tags == {version}, tags
+    citation = (ROOT / "CITATION.cff").read_text()
+    assert f"releases/tag/v{version}" in citation
+
+
 def test_typing_marker_ships_with_the_package() -> None:
     """PEP 561: without this file the annotations are invisible to consumers."""
     assert (pathlib.Path(silkern.__file__).parent / "py.typed").is_file()

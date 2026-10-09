@@ -7,8 +7,10 @@ added native Apple execution and strengthened the existing API, integration
 lifecycle, verification, and distribution; it was developed under the
 unreleased `0.2.0` version, and historical measurement records keep their
 original metadata. [Version 2.1.0](#210-audit-and-release-verification--october-7-2026)
-follows an independent audit of 2.0.0. SILKern remains a focused localization
-library; production serving qualification depends on its consumer.
+follows an independent audit of 2.0.0, and
+[version 2.2.0](#220-audit-and-release-verification--october-9-2026) a second audit
+of the whole repository. SILKern remains a focused localization library;
+production serving qualification depends on its consumer.
 
 ## 2.0.0 release verification · October 6, 2026
 
@@ -150,6 +152,50 @@ provides the wheel, source archive, SHA-256 checksums, the Apple conformance
 report of the installed wheel, and a validation summary identifying its exact
 commit and CI run. The recorded Apple latencies still come from record 09,
 measured on the 2.0.0 sources; record 10 bounds how they apply to 2.1.0.
+
+## 2.2.0 audit and release verification · October 9, 2026
+
+A second audit covered the public API, typing, command lines, examples,
+benchmarks, documentation, packaging, and the tests themselves, on the same
+Apple M5 Max; CUDA host code was again read and exercised through stand-ins. It
+applied 35 hand mutations to a copy of the tree, eight of which the suite did not
+catch. Each correction below has a test that fails without it.
+
+| Finding | Correction | Verification |
+|---|---|---|
+| No test could catch a broken bound in the native path's division by multiplication; a shift one bit short passed every test yet misplaced a valid token near the int32 limit | Property test against Python's `divmod` for 327 divisors at the int32 limit, and an end-to-end case | The short shift fails four tests on the CPU and GPU streams |
+| The selected-attention benchmark held zeros in unoccupied cache slots, so a consumer that skipped masking gathered values passed its gate, contrary to the documentation | Unoccupied slots, including placeholder page 0, hold NaN | An unmasked consumer now fails the gate and the masked one passes; with zeros restored, the test fails |
+| SVG figures followed the system theme while GitHub follows the reader's chosen theme; when they differed, text vanished | Every figure and the wordmark paint their own page color | Checked on a dark page with a light system theme |
+| Malformed containers escaped `localize_reference`, `conformance`, and `conformance_mlx` as `TypeError` or `ValueError` | Containers are checked first and raise `LocalizationError` | 18 cases across the three entry points; removing each check fails them |
+| The MLX verifier only ever passed strided views, so Metal was never checked on the contiguous inputs it reads without a copy | Oracle on contiguous inputs, plus a `layouts` check on a strided view; schema 3 | Localizers wrong for one layout only fail their cells |
+| The request-bounds check could not see a localizer that masked negative ids but clamped ids past the table | A broken localizer that does exactly that joins the verifier's controls | Restricting the fixture to negative ids now fails |
+| A deeply nested `--matrix` file and a `--batch` too large for the built-in matrix escaped the usage-error exit | Both exit 64 before any backend loads | CLI tests; removing either check fails them |
+| `--help` failed under `python -OO`, the gather example's self-check vanished under `-O`, and usage lines named `__main__.py` | Literal descriptions, an explicit check, and the typed program name | Subprocess tests for every command |
+| Exact bounds of the workspace, both fixture generators, and the adapter's flags were untested | Largest accepted and smallest rejected value for each | Each of the four surviving boundary mutations now fails |
+| Typing: the CUDA launchers' tensors were untyped, and NumPy arrays failed the oracle's annotations | `torch.Tensor` annotations and iterable inputs | `mypy --strict` on user code that passes NumPy arrays |
+| Provenance text: record 07 was said to predate fixes its own sources contain; records pointed to an older record as current; record 10 did not explain its version label; this page called record 09 current and overstated the fuzzing count | Corrected against the archived sources and the test code | Per-record READMEs are now covered by the documentation test |
+
+The 2.2.0 sources passed these checks on October 9, 2026, on the same M5 Max
+with macOS 26.6, Python 3.12.12, and MLX 0.32.3:
+
+| Check | Result |
+|---|---|
+| CPU and Apple tests, warnings as errors | 994 passed; two CUDA modules and one CUDA-only documentation file skipped |
+| Base suite without MLX, in a clean environment with the `dev` extra | 584 passed; 11 optional-runtime cases skipped |
+| Property tests at 5,000 cases; MLX fuzzing at 600 cases per execution path | No mismatch with the oracle |
+| Apple conformance from the installed wheel, `--require-device --repeats 16` | 90/90 cells, with the new `layouts` check |
+| Source archive, wheel, and strict Twine checks | Passed; the archive lists only project files |
+| Tests from the extracted source archive in a clean base environment | 583 passed; 12 optional-runtime and checkout-only cases skipped |
+| Figures | Every SVG regenerates identically, also with fontTools 4.53.1 once embedded fonts are set aside |
+| Evidence and documentation | 48 checksums match; links, anchors, and examples pass, now including every record's README |
+| Mutation controls for this release's fixes | 22 targeted mutations, each caught by the new tests |
+
+The [GitHub release](https://github.com/StevenWang-CY/SILKern./releases/tag/v2.2.0)
+provides the wheel, source archive, SHA-256 checksums, the Apple conformance
+report of the installed wheel, and a validation summary identifying its exact
+commit and CI run. The recorded Apple latencies still come from record 09; the
+2.2.0 changes leave the Metal kernel and the native MLX path as record 10
+measured them.
 
 ## Qualification boundary
 
