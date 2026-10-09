@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import io
 import math
+import os
 import re
 from copy import deepcopy
 from dataclasses import dataclass
@@ -30,6 +31,8 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parents[1]
 FONT_DIR = Path(__file__).resolve().parent / "fonts"
+# Exports go to assets/; the figure tests regenerate into a scratch directory.
+ASSETS = Path(os.environ.get("SILKERN_ASSETS_DIR") or ROOT / "assets")
 
 WIDTH = 1120
 NARROW = 420
@@ -85,6 +88,9 @@ LIGHT = {
     "violet": "#6e52a3",
     "violet-w": "#d3c8ea",
     "violet-a": "#ede8f6",
+    "gray": "#57606a",
+    "gray-w": "#dde1e6",
+    "gray-a": "#f0f2f4",
     "accent": "#2563b0",
     "compare": "#c5cbd2",
 }
@@ -109,10 +115,13 @@ DARK = {
     "violet": "#b49ce6",
     "violet-w": "#392a55",
     "violet-a": "#1d1828",
+    "gray": "#8b949e",
+    "gray-w": "#343b44",
+    "gray-a": "#1a1f26",
     "accent": "#6fa8ee",
     "compare": "#4f5761",
 }
-HUES = ("blue", "orange", "green", "violet", "accent")
+HUES = ("blue", "orange", "green", "violet", "gray", "accent")
 
 
 def _variables(palette: dict[str, str]) -> str:
@@ -154,7 +163,39 @@ BASE_CSS = (
     f".leader{{fill:none;stroke:var(--rule);stroke-width:{HAIR};stroke-dasharray:1 3}}"
     ".dot{fill:var(--wire)}"
     ".frac{fill:none;stroke:var(--ink);stroke-width:1}.frac.tint{stroke:var(--c)}"
+    ".glyph{fill:none;stroke:var(--ink);stroke-linecap:round;stroke-linejoin:round}"
+    f".rule-frame{{fill:none;stroke:var(--rule);stroke-width:{THIN}}}"
+    f".selector{{fill:var(--paper);stroke:var(--frame);stroke-width:{THIN};stroke-linejoin:round}}"
+    ".glyph .solid{fill:var(--ink);stroke:none}"
+    ".accent-rule{fill:none;stroke:var(--accent)}"
 )
+
+# Line glyphs on a 16-unit grid with a 1.5-unit stroke, the proportions of GitHub's
+# own octicons, so the README's icons sit naturally beside its text. Strokes
+# centre on n + 0.75 so their edges land on whole pixels at 16 px; caps and
+# joins are round, like every connector in the figures. Elements are
+# (tag, attributes); "fill" marks the one solid detail a glyph may have.
+GLYPHS: dict[str, list[tuple[str, dict[str, float | str]]]] = {
+    # A processor: a package with two pins on each side and a solid die.
+    "cpu": [
+        ("rect", {"x": 3.75, "y": 3.75, "width": 8.5, "height": 8.5, "rx": 1}),
+        ("path", {"d": "M6.25 1.25v2.5M9.75 1.25v2.5M6.25 12.25v2.5M9.75 12.25v2.5"
+                       "M1.25 6.25h2.5M1.25 9.75h2.5M12.25 6.25h2.5M12.25 9.75h2.5"}),
+        ("rect", {"x": 6.5, "y": 6.5, "width": 3, "height": 3, "fill": "solid"}),
+    ],
+    # A system on a chip: one package whose die holds two unequal regions.
+    "soc": [
+        ("rect", {"x": 1.75, "y": 1.75, "width": 12.5, "height": 12.5, "rx": 2.5}),
+        ("rect", {"x": 4.75, "y": 4.75, "width": 6.5, "height": 6.5, "rx": 0.5}),
+        ("path", {"d": "M7.25 4.75v6.5M7.25 8h4"}),
+    ],
+    # An accelerator module: a wide board, a central die, memory stacks beside it.
+    "gpu": [
+        ("rect", {"x": 0.75, "y": 3.75, "width": 14.5, "height": 8.5, "rx": 1}),
+        ("rect", {"x": 5.75, "y": 5.75, "width": 4.5, "height": 4.5, "rx": 0.5}),
+        ("path", {"d": "M3.25 6v4M12.75 6v4"}),
+    ],
+}
 
 # Function names that remain upright inside math, as in LaTeX's \operatorname.
 FUNCTIONS = ("divmod", "cumsum", "where", "count", "max", "min", "exp")
@@ -392,6 +433,17 @@ def _cubic(p0, p1, p2, p3, steps=24):
             )
         )
     return points
+
+
+def glyph_element(element: str, attrs: dict[str, float | str]) -> str:
+    """One glyph element; ``fill="solid"`` becomes the glyph's solid-detail class."""
+    parts = []
+    for key, value in attrs.items():
+        if key == "fill":
+            parts.append('class="solid"')
+        else:
+            parts.append(f'{key}="{_fmt(value) if isinstance(value, float | int) else value}"')
+    return f"<{element} {' '.join(parts)}/>"
 
 
 class Figure:
@@ -685,12 +737,24 @@ class Figure:
         return centers
 
     def band(
-        self, x: float, y: float, width: float, markup, *, height: float = 26, size: float = LABEL
+        self,
+        x: float,
+        y: float,
+        width: float,
+        markup,
+        *,
+        height: float = 26,
+        size: float = LABEL,
+        accent: bool = False,
     ) -> None:
-        """An operation applied across a strip: a ruled stage that connectors pass beneath."""
-        self.rect(x, y, width, height, "paper")
-        self.rule(x, x + width, y, weight=THIN, cls="rule")
-        self.rule(x, x + width, y + height, weight=THIN, cls="rule")
+        """An operation applied across a strip: a ruled stage that connectors pass beneath.
+
+        ``accent`` marks SILKern's own stage: accent rules over a pale accent tint.
+        """
+        self.rect(x, y, width, height, "blue area" if accent else "paper")
+        rule, weight = ("accent-rule", 2 * THIN) if accent else ("rule", THIN)
+        self.rule(x, x + width, y, weight=weight, cls=rule)
+        self.rule(x, x + width, y + height, weight=weight, cls=rule)
         self.text(x + width / 2, y + height / 2 + size * 0.33, markup, size=size, anchor="middle")
 
     def brace(self, x0, x1, y, *, depth: float = 7, cls: str = "wire", up: bool = False) -> None:
@@ -728,6 +792,20 @@ class Figure:
         self.text(x + width / 2, axis + 0.95 * size, bottom, size=size, anchor="middle", cls=cls)
         self.items.append(f'<path d="M{_fmt(x)} {_fmt(axis)}h{_fmt(width)}" class="frac {cls}"/>')
         return width
+
+    def glyph(self, kind: str, x: float, y: float, size: float = 22) -> None:
+        """Draw a line glyph with its 16-unit grid scaled to ``size`` at (x, y)."""
+        scale = size / 16
+        stroke = "1.5"
+        parts = [glyph_element(element, attrs) for element, attrs in GLYPHS[kind]]
+        self.items.append(
+            f'<g class="glyph" stroke-width="{stroke}" '
+            f'transform="translate({_fmt(x)} {_fmt(y)}) scale({scale:.4f})">'
+            + "".join(parts)
+            + "</g>"
+        )
+        self.boxes.append(Box(x + scale * 2, y + scale * 2, x + size - scale * 2,
+                              y + size - scale * 2, f"glyph:{kind}"))
 
     def subcaption(self, cx: float, y: float, letter: str, title: str) -> None:
         self.text(cx, y, f"({letter}) {title}", size=CAPTION, anchor="middle")
@@ -788,6 +866,9 @@ class Figure:
                 f'<desc id="desc">{escape(self.description)}</desc>',
                 f"<!--{FONT_NOTICE}-->",
                 f"<style>{css}</style>",
+                # An opaque page behind everything: where a reader's GitHub theme differs
+                # from the system theme the SVG follows, the figure stays readable.
+                f'<rect class="paper" width="{self.width}" height="{self.height}"/>',
                 *self.items,
                 "</svg>",
                 "",
@@ -798,7 +879,7 @@ class Figure:
         self.check()
         for panel in panels:
             self.check_crop(*panel[:4])
-        path = ROOT / "assets" / name
+        path = ASSETS / name
         path.write_text(self.render())
         if panels:
             stack_panels(path, panels, gap=gap, width=narrow_width)
@@ -838,6 +919,7 @@ def stack_panels(path: Path, panels, *, gap: int, width: int) -> None:
             root.append(ET.Comment(FONT_NOTICE))
         (root if local in {"title", "desc", "style"} else content).append(deepcopy(child))
     root.append(defs)
+    background = ET.SubElement(root, f"{{{ns}}}rect", {"class": "paper", "width": str(width)})
     y = 0
     for left, top, panel_width, panel_height, after in panels:
         scale = min(1.0, width / panel_width)
@@ -859,5 +941,6 @@ def stack_panels(path: Path, panels, *, gap: int, width: int) -> None:
     y -= panels[-1][4]
     root.set("height", _fmt(y))
     root.set("viewBox", f"0 0 {width} {_fmt(y)}")
+    background.set("height", _fmt(y))
     text = ET.tostring(root, encoding="unicode")
     path.with_name(path.name.replace(".svg", "-narrow.svg")).write_text(text + "\n")

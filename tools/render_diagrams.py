@@ -41,6 +41,154 @@ TILE_HUES = ("blue", "orange", "green", "violet")
 ATOMIC = [[1, 0, 3, 2], [0, 2, 1, 3], [2, 3, 0, 1]]
 
 
+SELECTION = {0: "blue", 1: "gray", 2: "orange", 3: "gray", 5: "green"}  # by owning rank
+# Physical blocks 2, 7 and 11 of each rank's own cache, drawn as rows of offsets 0-4;
+# both ranks use the same page table, so rank 1's slots 706 and 707 share block 11.
+KV_BLOCKS = (2, 7, 11)
+KV_SLOTS = ({708: "blue", 129: "orange", 451: "green"}, {706: "gray", 707: "gray"})
+RANK_OUTPUTS = (
+    ([708, 129, 451, MINUS, MINUS, MINUS], COMPACT, 3),
+    ([706, 707, MINUS, MINUS, MINUS, MINUS], {0: "gray", 1: "gray"}, 2),
+)
+
+
+def _selector(s, cx, top, width=260, inset=28, height=30):
+    """The external selector as a funnel: many candidate positions in, a few out."""
+    left, right = cx - width / 2, cx + width / 2
+    s.path(
+        f"M{left} {top}H{right}L{right - inset} {top + height}H{left + inset}Z", "selector"
+    )
+    s.text(cx, top + height / 2 + 7, "sparse selector", anchor="middle")
+
+
+def _rank_lane(s, a, top, rank, *, frame, cell=38, kv_dx=135, p_input=True, bw=230, kv_cell=13):
+    """One rank of the system figure: SILKern, its slots, and the attention consumer.
+
+    ``a`` is the lane's flow axis, ``top`` the top edge of the rank's frame, and
+    ``frame`` its (left, right) edges. Returns the baseline of the partial result.
+    """
+    values, hues, count = RANK_OUTPUTS[rank]
+    left, right = frame
+    s.rect(left, top, right - left, 222, "rule-frame")
+    s.text(left + 14, top + 26, f"rank {rank}", size=NOTE)
+    y = top + 40
+    s.band(a - bw / 2, y, bw, f"**SILKern**,  $r = {rank}$", accent=True)
+    if p_input:
+        s.text(a - bw / 2 - 45, y + 20, "$P$", anchor="end")
+        s.line([(a - bw / 2 - 39, y + 13), (a - bw / 2 - 4, y + 13)], cls="flow", arrow=True)
+    s.line([(a, y + 30), (a, y + 48)], cls="flow", arrow=True)
+    y += 50
+    s.text(a - 3 * cell - 12, y + 22, f"$s_{rank}$", anchor="end")
+    s.strip(a - 3 * cell, y, values, cell=cell, hues=hues, bold=rank == 0,
+            quiet=tuple(j for j in range(6) if j not in hues), name=f"s{rank}")
+    s.text(a + 3 * cell + 10, y + 21, f"$n_{rank} = {count}$", size=NOTE)
+    s.line([(a, y + 30), (a, y + 52)], cls="flow", arrow=True)
+    y += 54
+    s.band(a - bw / 2, y, bw, "sparse attention")
+    # The rank's own paged KV cache: rows are physical blocks, cells their slots.
+    zx, zy = a + kv_dx, y - 26
+    zw = 47 + 5 * kv_cell
+    s.rect(zx, zy, zw, 100, "zone")
+    s.text(zx + zw / 2, zy + 20, "KV cache", size=NOTE, anchor="middle")
+    for k, block in enumerate(KV_BLOCKS):
+        cells = {slot % 64: hue for slot, hue in KV_SLOTS[rank].items() if slot // 64 == block}
+        row = zy + 30 + 21 * k
+        s.text(zx + 30, row + 13, str(block), size=NOTE - 2, anchor="end", cls="mute")
+        s.strip(zx + 36, row, [""] * 5, cell=kv_cell, height=14, hues=cells,
+                name=f"kv{rank}{k}")
+    s.line([(zx - 2, y + 13), (a + bw / 2 + 2, y + 13)], cls="flow", arrow=True)
+    s.line([(a, y + 27), (a, y + 46)], cls="flow", arrow=True)
+    s.text(a, y + 67, f"$(m_{rank}, N_{rank}, Z_{rank})$", anchor="middle")
+    return y + 67
+
+
+def render_system():
+    """Hero: one selection row, localized independently on each rank, then consumed."""
+    s = Figure(WIDTH, 438, "Where SILKern sits in a context-parallel decode step", "")
+    s.description = (
+        "A sparse selector picks global positions for one query, t = [8, 5, 130, 7, -1, 262], "
+        "and every rank of a two-rank decode receives the same row. Each rank runs SILKern with "
+        "its own rank number and the page table P: rank 0 keeps tokens 8, 130 and 262 and "
+        "returns physical slots [708, 129, 451, -1, -1, -1] with count 3; rank 1 keeps tokens 5 "
+        "and 7 and returns [706, 707, -1, -1, -1, -1] with count 2. Each rank's sparse attention "
+        "gathers those slots from its own paged KV cache, drawn as physical blocks 2, 7 and 11, "
+        "and produces partial softmax terms (m, N, Z); one step across both ranks combines them "
+        "into y = N / Z. SILKern's stages are highlighted."
+    )
+    cx = WIDTH / 2
+    s.text(cx, 18, "query $q$", anchor="middle")
+    s.line([(cx, 27), (cx, 38)], cls="flow", arrow=True)
+    _selector(s, cx, 40)
+    s.line([(cx, 71), (cx, 88)], cls="flow", arrow=True)
+    cell, ty = 46, 90
+    s.text(cx - 3 * cell - 12, ty + 22, "$t$", anchor="end")
+    s.strip(cx - 3 * cell, ty, ROW[:4] + [MINUS, ROW[5]], cell=cell, hues=SELECTION,
+            quiet=(4,), name="t")
+    s.text(cx + 3 * cell + 12, ty + 21, "the same row on every rank", size=NOTE, cls="soft")
+    lanes = ((260, (70, 530)), (780, (590, 1050)))
+    fork = ty + 42
+    s.line([(cx, ty + 30), (cx, fork)], cls="flow", collide=False)
+    s.circle(cx, fork, 2.2, "flow-head")
+    top = fork + 10
+    for a, _ in lanes:
+        s.line([(cx, fork), (a, fork), (a, top + 38)], cls="flow", arrow=True, radius=6,
+               collide=False)
+    bottoms = [_rank_lane(s, a, top, rank, frame=frame) for rank, (a, frame) in enumerate(lanes)]
+    band = top + 240
+    for (a, _), y in zip(lanes, bottoms, strict=True):
+        s.line([(a, y + 12), (a, band - 1)], cls="flow", arrow=True)
+    s.band(70, band, 980, "combine across ranks:  $m = \\max_r m_r$,  "
+           "$N = \\sum_r \\, \\exp(m_r - m)\\, N_r$,  $Z = \\sum_r \\, \\exp(m_r - m)\\, Z_r$,  "
+           "$y = N / Z$")
+    s.height = band + 40
+    s.save("fig-system.svg")
+
+
+def render_system_narrow():
+    """Phone layout of the system figure: ranks stacked, with buses at both margins."""
+    s = Figure(NARROW, 720, "Where SILKern sits in a context-parallel decode step, narrow", "")
+    s.description = (
+        "The same decode step as the wide figure, stacked for narrow pages. The selector's row "
+        "t = [8, 5, 130, 7, -1, 262] reaches rank 0 directly and rank 1 along the right margin. "
+        "Rank 0's SILKern returns [708, 129, 451, -1, -1, -1] with count 3 and rank 1's returns "
+        "[706, 707, -1, -1, -1, -1] with count 2; each rank's attention gathers from its own KV "
+        "cache, and the partial terms meet along the left margin to give y = N / Z."
+    )
+    cx = NARROW / 2
+    s.text(cx - 118, 35, "$q$", anchor="end")
+    s.line([(cx - 112, 29), (cx - 96, 29)], cls="flow", arrow=True)
+    _selector(s, cx, 14, width=200, inset=22)
+    s.line([(cx, 45), (cx, 62)], cls="flow", arrow=True)
+    cell = 50
+    s.text(cx - 3 * cell - 10, 86, "$t$", anchor="end")
+    s.strip(cx - 3 * cell, 64, ROW[:4] + [MINUS, ROW[5]], cell=cell, hues=SELECTION, quiet=(4,),
+            name="t")
+    s.text(cx + 10, 122, "same row on every rank", size=NOTE, cls="soft")
+    a, frame, bus_r, bus_l = 166, (30, 390), 405, 15
+    tops = (152, 408)
+    band_y = [top + 53 for top in tops]  # centre line of each SILKern stage
+    s.line([(cx, 94), (cx, 132)], cls="flow")
+    s.circle(cx, 132, 2.2, "flow-head")
+    s.line([(cx, 132), (a, 132), (a, tops[0] + 38)], cls="flow", arrow=True, radius=6,
+           collide=False)
+    s.line([(cx, 132), (bus_r, 132), (bus_r, band_y[1]), (a + 100, band_y[1])], cls="flow",
+           arrow=True, radius=6, collide=False)
+    bottoms = [
+        _rank_lane(s, a, top, rank, frame=frame, cell=36, kv_dx=126, p_input=False, bw=196,
+                   kv_cell=11)
+        for rank, top in enumerate(tops)
+    ]
+    join = 676
+    s.line([(a, bottoms[0] + 8), (a, tops[1] - 14), (bus_l, tops[1] - 14), (bus_l, join + 13),
+            (cx - 112, join + 13)], cls="flow", arrow=True, radius=6, collide=False)
+    s.line([(a, bottoms[1] + 8), (a, join - 1)], cls="flow", arrow=True, collide=False)
+    s.band(cx - 110, join, 200, "combine partials")
+    s.line([(cx + 92, join + 13), (cx + 116, join + 13)], cls="flow", arrow=True)
+    s.text(cx + 122, join + 20, "$y = N / Z$")
+    s.height = join + 40
+    s.save("fig-system-narrow.svg")
+
+
 def _worked_row(rank=0, ranks=2, interleave=1, page=64):
     """Recompute the figure's table from the contract's equations, column by column."""
     rows = {key: [] for key in ("o", "v", "l", "bd", "p", "a")}
@@ -193,7 +341,7 @@ def render_overview():
     ):
         s.subcaption(cx, 326, letter, title)
     s.save(
-        "fig-platforms.svg",
+        "fig-localization.svg",
         panels=(
             (22, 36, 306, 236, 6),
             (22, 306, 306, 30),
@@ -474,6 +622,119 @@ def render_consumer():
     )
 
 
+SCAN_VALID = [1, 0, 1, 1, 0, 1, 0, 1]
+SCAN_DEST = [0, DOT, 1, 2, DOT, 3, DOT, 4]
+
+
+def _scan_schedules():
+    """Each schedule's intermediates for SCAN_VALID, derived the way its kernel does."""
+    valid = SCAN_VALID
+    row = [sum(valid[:j]) for j in range(len(valid))]  # cumsum(v) - v
+    tiles = [valid[k : k + 4] for k in (0, 4)]
+    local = [sum(tile[:i]) for tile in tiles for i in range(4)]
+    tile_counts = [sum(tile) for tile in tiles]
+    tile_offsets = [0, tile_counts[0]]
+    chunks = [valid[k : k + 2] for k in range(0, 8, 2)]  # 4 threads x 2 items
+    chunk_counts = [sum(chunk) for chunk in chunks]
+    groups = [chunk_counts[0:2], chunk_counts[2:4]]  # SIMD groups of 2 threads
+    lane_prefix = [sum(group[:i]) for group in groups for i in range(2)]
+    group_totals = [sum(group) for group in groups]
+    preceding = [0, group_totals[0]]
+    thread_offsets = [preceding[t // 2] + lane_prefix[t] for t in range(4)]
+    dest_row = [row[j] if valid[j] else DOT for j in range(8)]
+    dest_tile = [tile_offsets[j // 4] + local[j] if valid[j] else DOT for j in range(8)]
+    dest_threads = []
+    for t, chunk in enumerate(chunks):
+        position = thread_offsets[t]
+        for keep in chunk:
+            dest_threads.append(position if keep else DOT)
+            position += keep
+    assert dest_row == dest_tile == dest_threads == SCAN_DEST
+    return {
+        "local": [local[j] if valid[j] else DOT for j in range(8)],
+        "tile_counts": tile_counts,
+        "tile_offsets": tile_offsets,
+        "chunk_counts": chunk_counts,
+        "thread_offsets": thread_offsets,
+        "group_totals": group_totals,
+    }
+
+
+def render_scan():
+    """Docs figure: three scan schedules that assign the same stable destinations."""
+    k = _scan_schedules()
+    s = Figure(WIDTH, 424, "Three scan schedules, one set of destinations", "")
+    s.description = (
+        "One row of eight columns with validity [1, 0, 1, 1, 0, 1, 0, 1] and three ways to "
+        "number its survivors. Panel a, the rowwise kernel and the MLX composition: "
+        "cumsum(v) - v over the whole row gives destinations 0 to 4. Panel b, the hierarchical "
+        "kernel with tiles of four columns: local positions within each tile, tile counts "
+        f"{tuple(k['tile_counts'])}, exclusive tile offsets {tuple(k['tile_offsets'])}, then "
+        "offset plus local position. Panel c, the Metal kernel with four threads of two columns "
+        "in two SIMD groups: chunk counts "
+        f"{k['chunk_counts']}, thread offsets {k['thread_offsets']} from a SIMD prefix and "
+        "group totals, then each thread writes its chunk in order. All three give "
+        "destinations [0, -, 1, 2, -, 3, -, 4]. Sizes are schematic."
+    )
+    cell, v_y, d_y = 34, 64, 344
+    hues = {j: "blue" for j, keep in enumerate(SCAN_VALID) if keep}
+    quiet = tuple(j for j, keep in enumerate(SCAN_VALID) if not keep)
+    xs = (44, 424, 824)
+    w = 8 * cell
+
+    def col(x, j):
+        return x + (j + 0.5) * cell
+
+    def traces(x, y0, y1, columns=hues):
+        for j in columns:
+            s.line([(col(x, j), y0), (col(x, j), y1 - 1)], cls="blue trace", arrow=True,
+                   collide=False)
+
+    # Connectors first: every stage drawn afterwards is a paper band they pass beneath.
+    traces(xs[0], v_y + 31, d_y)
+    traces(xs[1], v_y + 31, 168)
+    traces(xs[1], 168 + 31, d_y)
+    traces(xs[2], v_y + 31, 150)
+    chunk = 2 * cell
+    for t in range(4):
+        cx = xs[2] + (t + 0.5) * chunk
+        s.line([(cx, 150 + 31), (cx, 238 - 1)], cls="wire", arrow=True, collide=False)
+    traces(xs[2], 238 + 31, d_y)
+
+    for p, x in enumerate(xs):
+        s.text(x - 10, v_y + 21, "$v$", anchor="end")
+        s.strip(x, v_y, SCAN_VALID, cell=cell, hues=hues, quiet=quiet, name=f"v{p}")
+        s.text(x - 10, d_y + 21, "$d$", anchor="end")
+        s.strip(x, d_y, SCAN_DEST, cell=cell, hues=hues, quiet=quiet, bold=True, name=f"d{p}")
+    # (a) One program numbers the whole row.
+    s.band(xs[0], 196, w, "$\\mathrm{cumsum}(v) - v$")
+    # (b) Number within tiles, then add each tile's offset.
+    x = xs[1]
+    s.band(x, 108, w, "scan within each tile")
+    s.text(x - 10, 168 + 21, "$\\ell$", anchor="end")
+    s.strip(x, 168, k["local"], cell=cell, hues=hues, quiet=quiet, group=4, name="local")
+    counts = ", ".join(map(str, k["tile_counts"]))
+    s.text(x + w + 10, 168 + 21, f"$c = ({counts})$", size=NOTE, cls="soft")
+    offsets = ", ".join(map(str, k["tile_offsets"]))
+    s.band(x, 254, w, f"add tile offsets $({offsets})$")
+    # (c) Count each thread's chunk, scan the counts, write each chunk in order.
+    x = xs[2]
+    s.band(x, 104, w, "count each chunk")
+    s.text(x - 10, 150 + 21, "$n$", anchor="end")
+    s.strip(x, 150, k["chunk_counts"], cell=chunk, group=2, name="chunk counts")
+    s.band(x, 196, w, "SIMD prefix + group totals")
+    s.text(x - 10, 238 + 21, "$o$", anchor="end")
+    s.strip(x, 238, k["thread_offsets"], cell=chunk, group=2, name="thread offsets")
+    s.band(x, 290, w, "write chunks in order")
+    for x, letter, title in zip(xs, "abc", ("Rowwise and MLX", "Hierarchical", "Metal"),
+                                strict=True):
+        s.subcaption(x + w / 2, 414, letter, title)
+    s.save(
+        "fig-scan.svg",
+        panels=((14, 48, 314, 376), (394, 48, 396, 376), (794, 48, 314, 376)),
+    )
+
+
 def _tile_row(s, x, y, order, cell):
     values = [v for t in order for v in TILES[t]]
     hues = {2 * k + i: TILE_HUES[t] for k, t in enumerate(order) for i in (0, 1)}
@@ -549,11 +810,14 @@ def main():
             dcp_rank=0,
             compact_valid_to_front=compact,
         ) == (expected, [2])
+    render_system()
+    render_system_narrow()
     render_overview()
     render_contract()
     render_contract_narrow()
     render_consumer()
     render_order()
+    render_scan()
 
 
 if __name__ == "__main__":

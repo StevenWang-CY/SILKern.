@@ -17,3 +17,14 @@ figures can use: Latin, Greek, punctuation, letterlike symbols, and the minus
 sign for the text faces; arrows, mathematical operators, and technical symbols
 for the math face. Each exported SVG embeds a further subset containing only the
 glyphs it draws.
+
+## Wordmark font
+
+`Manrope-SILKern.ttf` sets the wordmark of `assets/logo-text.svg` and
+`assets/banner.svg`. It is [Manrope](https://github.com/googlefonts/manrope)
+4.505, from the [Google Fonts distribution](https://github.com/google/fonts/tree/main/ofl/manrope)
+(`Manrope[wght].ttf`), licensed under the SIL Open Font License 1.1
+([Manrope-OFL.txt](Manrope-OFL.txt)). It keeps the weight axis and only the glyphs
+S, I, L, K, e, r, and n; `tools/render_brand.py` instantiates weights 800 and
+500 and converts the letters to outlines, so the wordmark needs no font file.
+

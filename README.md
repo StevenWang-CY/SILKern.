@@ -1,23 +1,25 @@
 <div align="center">
 
-<img src="assets/logo-text.svg" width="400" alt="SILKern — sparse-index localization kernels">
+<img src="assets/logo-text.svg" width="350" alt="SILKern">
 
 Deterministic sparse-index localization for context-parallel attention<br>
 on Apple silicon (MLX and Metal) and NVIDIA GPUs (Triton).
 
-[![CI](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml/badge.svg)](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/StevenWang-CY/SILKern./ci.yml?branch=main&label=CI)](https://github.com/StevenWang-CY/SILKern./actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/StevenWang-CY/SILKern.?label=release)](https://github.com/StevenWang-CY/SILKern./releases/latest)
+[![Python](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FStevenWang-CY%2FSILKern.%2Fmain%2Fpyproject.toml)](pyproject.toml)
+[![License](https://img.shields.io/github/license/StevenWang-CY/SILKern.)](LICENSE)
 
 [Installation](#installation) · [Quickstart](#quickstart) · [Performance](#performance) · [Contract](docs/contract.md) · [Evidence](docs/evidence.md)
 
 </div>
 
 <picture>
-  <source media="(max-width: 767px)" srcset="assets/fig-platforms-narrow.svg">
-  <img src="assets/fig-platforms.svg" width="100%" alt="Three panels follow one selection row on rank 0: six global positions are filtered to three owned tokens and deinterleaved; their logical pages pass through the page table to physical KV blocks 11, 2, and 7, giving slots 708, 129, and 451; stable prefix compaction then writes 708, 129, 451 followed by padding, with count three.">
+  <source media="(max-width: 767px)" srcset="assets/fig-system-narrow.svg">
+  <img src="assets/fig-system.svg" width="100%" alt="A sparse selector turns query q into one row of global positions, t = 8, 5, 130, 7, -1, 262, and sends the same row to two ranks. On each rank SILKern, given the page table P and its rank number, returns physical KV-cache slots in selector order: rank 0 returns 708, 129, 451 with count 3, and rank 1 returns 706, 707 with count 2. Each rank's sparse attention gathers those slots from its own paged KV cache, and the partial results are combined across ranks into y = N / Z.">
 </picture>
 
-<p align="center"><em>The quickstart row on rank 0 of two: owned tokens become physical KV-cache slots, in selector order.</em></p>
+<p align="center"><em>One decode step on two ranks: each rank turns the same selection into slots of its own KV cache, in selector order.</em></p>
 
 ## News
 
@@ -42,6 +44,13 @@ names them by global position. Under decode context parallelism the KV cache is
 split across ranks and stored in pages. Before attention can gather anything,
 each selected position must be filtered to the rank that owns it and translated
 through that rank's page table into a physical slot. SILKern performs this step.
+
+<picture>
+  <source media="(max-width: 767px)" srcset="assets/fig-localization-narrow.svg">
+  <img src="assets/fig-localization.svg" width="100%" alt="Three panels follow one selection row on rank 0: six global positions are filtered to three owned tokens and deinterleaved; their logical pages pass through the page table to physical KV blocks 11, 2, and 7, giving slots 708, 129, and 451; stable prefix compaction then writes 708, 129, 451 followed by padding, with count three.">
+</picture>
+
+<p align="center"><em>The quickstart row on rank 0 of two: owned tokens become physical KV-cache slots, in selector order.</em></p>
 
 The step is small, but its output order is observable. A converter that
 compacts survivors with atomic reservations can return the same entries in a
@@ -81,9 +90,9 @@ For an accelerator backend, write `silkern[mlx]` or `silkern[gpu]` in place of
 
 | Platform | Extra | Entry points |
 |---|---|---|
-| Any Python 3.11+ | none | `localize_reference` |
-| Apple silicon with MLX | `mlx` | `localize_mlx` |
-| NVIDIA GPU with PyTorch and Triton | `gpu` | `localize_rowwise`, `localize_hierarchical` |
+| <img src="assets/icons/cpu.svg" width="16" height="16" align="absmiddle" alt="">&nbsp; Any Python 3.11+ | none | `localize_reference` |
+| <img src="assets/icons/soc.svg" width="16" height="16" align="absmiddle" alt="">&nbsp; Apple silicon with MLX | `mlx` | `localize_mlx` |
+| <img src="assets/icons/gpu.svg" width="16" height="16" align="absmiddle" alt="">&nbsp; NVIDIA GPU with PyTorch and Triton | `gpu` | `localize_rowwise`, `localize_hierarchical` |
 
 The examples and benchmarks run from a clone; the trailing dot in `SILKern.` is
 part of the repository name.
@@ -261,10 +270,10 @@ examples in this README and the guides wherever their backend is available.
 
 | Platform | Recorded result | Record |
 |---|---|---|
-| Apple M5 Max, MLX 0.32.3 | 90/90 conformance cells across MLX on CPU and GPU and Metal, 16 repeated evaluations each | [10](evidence/10-apple-mlx-post-audit/) |
-| NVIDIA B200 (archived) | 131/131 conformance cells; 10,000 graph replays per arm | [01](evidence/01-oracle-conformance-b200/analysis.json) |
-| 2 × NVIDIA H100 (archived) | Complete-decode canary and converter timing | [05](evidence/05-full-decode-canary/) |
-| NVIDIA SM120 (archived) | Trained layer-0 semantics and mechanism decomposition | [02](evidence/02-trained-layer0-semantics/), [04](evidence/04-mechanism-decomposition/) |
+| <img src="assets/icons/soc.svg" width="16" height="16" align="absmiddle" alt="">&nbsp; Apple M5 Max, MLX 0.32.3 | 90/90 conformance cells across MLX on CPU and GPU and Metal, 16 repeated evaluations each | [10](evidence/10-apple-mlx-post-audit/) |
+| <img src="assets/icons/gpu.svg" width="16" height="16" align="absmiddle" alt="">&nbsp; NVIDIA B200 (archived) | 131/131 conformance cells; 10,000 graph replays per arm | [01](evidence/01-oracle-conformance-b200/analysis.json) |
+| <img src="assets/icons/gpu.svg" width="16" height="16" align="absmiddle" alt="">&nbsp; 2 × NVIDIA H100 (archived) | Complete-decode canary and converter timing | [05](evidence/05-full-decode-canary/) |
+| <img src="assets/icons/gpu.svg" width="16" height="16" align="absmiddle" alt="">&nbsp; NVIDIA SM120 (archived) | Trained layer-0 semantics and mechanism decomposition | [02](evidence/02-trained-layer0-semantics/), [04](evidence/04-mechanism-decomposition/) |
 
 ```bash
 python -m pytest -q -m "not gpu and not mlx"   # any machine

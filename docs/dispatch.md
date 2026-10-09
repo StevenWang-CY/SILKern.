@@ -21,6 +21,11 @@ array operations. See [Apple execution](apple-mlx.md#execution-and-streams).
 
 ## CUDA algorithms
 
+Both CUDA kernels, and the Metal kernel, assign the same stable destinations;
+they differ in how the prefix sum is scheduled. The
+[scan figure in Architecture](architecture.md#stable-destinations) draws all three
+on one row.
+
 ### Rowwise
 
 `localize_rowwise` assigns one program to a selection row. It computes mapping

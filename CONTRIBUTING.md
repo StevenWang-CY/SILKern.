@@ -107,21 +107,24 @@ serving speedup.
 python -m pip install -e ".[docs]"
 python tools/render_figures.py   # charts from evidence/
 python tools/render_diagrams.py  # explanatory diagrams, checked against the oracle
+python tools/render_brand.py     # logo, wordmark, social card, and README icons
 ```
 
 The chart generator reads checked-in measurements and runs no hardware
-experiments. The Apple figure uses the current
-[audit record](evidence/09-apple-mlx-consumer/); its ratios, device, runtime,
-geometry, and session labels are read from that record's summary and first
-session. When adding a new checkpoint, update the generator's `APPLE_RECORD`,
-the documentation tables, and their source links together; retain prior
-measurement JSON files unchanged.
+experiments. The Apple figure uses [record 09](evidence/09-apple-mlx-consumer/),
+the source of the recorded latencies; its ratios, device, runtime, geometry, and
+session labels are read from that record's `summary.json`,
+`consumer-summary.json`, and session records. When a new record replaces it,
+update the generator's `APPLE_RECORD`, the documentation tables, and their source
+links together; retain prior measurement JSON files unchanged. `cover.png`, the
+repository's social preview, is a 1280 × 640 raster of `assets/banner.svg`;
+re-export it whenever the banner changes.
 
 Both generators share [`tools/figure_style.py`](tools/figure_style.py). They
 embed subsets of the fonts in [`tools/fonts`](tools/fonts/), keep text and
 accessible descriptions as SVG text, and refuse to export overlapping labels,
 connectors that cross labels, or text outside the canvas. Output is
-byte-for-byte repeatable for a given fontTools release; run both generators
+byte-for-byte repeatable for a given fontTools release; run the generators
 twice and confirm that `git status` reports no further change. Inspect light and
 dark rendering at desktop and phone widths after changes; see
 [the figure guide](assets/README.md).
