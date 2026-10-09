@@ -329,7 +329,9 @@ def test_cli_without_a_matrix_file_sweeps_the_default_matrix(monkeypatch) -> Non
         (json.dumps([{**DEFAULT_MATRIX[0], "num_warps": 2}]), "entry 0: num_warps must be 4 or 8"),
         (json.dumps([{**DEFAULT_MATRIX[0], "compact_valid_to_front": "no"}]),
          "entry 0: compact_valid_to_front must be a bool"),
-        ("[" * 100_000 + "]" * 100_000, "nested too deeply"),
+        # Python 3.12 cannot decode this; 3.14 can and then rejects the entry.
+        ("[" * 100_000 + "]" * 100_000,
+         "nested too deeply|entry 0: matrix geometry must be a mapping"),
     ],
     ids=["missing-file", "not-json", "object", "empty", "non-mapping-entry",
          "unknown-key", "bad-rank", "bad-num-warps", "bad-compaction-flag", "nested-too-deeply"],
@@ -346,6 +348,23 @@ def test_cli_rejects_a_bad_matrix_file_before_any_backend(
         verify.main(["--matrix", str(path)])
     assert exit_info.value.code == USAGE_ERROR
     assert re.search(message, capsys.readouterr().err)
+
+
+def test_cli_reports_a_matrix_too_deep_to_decode_as_a_usage_error(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    # Whether a given depth overflows depends on the Python version, so raise directly.
+    def too_deep(*args, **kwargs):
+        raise RecursionError("maximum recursion depth exceeded")
+
+    monkeypatch.setitem(sys.modules, "torch", None)
+    monkeypatch.setattr(json, "load", too_deep)
+    path = tmp_path / "matrix.json"
+    path.write_text("[]")
+    with pytest.raises(SystemExit) as exit_info:
+        verify.main(["--matrix", str(path)])
+    assert exit_info.value.code == USAGE_ERROR
+    assert "nested too deeply" in capsys.readouterr().err
 
 
 def test_cli_rejects_a_batch_too_large_for_the_built_in_matrix(monkeypatch, capsys) -> None:

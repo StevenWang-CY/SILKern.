@@ -180,12 +180,12 @@ with macOS 26.6, Python 3.12.12, and MLX 0.32.3:
 
 | Check | Result |
 |---|---|
-| CPU and Apple tests, warnings as errors | 994 passed; two CUDA modules and one CUDA-only documentation file skipped |
-| Base suite without MLX, in a clean environment with the `dev` extra | 584 passed; 11 optional-runtime cases skipped |
+| CPU and Apple tests, warnings as errors | 995 passed; two CUDA modules and one CUDA-only documentation file skipped |
+| Base suite without MLX, in a clean environment with the `dev` extra | 585 passed; 11 optional-runtime cases skipped |
 | Property tests at 5,000 cases; MLX fuzzing at 600 cases per execution path | No mismatch with the oracle |
 | Apple conformance from the installed wheel, `--require-device --repeats 16` | 90/90 cells, with the new `layouts` check |
 | Source archive, wheel, and strict Twine checks | Passed; the archive lists only project files |
-| Tests from the extracted source archive in a clean base environment | 583 passed; 12 optional-runtime and checkout-only cases skipped |
+| Tests from the extracted source archive in a clean base environment | 584 passed; 12 optional-runtime and checkout-only cases skipped |
 | Figures | Every SVG regenerates identically, also with fontTools 4.53.1 once embedded fonts are set aside |
 | Evidence and documentation | 48 checksums match; links, anchors, and examples pass, now including every record's README |
 | Mutation controls for this release's fixes | 22 targeted mutations, each caught by the new tests |
