@@ -58,7 +58,7 @@ def _summarize_observations(observations) -> tuple[int, str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Watch the atomic converter change its mind, then watch silkern not.")
     parser.add_argument("--width", type=int, default=2048)
     parser.add_argument("--batch", type=int, default=4)
     parser.add_argument("--block-size", type=int, default=64)

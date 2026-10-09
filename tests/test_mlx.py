@@ -132,6 +132,45 @@ def test_non_power_of_two_divisors_and_large_indices(execution, block, dcp, inte
            dcp_rank=dcp - 1, dcp_interleave=interleave)
 
 
+# Divisors for the multiply-high division: every small one, every page size
+# that is not a power of two up to 2**28 in steps of seven, and the extremes.
+DIVISORS = sorted(
+    set(range(2, 258))
+    | {7 * 2**k for k in range(28)}
+    | {2**k + 1 for k in range(2, 31)}
+    | {2**k - 1 for k in range(2, 32)}
+    | {1_000_003, 715_827_882, 2**28, 2**30 + 7}
+)
+
+
+def _hard_numerators(d):
+    """Numerators in [0, 2**31) where a too-short multiply-high shift goes wrong first."""
+    top = 2**31 - 1
+    worst = top - ((top - (d - 1)) % d)  # the largest n < 2**31 with n % d == d - 1
+    candidates = {0, 1, d - 1, d, d + 1, worst, worst - d, top, top - 1, (top // d) * d,
+                  2**30 - 1, 2**30, 2**30 + d - 1}
+    return sorted(n for n in candidates if 0 <= n <= top)
+
+
+@pytest.mark.parametrize("device", ["cpu", pytest.param("gpu", marks=pytest.mark.metal)])
+def test_division_by_multiplication_is_exact_to_the_int32_limit(device):
+    stream = mx.default_stream(_device(device))
+    for d in DIVISORS:
+        numerators = _hard_numerators(d)
+        quotient, remainder = silkern_mlx._divmod_nonnegative(
+            mx, stream, mx.array(numerators, dtype=mx.int32), d
+        )
+        mx.eval(quotient, remainder)
+        expected = ([n // d for n in numerators], [n % d for n in numerators])
+        assert (quotient.tolist(), remainder.tolist()) == expected, d
+
+
+def test_division_bound_reaches_the_output(execution):
+    """The largest token on the last of seven ranks, with 2**28-slot pages."""
+    _check([0], [[0, 3]], [[2**31 - 3, 5]], execution,
+           block_size=2**28, dcp_size=7, dcp_rank=6)
+
+
 def test_broadcast_and_reversed_inputs(execution):
     backend, stream = execution
     req = mx.broadcast_to(mx.array([0], dtype=mx.int32), (3,))

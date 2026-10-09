@@ -38,7 +38,7 @@ converter it mirrors: mapped and invalid values stay in their input columns.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable
 from numbers import Integral
 
 from silkern.errors import LocalizationError
@@ -69,14 +69,26 @@ def _validate_compact_flag(compact_valid_to_front: bool) -> None:
 def _integer_value(value: int, name: str) -> int:
     """Reject lossy coercions at the pure-Python contract boundary."""
     if not isinstance(value, Integral) or isinstance(value, bool):
-        raise LocalizationError(f"{name} must contain integers (not bools)")
+        raise LocalizationError(f"{name} must contain integers, not {type(value).__name__}")
     return int(value)
 
 
+def _sequence(value: object, name: str) -> list:
+    """The items of an input container; anything that is not one is a LocalizationError."""
+    if isinstance(value, (str, bytes)):
+        raise LocalizationError(f"{name} must be a sequence, not {type(value).__name__}")
+    try:
+        return list(value)  # type: ignore[call-overload]
+    except TypeError as exc:
+        raise LocalizationError(
+            f"{name} must be a sequence, not {type(value).__name__}"
+        ) from exc
+
+
 def localize_reference(
-    req_ids: Sequence[int],
-    block_table: Sequence[Sequence[int]],
-    rows: Sequence[Sequence[int]],
+    req_ids: Iterable[int],
+    block_table: Iterable[Iterable[int]],
+    rows: Iterable[Iterable[int]],
     *,
     block_size: int,
     dcp_size: int,
@@ -132,32 +144,37 @@ def localize_reference(
         raise LocalizationError("block_size must be positive")
     if block_size % dcp_interleave:
         raise LocalizationError("block_size must be divisible by dcp_interleave")
-    if len(req_ids) != len(rows):
+    # Materialize every container first, so a malformed one fails closed here
+    # with a LocalizationError rather than with a TypeError deep in the loop.
+    request_ids = _sequence(req_ids, "req_ids")
+    table = [_sequence(row, "block_table rows") for row in _sequence(block_table, "block_table")]
+    selections = [_sequence(row, "rows") for row in _sequence(rows, "rows")]
+    if len(request_ids) != len(selections):
         raise LocalizationError("req_ids must contain one request id per row")
-    if len(block_table) == 0:
+    if len(table) == 0:
         raise LocalizationError("block_table must contain at least one request row")
-    if len(rows) == 0:
+    if len(selections) == 0:
         raise LocalizationError("rows must contain at least one nonempty row")
-    table_width = len(block_table[0])
-    if table_width == 0 or any(len(row) != table_width for row in block_table):
+    table_width = len(table[0])
+    if table_width == 0 or any(len(row) != table_width for row in table):
         raise LocalizationError("block_table must be nonempty and rectangular")
-    row_width = len(rows[0])
-    if row_width == 0 or any(len(row) != row_width for row in rows):
+    row_width = len(selections[0])
+    if row_width == 0 or any(len(row) != row_width for row in selections):
         raise LocalizationError("rows must be nonempty and rectangular")
     # Validate the whole table, including unselected entries: a malformed input
     # must not become acceptable merely because today's selections miss it.
-    for table_row in block_table:
+    for table_row in table:
         for value in table_row:
             _integer_value(value, "block_table")
 
     out_rows: list[list[int]] = []
     counts: list[int] = []
     compact = compact_valid_to_front and dcp_size > 1
-    for row_id, row in enumerate(rows):
-        request = _integer_value(req_ids[row_id], "req_ids")
-        if not 0 <= request < len(block_table):
+    for row_id, row in enumerate(selections):
+        request = _integer_value(request_ids[row_id], "req_ids")
+        if not 0 <= request < len(table):
             raise LocalizationError(f"request id {request} is outside block_table")
-        table_row = block_table[request]
+        table_row = table[request]
         mapped: list[int] = []
         valid_values: list[int] = []
         for raw_token in row:

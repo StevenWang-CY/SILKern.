@@ -60,7 +60,10 @@ def test_integrated_surface_accepts_pinned_backend_geometry(
         ("num_topk_tokens", 1024),
         ("block_n", 64),
         ("return_valid_counts", False),
+        ("return_valid_counts", 1),
+        ("return_valid_counts", "yes"),
         ("compact_valid_to_front", False),
+        ("compact_valid_to_front", 1),
     ],
 )
 def test_integrated_surface_fails_closed(field: str, value: object) -> None:

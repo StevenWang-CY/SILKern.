@@ -248,7 +248,9 @@ def localize_mlx(
     )
     stream_types = (mx.Stream, mx.ThreadLocalStream)
     if stream is not None and not isinstance(stream, (*stream_types, mx.Device, mx.DeviceType)):
-        raise LocalizationError("stream must be an MLX Stream, ThreadLocalStream, or Device")
+        raise LocalizationError(
+            "stream must be an MLX Stream, ThreadLocalStream, Device, or DeviceType"
+        )
     device = stream.device if isinstance(stream, stream_types) else stream
     if device is None:
         device = mx.gpu if backend == "metal" else mx.default_device()

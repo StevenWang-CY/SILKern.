@@ -22,6 +22,7 @@ DOCUMENTS = sorted(
     + list((ROOT / "docs").glob("*.md"))
     + [ROOT / "assets" / "README.md", ROOT / "evidence" / "README.md",
        ROOT / "tools" / "fonts" / "README.md"]
+    + list((ROOT / "evidence").glob("*/README.md"))
 )
 FENCE = re.compile(r"^(```|~~~)(\w*)[^\n]*\n(.*?)^\1[ \t]*$", re.M | re.S)
 MARKDOWN_LINK = re.compile(r"(?<!\!)\[(?:[^\]\[]|\[[^\]]*\])*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")

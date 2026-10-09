@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import copy
+import inspect
 import json
 import math
+import textwrap
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -56,7 +59,7 @@ def test_reference_preserves_duplicate_multiplicity_and_empty_selections(fixture
     )
 
 
-def test_paged_fixture_has_unique_fragmented_pages_and_finite_caches(fixture):
+def test_paged_fixture_poisons_every_slot_no_token_occupies(fixture):
     _, requests, rows, shards, logical_keys, logical_values = fixture
     assert rows[-1] == [-1] * 8
     assert rows[0].count(3) == 2
@@ -64,7 +67,16 @@ def test_paged_fixture_has_unique_fragmented_pages_and_finite_caches(fixture):
         pages = [page for row in table for page in row]
         assert len(set(pages)) == len(pages)
         assert pages != sorted(pages)
-        assert all(math.isfinite(value) for row in keys + values for value in row)
+        occupied = {
+            page * attention.BLOCK_SIZE + offset
+            for page in pages
+            for offset in range(attention.BLOCK_SIZE)
+        }
+        for slot, (key, value) in enumerate(zip(keys, values, strict=True)):
+            finite = [math.isfinite(entry) for entry in key + value]
+            # Placeholder page 0 and every other unowned slot is NaN throughout.
+            assert all(finite) if slot in occupied else not any(finite), slot
+        assert not any(slot < attention.BLOCK_SIZE for slot in occupied)
         for request in requests:
             for token in (rank, 2 + rank, 128 + rank):
                 local = token // attention.SHARDS
@@ -258,6 +270,42 @@ def test_summary_rejects_invalid_or_unqualified_matching_records(tmp_path, kind)
         sessions[1]["cells"] = copy.deepcopy(sessions[0]["cells"])
     with pytest.raises(ValueError):
         attention.summarize_attention(_write(tmp_path, sessions))
+
+
+@pytest.mark.mlx
+def test_gate_rejects_a_consumer_that_skips_masking_gathered_values():
+    """Padded slots read NaN, so an unmasked consumer cannot pass the oracle gate."""
+    mx = pytest.importorskip("mlx.core")
+    example = pytest.importorskip("examples.mlx_sparse_attention")
+    source = inspect.getsource(example.selected_attention)
+    masks = (
+        "gathered_keys = mx.where(valid[..., None], gathered_keys, 0)",
+        "gathered_values = mx.where(valid[..., None], gathered_values, 0)",
+    )
+    assert all(mask in source for mask in masks), "the example changed; update this test"
+    for mask in masks:
+        source = source.replace(mask, "pass")
+    namespace = dict(vars(example))
+    exec(compile(textwrap.dedent(source), "unmasked_consumer", "exec"), namespace)
+    stream = mx.default_stream(mx.cpu)
+    query, requests, rows, shards, keys, values = attention._fixture(2, 8, 11)
+    arrays = (
+        mx.array(query, dtype=mx.float32),
+        mx.array(requests, dtype=mx.int32),
+        mx.array(rows, dtype=mx.int32),
+        [
+            (mx.array(table, dtype=mx.int32), mx.array(k, dtype=mx.float32),
+             mx.array(v, dtype=mx.float32))
+            for table, k, v in shards
+        ],
+    )
+    options = dict(block_size=attention.BLOCK_SIZE, backend="mlx", stream=stream)
+    unmasked = {"unmasked": partial(namespace["selected_attention"], **options)}
+    with pytest.raises(LocalizationError, match="attention values"):
+        attention._qualify_inputs(mx, unmasked, arrays, query, requests, rows, keys, values)
+    masked = {"masked": partial(example.selected_attention, **options)}
+    errors = attention._qualify_inputs(mx, masked, arrays, query, requests, rows, keys, values)
+    assert errors["masked"] < 1e-5
 
 
 @pytest.mark.mlx

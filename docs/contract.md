@@ -24,8 +24,10 @@ are backend-specific and documented below.
 | `out` | `(batch, width)` | Translated physical slots, with `-1` for invalid/padded positions |
 | `counts` | `(batch,)` | Exact number of valid mappings in each row |
 
-Sequences and arrays must be nonempty and rectangular. Inputs are integers;
-booleans and floating-point values are not accepted as integer data or geometry.
+Sequences and arrays must be nonempty and rectangular. The Python oracle accepts
+any iterable of rows, such as lists, tuples, or NumPy arrays, and raises
+`LocalizationError` for anything else. Inputs are integers; booleans and
+floating-point values are not accepted as integer data or geometry.
 Accelerators use signed `int32` arrays and support widths through
 `MAX_ROW_WIDTH = 4096`. The Python oracle uses Python integer arithmetic and
 serves as the specification beyond that accelerator storage limit.

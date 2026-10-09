@@ -97,7 +97,7 @@ def selected_attention(
 
 
 def main(argv=None) -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="A complete selected-attention consumer on one Apple device.")
     parser.add_argument("--backend", choices=("auto", "mlx", "metal"), default="auto")
     parser.add_argument("--device", choices=("cpu", "gpu"), default="gpu")
     args = parser.parse_args(argv)

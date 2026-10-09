@@ -37,7 +37,9 @@ def main() -> None:
 
     selected = [token for token in rows[0] if token >= 0]
     expected = mx.array([sum(selected), sum(token + 0.5 for token in selected)])
-    assert mx.array_equal(gathered_sum, expected).item()
+    # An explicit check, not an assert: ``python -O`` strips asserts.
+    if not mx.array_equal(gathered_sum, expected).item():
+        raise SystemExit(f"gather mismatch: {gathered_sum.tolist()} != {expected.tolist()}")
     print(f"Recombined sparse gather: {gathered_sum.tolist()} (matches logical selection)")
 
 

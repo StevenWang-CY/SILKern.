@@ -327,16 +327,21 @@ def _owned_slots(
     return slots
 
 
-def _expected_order(
+def _expected_row(
     row: Sequence[int],
     table_row: Sequence[int],
     *,
+    compacting: bool,
     block_size: int,
     dcp_size: int,
     dcp_rank: int,
     dcp_interleave: int,
-) -> list[int]:
-    """The prefix a *stable* converter must produce, derived independently."""
+) -> tuple[list[int], int]:
+    """The output row and count a *stable* converter must produce, derived independently.
+
+    Front compaction keeps survivors in selector order and pads the tail;
+    otherwise each survivor stays in its own column.
+    """
     slots = _owned_slots(
         row,
         table_row,
@@ -345,7 +350,10 @@ def _expected_order(
         dcp_rank=dcp_rank,
         dcp_interleave=dcp_interleave,
     )
-    return [slot for slot in slots if slot is not None]
+    kept = [slot for slot in slots if slot is not None]
+    if compacting:
+        return kept + [-1] * (len(slots) - len(kept)), len(kept)
+    return [-1 if slot is None else slot for slot in slots], len(kept)
 
 
 def _guarded(torch, shape, device):
@@ -547,20 +555,16 @@ def _run_cell(
         compacting = options["compact_valid_to_front"] and options["dcp_size"] > 1
         order_ok = True
         for row_id, row in enumerate(rows):
-            slots = _owned_slots(
+            want, count = _expected_row(
                 row,
                 block_table[req_ids[row_id]],
+                compacting=compacting,
                 block_size=options["block_size"],
                 dcp_size=options["dcp_size"],
                 dcp_rank=options["dcp_rank"],
                 dcp_interleave=options["dcp_interleave"],
             )
-            kept = [slot for slot in slots if slot is not None]
-            if compacting:
-                want = kept + [-1] * (width - len(kept))
-            else:
-                want = [-1 if slot is None else slot for slot in slots]
-            if observed_out[row_id] != want or observed_counts[row_id] != len(kept):
+            if observed_out[row_id] != want or observed_counts[row_id] != count:
                 order_ok = False
         report.checks["order"] = order_ok
 
@@ -663,7 +667,12 @@ def conformance(
     # A missing backend must not silently accept a misspelled arm or an empty run.
     if isinstance(arms, str):
         raise LocalizationError("arms must be a nonempty sequence of implementation names")
-    arms = tuple(arms)
+    try:
+        arms = tuple(arms)
+    except TypeError as exc:
+        raise LocalizationError(
+            "arms must be a nonempty sequence of implementation names"
+        ) from exc
     if not arms:
         raise LocalizationError("arms must be a nonempty sequence of implementation names")
     for arm in arms:
@@ -685,7 +694,12 @@ def conformance(
         raise LocalizationError(
             f"diagnostic fixtures must not exceed {MAX_FIXTURE_ELEMENTS} elements"
         )
-    cells = tuple(DEFAULT_MATRIX if matrix is None else matrix)
+    if isinstance(matrix, (Mapping, str, bytes)):
+        raise LocalizationError("matrix must be a sequence of geometry mappings")
+    try:
+        cells = tuple(DEFAULT_MATRIX if matrix is None else matrix)
+    except TypeError as exc:
+        raise LocalizationError("matrix must be a sequence of geometry mappings") from exc
     if not cells:
         raise LocalizationError("matrix must contain at least one geometry")
 
@@ -735,8 +749,9 @@ def _load_matrix(path: str, *, batch: int, tile_size: int) -> list[dict[str, int
     try:
         with open(path, encoding="utf-8") as handle:
             matrix = json.load(handle)
-    except (OSError, ValueError) as exc:
-        raise LocalizationError(f"cannot read --matrix {path}: {exc}") from exc
+    except (OSError, ValueError, RecursionError) as exc:
+        reason = "nested too deeply" if isinstance(exc, RecursionError) else exc
+        raise LocalizationError(f"cannot read --matrix {path}: {reason}") from exc
     if not isinstance(matrix, list) or not matrix:
         raise LocalizationError("--matrix must hold a nonempty JSON list of geometry objects")
     for index, geometry in enumerate(matrix):
@@ -751,9 +766,10 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI
     """``python -m silkern`` -- exits nonzero if any cell fails."""
     import json
 
-    from silkern._cli import USAGE_ERROR, ArgumentParser
+    from silkern._cli import USAGE_ERROR, ArgumentParser, program_name
 
     parser = ArgumentParser(
+        prog=program_name("silkern"),
         description="Run the silkern conformance matrix.",
         epilog=(
             "Exits 1 if any cell fails and 0 otherwise, including when the sweep "
@@ -795,6 +811,16 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover - CLI
         parser.error("--batch must be at least 1")
 
     try:
+        if args.matrix is None:
+            # The built-in cells get the same up-front check as a --matrix file, so a
+            # --batch too large for them is a usage error even without a device.
+            for geometry in DEFAULT_MATRIX:
+                try:
+                    _check_geometry(dict(geometry), batch=args.batch, tile_size=args.tile_size)
+                except LocalizationError as exc:
+                    raise LocalizationError(
+                        f"built-in matrix with --batch {args.batch}: {exc}"
+                    ) from exc
         matrix = (
             None
             if args.matrix is None

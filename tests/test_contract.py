@@ -236,6 +236,34 @@ def test_reference_rejects_lossy_index_coercion(field: str, value: object) -> No
         localize_reference(**inputs, block_size=4, dcp_size=2, dcp_rank=0)
 
 
+@pytest.mark.parametrize(
+    "inputs, message",
+    [
+        ({"req_ids": None}, "req_ids must be a sequence, not NoneType"),
+        ({"req_ids": 0}, "req_ids must be a sequence, not int"),
+        ({"rows": 5}, "rows must be a sequence, not int"),
+        ({"rows": [5]}, "rows must be a sequence, not int"),
+        ({"rows": "08"}, "rows must be a sequence, not str"),
+        ({"block_table": [5]}, "block_table rows must be a sequence, not int"),
+        ({"block_table": None}, "block_table must be a sequence, not NoneType"),
+        ({"req_ids": [[0]]}, "req_ids must contain integers, not list"),
+        ({"rows": [[[0]]]}, "rows must contain integers, not list"),
+    ],
+)
+def test_reference_rejects_malformed_containers_with_its_own_error(inputs, message) -> None:
+    """Every public entry point raises LocalizationError, never a bare TypeError."""
+    arguments = {"req_ids": [0], "block_table": [[0]], "rows": [[0]], **inputs}
+    with pytest.raises(LocalizationError, match=message):
+        localize_reference(**arguments, block_size=4, dcp_size=2, dcp_rank=0)
+
+
+def test_reference_accepts_any_iterable_container() -> None:
+    expected = localize_reference([0], [[3]], [[4, 0, 6]], block_size=4, dcp_size=2, dcp_rank=0)
+    assert localize_reference(
+        iter([0]), ((3,),), (row for row in [[4, 0, 6]]), block_size=4, dcp_size=2, dcp_rank=0
+    ) == expected
+
+
 def test_reference_validates_unselected_page_entries() -> None:
     with pytest.raises(LocalizationError, match="block_table must contain integers"):
         localize_reference(
@@ -291,6 +319,16 @@ def test_reference_rejects_nonrectangular_inputs(
             dcp_size=2,
             dcp_rank=0,
         )
+
+
+@pytest.mark.parametrize("batch, rejected", [(2**31 - 1, False), (2**31, True)])
+def test_workspace_shapes_bound_batch_times_width_at_int32(batch, rejected) -> None:
+    """The largest product the hierarchical kernel can index is 2**31 - 1."""
+    if rejected:
+        with pytest.raises(LocalizationError, match="batch \\* width must fit int32"):
+            workspace_shapes(batch, 1)
+    else:
+        assert workspace_shapes(batch, 1)["mapped"] == (batch, 1)
 
 
 def test_workspace_shapes_cover_partial_tile() -> None:

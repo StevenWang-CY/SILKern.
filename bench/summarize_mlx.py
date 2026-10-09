@@ -279,7 +279,7 @@ def summarize_sessions(paths: Sequence[str | Path]) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Recompute a descriptive MLX benchmark summary from independent session files.")
     parser.add_argument(
         "sessions", type=Path, nargs="+", help="independent benchmark session JSON files"
     )

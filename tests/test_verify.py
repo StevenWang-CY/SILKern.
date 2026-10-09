@@ -28,7 +28,7 @@ from silkern.verify import (
     CellReport,
     ConformanceReport,
     _check_geometry,
-    _expected_order,
+    _expected_row,
     _random_case,
 )
 
@@ -242,6 +242,34 @@ def test_cli_json_reports_skip_and_enforces_required_backend(monkeypatch, capsys
     }
 
 
+@pytest.mark.parametrize("dcp_size, rejected", [(29127, False), (29128, True)])
+def test_fixture_bound_counts_the_period_past_the_table(dcp_size, rejected) -> None:
+    """Tokens reach 18 ownership periods of pages (17 plus one past the table)."""
+    geometry = {"width": 8, "block_size": 4096, "dcp_size": dcp_size, "dcp_rank": 0,
+                "dcp_interleave": 1}
+    assert (4096 * dcp_size * 18 > 2**31 - 1) == rejected
+    if rejected:
+        with pytest.raises(silkern.LocalizationError, match="must fit int32"):
+            verify._check_geometry(geometry, batch=1, tile_size=DEFAULT_TILE_SIZE)
+    else:
+        verify._check_geometry(geometry, batch=1, tile_size=DEFAULT_TILE_SIZE)
+
+
+@pytest.mark.parametrize(
+    "kwargs, message",
+    [
+        ({"matrix": 5}, "matrix must be a sequence of geometry mappings"),
+        ({"matrix": DEFAULT_MATRIX[0]}, "matrix must be a sequence of geometry mappings"),
+        ({"matrix": "width"}, "matrix must be a sequence of geometry mappings"),
+        ({"arms": None}, "arms must be a nonempty sequence"),
+        ({"arms": 5}, "arms must be a nonempty sequence"),
+    ],
+)
+def test_conformance_rejects_malformed_sweep_options(kwargs, message) -> None:
+    with pytest.raises(silkern.LocalizationError, match=message):
+        verify.conformance(**kwargs)
+
+
 def test_cli_failed_cell_is_nonzero_and_explained_in_json(monkeypatch, capsys) -> None:
     report = ConformanceReport(cells=[CellReport(arm="row_stable", geometry={"width": 1})])
     monkeypatch.setattr(verify, "conformance", lambda **kwargs: report)
@@ -301,9 +329,10 @@ def test_cli_without_a_matrix_file_sweeps_the_default_matrix(monkeypatch) -> Non
         (json.dumps([{**DEFAULT_MATRIX[0], "num_warps": 2}]), "entry 0: num_warps must be 4 or 8"),
         (json.dumps([{**DEFAULT_MATRIX[0], "compact_valid_to_front": "no"}]),
          "entry 0: compact_valid_to_front must be a bool"),
+        ("[" * 100_000 + "]" * 100_000, "nested too deeply"),
     ],
     ids=["missing-file", "not-json", "object", "empty", "non-mapping-entry",
-         "unknown-key", "bad-rank", "bad-num-warps", "bad-compaction-flag"],
+         "unknown-key", "bad-rank", "bad-num-warps", "bad-compaction-flag", "nested-too-deeply"],
 )
 def test_cli_rejects_a_bad_matrix_file_before_any_backend(
     monkeypatch, tmp_path, capsys, content, message
@@ -317,6 +346,17 @@ def test_cli_rejects_a_bad_matrix_file_before_any_backend(
         verify.main(["--matrix", str(path)])
     assert exit_info.value.code == USAGE_ERROR
     assert re.search(message, capsys.readouterr().err)
+
+
+def test_cli_rejects_a_batch_too_large_for_the_built_in_matrix(monkeypatch, capsys) -> None:
+    # Within the fixture limit alone, but too large once multiplied by a cell's width:
+    # on a GPU every such cell would fail, so it must not pass silently without one.
+    monkeypatch.setitem(sys.modules, "torch", None)
+    batch = verify.MAX_FIXTURE_ELEMENTS // 5 + 1
+    with pytest.raises(SystemExit) as exit_info:
+        verify.main(["--batch", str(batch)])
+    assert exit_info.value.code == USAGE_ERROR
+    assert f"built-in matrix with --batch {batch}" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("argv", [["--batch", "0"], ["--arm", "atomic"], ["--no-such-flag"]])
@@ -375,8 +415,8 @@ def test_default_matrix_covers_the_vllm_qualified_surface() -> None:
 def test_independent_order_derivation_agrees_with_the_oracle() -> None:
     """The harness's ``order`` check must not be a restatement of the oracle.
 
-    They are written separately on purpose; this test proves they agree, so a
-    disagreement in the field is a real signal rather than a harness bug.
+    They are written separately on purpose; this test proves they agree in both
+    layouts, so a disagreement in the field is a real signal, not a harness bug.
     """
     for seed in range(12):
         for dcp_size, dcp_rank, interleave in [
@@ -393,27 +433,28 @@ def test_independent_order_derivation_agrees_with_the_oracle() -> None:
                 dcp_size=dcp_size,
                 seed=seed,
             )
-            expected_out, expected_counts = silkern.localize_reference(
-                req_ids,
-                block_table,
-                rows,
-                block_size=64,
-                dcp_size=dcp_size,
-                dcp_rank=dcp_rank,
-                dcp_interleave=interleave,
-            )
-            for row_id, row in enumerate(rows):
-                want = _expected_order(
-                    row,
-                    block_table[req_ids[row_id]],
+            for compacting in (True, False):
+                expected_out, expected_counts = silkern.localize_reference(
+                    req_ids,
+                    block_table,
+                    rows,
                     block_size=64,
                     dcp_size=dcp_size,
                     dcp_rank=dcp_rank,
                     dcp_interleave=interleave,
+                    compact_valid_to_front=compacting,
                 )
-                count = expected_counts[row_id]
-                assert want == expected_out[row_id][:count]
-                assert all(v == -1 for v in expected_out[row_id][count:])
+                for row_id, row in enumerate(rows):
+                    want = _expected_row(
+                        row,
+                        block_table[req_ids[row_id]],
+                        compacting=compacting,
+                        block_size=64,
+                        dcp_size=dcp_size,
+                        dcp_rank=dcp_rank,
+                        dcp_interleave=interleave,
+                    )
+                    assert want == (expected_out[row_id], expected_counts[row_id])
 
 
 def test_random_case_actually_exercises_the_hard_paths() -> None:

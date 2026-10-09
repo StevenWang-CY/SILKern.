@@ -28,6 +28,7 @@ and importable. If it is absent or broken, the launchers raise and name why.
 from __future__ import annotations
 
 from numbers import Integral
+from typing import TYPE_CHECKING
 
 from silkern.contract import (
     DEFAULT_TILE_SIZE,
@@ -37,6 +38,9 @@ from silkern.contract import (
 )
 from silkern.errors import LocalizationError
 from silkern.workspace import workspace_shapes
+
+if TYPE_CHECKING:  # PyTorch stays optional at run time.
+    from torch import Tensor
 
 
 def _import_failure(package: str, exc: Exception) -> str:
@@ -392,11 +396,11 @@ def _validate_disjoint_storage(tensors, *, read_only_count: int) -> None:
 
 
 def localize_rowwise(
-    req_ids,
-    block_table,
-    tokens,
-    out,
-    counts,
+    req_ids: Tensor,
+    block_table: Tensor,
+    tokens: Tensor,
+    out: Tensor,
+    counts: Tensor,
     *,
     block_size: int,
     dcp_size: int,
@@ -506,15 +510,15 @@ def localize_rowwise(
 
 
 def localize_hierarchical(
-    req_ids,
-    block_table,
-    tokens,
-    out,
-    counts,
-    mapped_workspace,
-    local_positions_workspace,
-    tile_counts_workspace,
-    tile_offsets_workspace,
+    req_ids: Tensor,
+    block_table: Tensor,
+    tokens: Tensor,
+    out: Tensor,
+    counts: Tensor,
+    mapped_workspace: Tensor,
+    local_positions_workspace: Tensor,
+    tile_counts_workspace: Tensor,
+    tile_offsets_workspace: Tensor,
     *,
     block_size: int,
     dcp_size: int,

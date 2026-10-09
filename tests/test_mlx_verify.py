@@ -127,6 +127,21 @@ def test_mixed_numpy_integers_use_exact_divisibility_before_fixture_bounds(monke
         mlx_verify.conformance_mlx(matrix=[geometry])
 
 
+@pytest.mark.parametrize(
+    "matrix, message",
+    [
+        (5, "matrix must be a sequence of geometry mappings"),
+        ({"width": 8, "block_size": 64, "dcp_size": 2, "dcp_rank": 0, "dcp_interleave": 1},
+         "matrix must be a sequence of geometry mappings"),
+        ([5], "matrix geometry must be a mapping"),
+        (["width"], "matrix geometry must be a mapping"),
+    ],
+)
+def test_conformance_rejects_malformed_matrices_with_its_own_error(matrix, message) -> None:
+    with pytest.raises(LocalizationError, match=message):
+        mlx_verify.conformance_mlx(matrix=matrix)
+
+
 def test_default_matrix_covers_scan_edges_and_compaction() -> None:
     cells = mlx_verify.DEFAULT_MLX_MATRIX
     # 256 -> 257 is where each Metal thread's share grows from one to two.
@@ -338,6 +353,12 @@ def _broken_localizers(mx, true):
     def clamped_requests(req, table, tokens, **options):
         return true(mx.clip(req, 0, table.shape[0] - 1), table, tokens, **options)
 
+    def clamped_large_requests(req, table, tokens, **options):
+        # Negative ids still reach the true localizer and are masked; only ids past
+        # the table are wrongly routed to its last row.
+        return true(mx.where(req < 0, req, mx.minimum(req, table.shape[0] - 1)), table, tokens,
+                    **options)
+
     def wide_outputs(req, table, tokens, **options):
         out, counts = true(req, table, tokens, **options)
         return out.astype(mx.int64), counts.astype(mx.int64)
@@ -362,6 +383,7 @@ def _broken_localizers(mx, true):
         "count off by one": (rewrite(lambda rows, totals: (rows, [n + 1 for n in totals])), "oracle"),
         "order changes between calls": (rewrite(every_other_call), "determinism"),
         "clamps invalid requests": (clamped_requests, "request_bounds"),
+        "clamps only requests past the table": (clamped_large_requests, "request_bounds"),
         "int64 outputs": (wide_outputs, "dtype"),
         "extra output column": (extra_column, "shape"),
         "writes its input": (writes_its_input, "immutability"),
@@ -393,6 +415,42 @@ def test_real_verifier_reports_each_broken_localizer(monkeypatch, name) -> None:
     assert any(check in cell.failures() for cell in failing), report.summary()
     if name == "wrong only on the CPU stream":
         assert {cell.device for cell in failing} == {"cpu"}
+
+
+@pytest.mark.mlx
+@pytest.mark.parametrize("wrong_on, check", [("strided", "layouts"), ("contiguous", "oracle")])
+def test_real_verifier_checks_both_array_layouts(monkeypatch, wrong_on, check) -> None:
+    """A localizer wrong for one memory layout only must still fail the cell."""
+    mx = pytest.importorskip("mlx.core")
+    true, strided_inputs = silkern_mlx.localize_mlx, []
+    make_strided = mlx_verify._strided
+
+    def tagged(mx_, values, stream):
+        # Hold every view, so no later array can reuse its identity.
+        strided_inputs.append(make_strided(mx_, values, stream))
+        return strided_inputs[-1]
+
+    def localizer(req, table, tokens, **options):
+        out, counts = true(req, table, tokens, **options)
+        is_strided = any(tokens is view for view in strided_inputs)
+        return (mx.add(out, 1), counts) if is_strided == (wrong_on == "strided") else (out, counts)
+
+    monkeypatch.setattr(mlx_verify, "_strided", tagged)
+    monkeypatch.setattr(silkern_mlx, "localize_mlx", localizer)
+    report = mlx_verify.conformance_mlx(matrix=VERIFIER_PREFIX[:2])
+    assert strided_inputs and report.cells and not report
+    assert all(check in cell.failures() for cell in report.cells), report.summary()
+
+
+@pytest.mark.parametrize("dcp_size, rejected", [(32766, False), (32767, True)])
+def test_fixture_bound_counts_the_period_past_the_table(dcp_size, rejected) -> None:
+    """Generated tokens reach one ownership period past the table; that must fit int32."""
+    call = (mlx_verify._validate_fixture, (8, 1, 65536, dcp_size, 1))
+    if rejected:
+        with pytest.raises(LocalizationError, match="signed int32 range"):
+            call[0](*call[1])
+    else:
+        call[0](*call[1])
 
 
 @pytest.mark.mlx

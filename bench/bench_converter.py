@@ -150,7 +150,7 @@ def _time_graph(torch, launch, *, replays: int, blocks: int) -> list[float]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Time the three converters against each other on your own device.")
     parser.add_argument("--width", type=int, default=2048, help="top-k selection width")
     parser.add_argument("--batch", type=int, default=8, help="selection rows")
     parser.add_argument("--block-size", type=int, default=64, help="KV page size")

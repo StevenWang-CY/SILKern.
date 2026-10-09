@@ -68,7 +68,7 @@ def _float32(value):
 
 
 def _fixture(batch, width, seed):
-    """Build deterministic finite logical K/V, then independently page each shard."""
+    """Build deterministic finite logical K/V, then page each shard over a NaN cache."""
     rng = random.Random(seed)
     table_width = max(2, (width + BLOCK_SIZE - 1) // BLOCK_SIZE)
     local_limit = table_width * BLOCK_SIZE
@@ -117,8 +117,11 @@ def _fixture(batch, width, seed):
             pages[request * table_width : (request + 1) * table_width]
             for request in range(REQUESTS)
         ]
-        keys = [[0.0] * KEY_DIM for _ in range((len(pages) + 1) * BLOCK_SIZE)]
-        values = [[0.0] * VALUE_DIM for _ in range((len(pages) + 1) * BLOCK_SIZE)]
+        # Every slot no owned token occupies, including all of placeholder page 0,
+        # holds NaN: a consumer that gathers a padded slot without masking the
+        # gathered values turns the output NaN and fails the qualification gate.
+        keys = [[math.nan] * KEY_DIM for _ in range((len(pages) + 1) * BLOCK_SIZE)]
+        values = [[math.nan] * VALUE_DIM for _ in range((len(pages) + 1) * BLOCK_SIZE)]
         for request in range(REQUESTS):
             for local in range(local_limit):
                 slot = table[request][local // BLOCK_SIZE] * BLOCK_SIZE + local % BLOCK_SIZE
@@ -517,7 +520,7 @@ def summarize_attention(paths):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Measure a complete compiled selected-attention consumer on one Apple device.")
     parser.add_argument(
         "--summarize",
         type=Path,

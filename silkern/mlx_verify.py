@@ -17,7 +17,7 @@ import math
 import platform
 import random
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from numbers import Integral
 from pathlib import Path
@@ -26,7 +26,9 @@ from typing import Any
 from silkern.contract import MAX_ROW_WIDTH, _validate_dcp_config, localize_reference
 from silkern.errors import LocalizationError
 
-MLX_CHECKS = ("oracle", "order", "determinism", "immutability", "shape", "dtype", "request_bounds")
+MLX_CHECKS = (
+    "oracle", "layouts", "order", "determinism", "immutability", "shape", "dtype", "request_bounds"
+)
 MLX_BACKENDS = ("mlx", "metal")
 # (backend, device) cells for each ``backend`` choice. Metal needs the GPU.
 MLX_ARMS: dict[str, tuple[tuple[str, str], ...]] = {
@@ -117,7 +119,7 @@ class MLXConformanceReport:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "ok": self.ok,
             "skipped": self.skipped,
             "metadata": self.metadata,
@@ -303,17 +305,27 @@ def _run_cell(mx, backend, geometry, *, batch, seed, repeats, device="gpu") -> M
             seed=seed,
         )
         expected, expected_counts = localize_reference(req_ids, table_data, rows, **common)
-        # Exercise non-contiguous arrays without changing the logical inputs.
-        req, table, tokens = (_strided(mx, values, stream) for values in (req_ids, table_data, rows))
-        mx.eval(req, table, tokens)
+        # The oracle check uses contiguous arrays, the layout callers usually pass and
+        # the one Metal reads without a copy; the same logical values are then viewed
+        # through every other element of a copy, which Metal must first gather.
+        req, table, tokens = (
+            mx.array(values, dtype=mx.int32) for values in (req_ids, table_data, rows)
+        )
+        strided = [_strided(mx, values, stream) for values in (req_ids, table_data, rows)]
+        mx.eval(req, table, tokens, *strided)
 
-        def launch(requests=req):
+        def launch(requests=req, table=table, tokens=tokens):
             return localize_mlx(requests, table, tokens, **common, backend=backend, stream=stream)
 
         out, counts = launch()
         mx.eval(out, counts)
         actual, actual_counts = out.tolist(), counts.tolist()
         cell.checks["oracle"] = actual == expected and actual_counts == expected_counts
+        strided_out, strided_counts = launch(*strided)
+        mx.eval(strided_out, strided_counts)
+        cell.checks["layouts"] = (
+            strided_out.tolist() == actual and strided_counts.tolist() == actual_counts
+        )
         cell.checks["shape"] = out.shape == (batch, width) and counts.shape == (batch,)
         cell.checks["dtype"] = out.dtype == mx.int32 and counts.dtype == mx.int32
         compact = common["compact_valid_to_front"] and common["dcp_size"] > 1
@@ -337,8 +349,9 @@ def _run_cell(mx, backend, geometry, *, batch, seed, repeats, device="gpu") -> M
             cell.checks["determinism"] &= (
                 again.tolist() == actual and again_counts.tolist() == actual_counts
             )
-        cell.checks["immutability"] = (
-            req.tolist() == req_ids and table.tolist() == table_data and tokens.tolist() == rows
+        cell.checks["immutability"] = all(
+            (a.tolist(), b.tolist(), c.tolist()) == (req_ids, table_data, rows)
+            for a, b, c in ((req, table, tokens), strided)
         )
         invalid_req = mx.array(
             [-1 if index % 2 else len(table_data) for index in range(batch)], dtype=mx.int32
@@ -376,7 +389,16 @@ def conformance_mlx(
     repeats = _positive_int("repeats", repeats)
     if not isinstance(seed, Integral) or isinstance(seed, bool):
         raise LocalizationError("seed must be an integer")
-    geometries = [dict(cell) for cell in (DEFAULT_MLX_MATRIX if matrix is None else matrix)]
+    source = DEFAULT_MLX_MATRIX if matrix is None else matrix
+    if isinstance(source, (Mapping, str, bytes)):
+        raise LocalizationError("matrix must be a sequence of geometry mappings")
+    try:
+        cells = list(source)
+    except TypeError as exc:
+        raise LocalizationError("matrix must be a sequence of geometry mappings") from exc
+    if not all(isinstance(cell, Mapping) for cell in cells):
+        raise LocalizationError("matrix geometry must be a mapping")
+    geometries = [dict(cell) for cell in cells]
     if not geometries:
         raise LocalizationError("matrix must contain at least one geometry")
     required = {
@@ -426,10 +448,11 @@ def conformance_mlx(
 
 
 def main(argv: list[str] | None = None) -> int:
-    from silkern._cli import USAGE_ERROR, ArgumentParser
+    from silkern._cli import USAGE_ERROR, ArgumentParser, program_name
 
     parser = ArgumentParser(
-        description=__doc__.splitlines()[0],
+        prog=program_name("silkern.mlx_verify"),
+        description="Validate Apple MLX localization against the independent Python contract.",
         epilog=(
             "Exits 1 if any cell fails and 0 otherwise; without Metal the CPU cells "
             "still run. Use --require-device to treat missing Metal as a failure "

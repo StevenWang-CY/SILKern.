@@ -275,7 +275,7 @@ def benchmark_mlx(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description="Benchmark exact sparse-index localization on Apple silicon with MLX.")
     parser.add_argument("--width", type=int, nargs="+", default=[128, 512, 2048, 4096])
     parser.add_argument("--batch", type=int, nargs="+", default=[1, 8, 32])
     parser.add_argument("--block-size", type=int, default=64)
