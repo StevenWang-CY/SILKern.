@@ -810,6 +810,18 @@ def main():
             dcp_rank=0,
             compact_valid_to_front=compact,
         ) == (expected, [2])
+    # The system figure: each rank's slots, their hues, and the cache cells they fill.
+    assert set(SELECTION) == {j for j, t in enumerate(ROW) if t >= 0}
+    for rank, (values, hues, count) in enumerate(RANK_OUTPUTS):
+        slots = [-1 if v == MINUS else v for v in values]
+        assert localize_reference(
+            [0], [TABLE], [ROW], block_size=64, dcp_size=2, dcp_rank=rank
+        ) == ([slots], [count])
+        owned = [j for j, owner in enumerate(worked["o"]) if owner == rank]
+        assert all(SELECTION[j] == (SURVIVORS[j] if rank == 0 else "gray") for j in owned)
+        assert hues == {k: SELECTION[j] for k, j in enumerate(owned)}
+        assert KV_SLOTS[rank] == {slots[k]: hues[k] for k in range(count)}
+        assert all(slot // 64 in KV_BLOCKS and slot % 64 < 5 for slot in KV_SLOTS[rank])
     render_system()
     render_system_narrow()
     render_overview()
