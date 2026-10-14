@@ -204,7 +204,7 @@ rotating-order blocks of 50 calls per arm.
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-apple-performance-narrow.svg">
-  <img src="assets/fig-apple-performance.svg" width="100%" alt="Dot plot of median latency per call on Apple M5 Max. For nine localization geometries and two selected-attention cases, a hollow gray dot marks compiled MLX and a filled blue dot marks the compiled Metal kernel, joined by a thin line; a right-hand column lists the ratio, from 1.10 to 1.21 times for localization and 1.12 times for selected attention.">
+  <img src="assets/fig-apple-performance.svg" width="100%" alt="Grouped bar chart of median latency per call on Apple M5 Max. For nine localization geometries and two selected-attention cases, a blue bar gives the compiled Metal kernel and a gray bar compiled MLX, on one zero-based scale, and each pair carries its ratio: 1.10 to 1.21 times for localization and 1.12 times for selected attention.">
 </picture>
 
 The Metal kernel was **1.10–1.21× faster** than compiled MLX at every batch and

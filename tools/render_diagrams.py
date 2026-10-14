@@ -52,59 +52,51 @@ RANK_OUTPUTS = (
 )
 
 
-def _selector(s, cx, top, width=260, inset=28, height=30):
-    """The external selector as a funnel: many candidate positions in, a few out."""
-    left, right = cx - width / 2, cx + width / 2
-    s.path(
-        f"M{left} {top}H{right}L{right - inset} {top + height}H{left + inset}Z", "selector"
-    )
-    s.text(cx, top + height / 2 + 7, "sparse selector", anchor="middle")
+def _rank_panel(s, x, top, rank, *, width, a, cell=38, kv_cell=13, bw=232, p_input=True):
+    """One rank of the system figure, as a panel: SILKern (pale blue), the slots it
+    returns, and the attention consumer (white) reading its own paged KV cache.
 
-
-def _rank_lane(s, a, top, rank, *, frame, cell=38, kv_dx=135, p_input=True, bw=230, kv_cell=13):
-    """One rank of the system figure: SILKern, its slots, and the attention consumer.
-
-    ``a`` is the lane's flow axis, ``top`` the top edge of the rank's frame, and
-    ``frame`` its (left, right) edges. Returns the baseline of the partial result.
+    ``x`` and ``width`` place the panel, ``a`` is the rank's flow axis and ``top``
+    the panel's top edge. Returns the baseline of the partial result.
     """
     values, hues, count = RANK_OUTPUTS[rank]
-    left, right = frame
-    s.rect(left, top, right - left, 222, "rule-frame")
-    s.text(left + 14, top + 26, f"rank {rank}", size=NOTE)
-    y = top + 40
-    s.band(a - bw / 2, y, bw, f"**SILKern**,  $r = {rank}$", accent=True)
+    s.panel(x, top, width, 248, f"rank {rank}", ground="b")
+    y = top + 46
+    s.box(a - bw / 2, y, bw, 34, f"SILKern,  $r = {rank}$", kind="ours")
     if p_input:
-        s.text(a - bw / 2 - 45, y + 20, "$P$", anchor="end")
-        s.line([(a - bw / 2 - 39, y + 13), (a - bw / 2 - 4, y + 13)], cls="flow", arrow=True)
-    s.line([(a, y + 30), (a, y + 48)], cls="flow", arrow=True)
-    y += 50
+        s.text(a - bw / 2 - 52, y + 24, "$P$", anchor="end")
+        s.flow([(a - bw / 2 - 44, y + 17), (a - bw / 2 - 2, y + 17)])
+    s.flow([(a, y + 34), (a, y + 56)])
+    y += 56
     s.text(a - 3 * cell - 12, y + 22, f"$s_{rank}$", anchor="end")
-    s.strip(a - 3 * cell, y, values, cell=cell, hues=hues, bold=rank == 0,
+    s.base(a - 3 * cell, y, 6 * cell, 30)
+    s.strip(a - 3 * cell, y, values, cell=cell, hues=hues,
             quiet=tuple(j for j in range(6) if j not in hues), name=f"s{rank}")
     s.text(a + 3 * cell + 10, y + 21, f"$n_{rank} = {count}$", size=NOTE)
-    s.line([(a, y + 30), (a, y + 52)], cls="flow", arrow=True)
+    s.flow([(a, y + 30), (a, y + 54)])
     y += 54
-    s.band(a - bw / 2, y, bw, "sparse attention")
+    s.box(a - bw / 2, y, bw, 34, "sparse attention")
     # The rank's own paged KV cache: rows are physical blocks, cells their slots.
-    zx, zy = a + kv_dx, y - 26
-    zw = 47 + 5 * kv_cell
-    s.rect(zx, zy, zw, 100, "zone")
-    s.text(zx + zw / 2, zy + 20, "KV cache", size=NOTE, anchor="middle")
+    zw = 52 + 5 * kv_cell
+    zx, zy = x + width - zw - 18, y - 20
+    s.memory(zx, zy, zw, 100)
+    s.text(zx + zw / 2, zy + 22, "KV cache", size=NOTE, anchor="middle")
     for k, block in enumerate(KV_BLOCKS):
         cells = {slot % 64: hue for slot, hue in KV_SLOTS[rank].items() if slot // 64 == block}
-        row = zy + 30 + 21 * k
-        s.text(zx + 30, row + 13, str(block), size=NOTE - 2, anchor="end", cls="mute")
-        s.strip(zx + 36, row, [""] * 5, cell=kv_cell, height=14, hues=cells,
+        row = zy + 34 + 23 * k
+        s.text(zx + 32, row + 13, str(block), size=NOTE - 2, anchor="end", cls="mute")
+        s.base(zx + 38, row, 5 * kv_cell, 15)
+        s.strip(zx + 38, row, [""] * 5, cell=kv_cell, height=15, hues=cells,
                 name=f"kv{rank}{k}")
-    s.line([(zx - 2, y + 13), (a + bw / 2 + 2, y + 13)], cls="flow", arrow=True)
-    s.line([(a, y + 27), (a, y + 46)], cls="flow", arrow=True)
-    s.text(a, y + 67, f"$(m_{rank}, N_{rank}, Z_{rank})$", anchor="middle")
-    return y + 67
+    s.flow([(zx - 2, y + 17), (a + bw / 2 + 2, y + 17)])
+    s.flow([(a, y + 34), (a, y + 56)])
+    s.text(a, y + 78, f"$(m_{rank}, N_{rank}, Z_{rank})$", anchor="middle")
+    return y + 78
 
 
 def render_system():
     """Hero: one selection row, localized independently on each rank, then consumed."""
-    s = Figure(WIDTH, 438, "Where SILKern sits in a context-parallel decode step", "")
+    s = Figure(WIDTH, 500, "Where SILKern sits in a context-parallel decode step", "")
     s.description = (
         "A sparse selector picks global positions for one query, t = [8, 5, 130, 7, -1, 262], "
         "and every rank of a two-rank decode receives the same row. Each rank runs SILKern with "
@@ -113,40 +105,43 @@ def render_system():
         "and 7 and returns [706, 707, -1, -1, -1, -1] with count 2. Each rank's sparse attention "
         "gathers those slots from its own paged KV cache, drawn as physical blocks 2, 7 and 11, "
         "and produces partial softmax terms (m, N, Z); one step across both ranks combines them "
-        "into y = N / Z. SILKern's stages are highlighted."
+        "into y = N / Z. SILKern is the pale blue component; each rank's work sits in its own "
+        "panel, and arrows carry the data from one component to the next."
     )
     cx = WIDTH / 2
-    s.text(cx, 18, "query $q$", anchor="middle")
-    s.line([(cx, 27), (cx, 38)], cls="flow", arrow=True)
-    _selector(s, cx, 40)
-    s.line([(cx, 71), (cx, 88)], cls="flow", arrow=True)
-    cell, ty = 46, 90
+    s.text(cx, 24, "query $q$", anchor="middle")
+    s.flow([(cx, 32), (cx, 52)])
+    s.funnel(cx, 52, 270, 34, 26, "sparse selector")
+    s.flow([(cx, 86), (cx, 108)])
+    cell, ty = 46, 108
     s.text(cx - 3 * cell - 12, ty + 22, "$t$", anchor="end")
+    s.base(cx - 3 * cell, ty, 6 * cell, 30)
     s.strip(cx - 3 * cell, ty, ROW[:4] + [MINUS, ROW[5]], cell=cell, hues=SELECTION,
             quiet=(4,), name="t")
-    s.text(cx + 3 * cell + 12, ty + 21, "the same row on every rank", size=NOTE, cls="soft")
-    lanes = ((260, (70, 530)), (780, (590, 1050)))
-    fork = ty + 42
-    s.line([(cx, ty + 30), (cx, fork)], cls="flow", collide=False)
-    s.circle(cx, fork, 2.2, "flow-head")
-    top = fork + 10
-    for a, _ in lanes:
-        s.line([(cx, fork), (a, fork), (a, top + 38)], cls="flow", arrow=True, radius=6,
-               collide=False)
-    bottoms = [_rank_lane(s, a, top, rank, frame=frame) for rank, (a, frame) in enumerate(lanes)]
-    band = top + 240
-    for (a, _), y in zip(lanes, bottoms, strict=True):
-        s.line([(a, y + 12), (a, band - 1)], cls="flow", arrow=True)
-    s.band(70, band, 980, "combine across ranks:  $m = \\max_r m_r$,  "
-           "$N = \\sum_r \\, \\exp(m_r - m)\\, N_r$,  $Z = \\sum_r \\, \\exp(m_r - m)\\, Z_r$,  "
-           "$y = N / Z$")
-    s.height = band + 40
+    s.text(cx + 3 * cell + 14, ty + 21, "the same row on every rank", size=NOTE, cls="soft")
+    panels = ((40, 230), (580, 770))  # (panel left, flow axis) per rank
+    width, top, fork = 500, 182, ty + 50
+    # Panels first, so the arrows that enter them are drawn over their grounds.
+    bottoms = [_rank_panel(s, x, top, rank, width=width, a=a)
+               for rank, (x, a) in enumerate(panels)]
+    s.flow([(cx, ty + 30), (cx, fork)], arrow=False, collide=False)
+    for _, a in panels:
+        s.flow([(cx, fork), (a, fork), (a, top + 46)], radius=10, collide=False)
+    s.junction(cx, fork)
+    combine = top + 248 + 24
+    for (_, a), y in zip(panels, bottoms, strict=True):
+        s.flow([(a, y + 14), (a, combine)])
+    s.box(40, combine, 1040, 36,
+          "combine across ranks:  $m = \\max_r m_r$,  "
+          "$N = \\sum_r \\, \\exp(m_r - m)\\, N_r$,  $Z = \\sum_r \\, \\exp(m_r - m)\\, Z_r$,  "
+          "$y = N / Z$")
+    s.height = combine + 36 + 16
     s.save("fig-system.svg")
 
 
 def render_system_narrow():
     """Phone layout of the system figure: ranks stacked, with buses at both margins."""
-    s = Figure(NARROW, 720, "Where SILKern sits in a context-parallel decode step, narrow", "")
+    s = Figure(NARROW, 900, "Where SILKern sits in a context-parallel decode step, narrow", "")
     s.description = (
         "The same decode step as the wide figure, stacked for narrow pages. The selector's row "
         "t = [8, 5, 130, 7, -1, 262] reaches rank 0 directly and rank 1 along the right margin. "
@@ -155,37 +150,36 @@ def render_system_narrow():
         "cache, and the partial terms meet along the left margin to give y = N / Z."
     )
     cx = NARROW / 2
-    s.text(cx - 118, 35, "$q$", anchor="end")
-    s.line([(cx - 112, 29), (cx - 96, 29)], cls="flow", arrow=True)
-    _selector(s, cx, 14, width=200, inset=22)
-    s.line([(cx, 45), (cx, 62)], cls="flow", arrow=True)
+    s.text(cx - 122, 41, "$q$", anchor="end")
+    s.flow([(cx - 114, 34), (cx - 96, 34)])
+    s.funnel(cx, 17, 192, 34, 20, "sparse selector")
+    s.flow([(cx, 51), (cx, 70)])
     cell = 50
-    s.text(cx - 3 * cell - 10, 86, "$t$", anchor="end")
-    s.strip(cx - 3 * cell, 64, ROW[:4] + [MINUS, ROW[5]], cell=cell, hues=SELECTION, quiet=(4,),
+    s.text(cx - 3 * cell - 10, 92, "$t$", anchor="end")
+    s.base(cx - 3 * cell, 70, 6 * cell, 30)
+    s.strip(cx - 3 * cell, 70, ROW[:4] + [MINUS, ROW[5]], cell=cell, hues=SELECTION, quiet=(4,),
             name="t")
-    s.text(cx + 10, 122, "same row on every rank", size=NOTE, cls="soft")
-    a, frame, bus_r, bus_l = 166, (30, 390), 405, 15
-    tops = (152, 408)
-    band_y = [top + 53 for top in tops]  # centre line of each SILKern stage
-    s.line([(cx, 94), (cx, 132)], cls="flow")
-    s.circle(cx, 132, 2.2, "flow-head")
-    s.line([(cx, 132), (a, 132), (a, tops[0] + 38)], cls="flow", arrow=True, radius=6,
-           collide=False)
-    s.line([(cx, 132), (bus_r, 132), (bus_r, band_y[1]), (a + 100, band_y[1])], cls="flow",
-           arrow=True, radius=6, collide=False)
+    s.text(cx + 12, 128, "same row on every rank", size=NOTE, cls="soft")
+    x, width, a, bus_r, bus_l = 26, 368, 156, 410, 10
+    tops = (162, 450)
     bottoms = [
-        _rank_lane(s, a, top, rank, frame=frame, cell=36, kv_dx=126, p_input=False, bw=196,
-                   kv_cell=11)
+        _rank_panel(s, x, top, rank, width=width, a=a, cell=33, kv_cell=10, bw=188,
+                    p_input=False)
         for rank, top in enumerate(tops)
     ]
-    join = 676
-    s.line([(a, bottoms[0] + 8), (a, tops[1] - 14), (bus_l, tops[1] - 14), (bus_l, join + 13),
-            (cx - 112, join + 13)], cls="flow", arrow=True, radius=6, collide=False)
-    s.line([(a, bottoms[1] + 8), (a, join - 1)], cls="flow", arrow=True, collide=False)
-    s.band(cx - 110, join, 200, "combine partials")
-    s.line([(cx + 92, join + 13), (cx + 116, join + 13)], cls="flow", arrow=True)
-    s.text(cx + 122, join + 20, "$y = N / Z$")
-    s.height = join + 40
+    s.flow([(cx, 100), (cx, 140)], arrow=False, collide=False)
+    s.flow([(cx, 140), (a, 140), (a, tops[0] + 46)], radius=8, collide=False)
+    s.flow([(cx, 140), (bus_r, 140), (bus_r, tops[1] + 63), (a + 94, tops[1] + 63)],
+           radius=8, collide=False)
+    s.junction(cx, 140)
+    join = tops[1] + 248 + 26
+    s.flow([(a, bottoms[0] + 14), (a, tops[1] - 12), (bus_l, tops[1] - 12), (bus_l, join + 18),
+            (cx - 112, join + 18)], radius=8, collide=False)
+    s.flow([(a, bottoms[1] + 14), (a, join)], collide=False)
+    s.box(cx - 110, join, 196, 36, "combine partials")
+    s.flow([(cx + 86, join + 18), (cx + 116, join + 18)])
+    s.text(cx + 122, join + 25, "$y = N / Z$")
+    s.height = join + 36 + 16
     s.save("fig-system-narrow.svg")
 
 
@@ -208,7 +202,7 @@ def _worked_row(rank=0, ranks=2, interleave=1, page=64):
 
 def render_overview():
     """Figure 1: ownership, logical-to-physical page translation, and compaction."""
-    s = Figure(WIDTH, 344, "From global positions to stable cache addresses", "")
+    s = Figure(WIDTH, 360, "From global positions to stable cache addresses", "")
     s.description = (
         "Three panels follow one call on rank 0 of two ranks, interleave 1, page size 64 and "
         "request 0. Panel a: selector row t = [8, 5, 130, 7, -1, 262]; owners are "
@@ -217,10 +211,15 @@ def render_overview():
         "offsets 4, 1 and 3; the request page table [11, 2, 7, 5] sends them to physical blocks "
         "11, 2 and 7, giving slots 708, 129 and 451. Panel c: inclusive validity prefixes minus "
         "one give destinations 0, 1 and 2, so the output is [708, 129, 451, -1, -1, -1] with "
-        "count 3, in selector order. Color follows each surviving token."
+        "count 3, in selector order. Color follows each surviving token; operations are white "
+        "boxes, and physical KV memory sits inside a dashed outline."
     )
+    dy = 30  # every row sits below its panel's title
+    r1, r2, r3 = 70 + dy, 144 + dy, 232 + dy  # strip rows shared by panels a and c
+    s.panel(14, 12, 316, 334, "Ownership", "a", ground="a")
+    s.panel(340, 12, 472, 334, "Paged translation", "b", ground="b")
+    s.panel(822, 12, 286, 334, "Stable compaction", "c", ground="a")
 
-    r1, r2, r3 = 70, 144, 232  # strip rows shared by panels a and c
     # (a) Ownership ----------------------------------------------------------
     x0, cell = 70, 40
     cols = [x0 + (j + 0.5) * cell for j in range(6)]
@@ -230,36 +229,34 @@ def render_overview():
             s.line([(x, r1 + 32), (x, r2)], cls=f"{hue} trace" if hue else "wire", collide=False)
         if hue:
             s.line([(x, r2 + 26), (x, r3 - 1)], cls=f"{hue} trace", arrow=True, collide=False)
-    s.text(
-        x0 + 3 * cell,
-        56,
-        "rank $r = 0$ of $D = 2$,  $I = 1$",
-        size=NOTE,
-        anchor="middle",
-    )
-    s.band(x0, 110, 6 * cell, "$\\lfloor t/I \\rfloor \\bmod D$")
-    s.band(x0, 188, 6 * cell, "$\\lfloor t/(DI) \\rfloor\\, I + t \\bmod I$")
+    s.text(x0 + 3 * cell, 56 + dy, "rank $r = 0$ of $D = 2$,  $I = 1$", size=NOTE,
+           anchor="middle", cls="soft")
+    s.box(x0, 108 + dy, 6 * cell, 30, "$\\lfloor t/I \\rfloor \\bmod D$")
+    s.box(x0, 186 + dy, 6 * cell, 30, "$\\lfloor t/(DI) \\rfloor\\, I + t \\bmod I$")
     s.text(x0 - 12, r1 + 22, "$t$", anchor="end")
     s.text(x0 - 12, r2 + 19, "$o$", anchor="end")
     s.text(x0 - 12, r3 + 22, "$\\ell$", anchor="end")
+    for y, h in ((r1, 32), (r2, 26), (r3, 32)):
+        s.base(x0, y, 6 * cell, h)
     s.strip(x0, r1, ROW[:4] + [MINUS, ROW[5]], cell=cell, hues=SURVIVORS, quiet=(4,))
     s.strip(x0, r2, [0, 1, 0, 1, DOT, 0], cell=cell, height=26, hues=SURVIVORS, quiet=(4,))
     s.strip(x0, r3, [4, DOT, 65, DOT, DOT, 131], cell=cell, hues=SURVIVORS, quiet=(1, 3, 4))
 
     # (b) Paged translation ----------------------------------------------------
-    pitch, bx, slot = 48, 356, 13
+    pitch, bx, slot = 48, 368, 13
     rows = [r1 + pitch * k for k in range(4)]
     offsets = {0: (4, "blue"), 1: (1, "orange"), 2: (3, "green")}
     physical = sorted(TABLE)
-    tx, px = bx + 134, bx + 284  # page-table column; physical blocks
-    s.rect(px - 68, 40, 234, 238, "zone")
-    s.text(bx + 52, 56, "logical page $b$", size=NOTE, anchor="middle")
-    s.text(tx + 21, 56, "$P[b]$", size=NOTE, anchor="middle")
-    s.text(px - 56, 56, "physical KV blocks", size=NOTE)
-    s.text(px + 118, 56, "slot $a$", size=NOTE)
+    tx, px = bx + 128, bx + 270  # page-table column; physical blocks
+    s.memory(px - 62, 42 + dy, 172, 236)  # physical KV memory; the slot column sits outside
+    s.text(bx + 52, 58 + dy, "logical page $b$", size=NOTE, anchor="middle", cls="soft")
+    s.text(tx + 21, 58 + dy, "$P[b]$", size=NOTE, anchor="middle", cls="soft")
+    s.text(px - 52, 58 + dy, "physical KV blocks", size=NOTE, cls="soft")
+    s.text(px + 118, 58 + dy, "slot $a$", size=NOTE, cls="soft")
     for b, y in enumerate(rows):
         offset, hue = offsets.get(b, (None, None))
         s.text(bx - 8, y + 30, str(b), size=NOTE, anchor="end", cls="mute")
+        s.base(bx, y + 12, 7 * slot, 24)
         s.strip(
             bx,
             y + 12,
@@ -274,6 +271,7 @@ def render_overview():
             cls=f"{hue} trace" if hue else "wire",
             arrow=True,
         )
+    s.base(tx, r1, 42, pitch * len(TABLE))
     s.column(tx, r1, TABLE, width=42, cell=pitch, hues={b: hue for b, (_, hue) in offsets.items()})
     # Cased curves, drawn gray first and blue last, read as passing over one another.
     for b in reversed(range(len(TABLE))):
@@ -284,12 +282,13 @@ def render_overview():
             (px - 34, rows[k] + 24),
             horizontal=True,
             arrow=True,
-            casing=True,
+            casing="p-casing-b",
             cls=f"{hue} trace" if hue else "wire",
         )
     for k, (block, y) in enumerate(zip(physical, rows, strict=True)):
         offset, hue = offsets.get(TABLE.index(block), (None, None))
         s.text(px - 6, y + 30, str(block), size=NOTE, anchor="end", cls="mute")
+        s.base(px, y + 12, 7 * slot, 24)
         s.strip(
             px,
             y + 12,
@@ -300,60 +299,45 @@ def render_overview():
             hues={offset: hue} if hue else {},
         )
         if hue:
-            s.text(
-                px + 118,
-                y + 31,
-                str(block * 64 + offset),
-                size=VALUE,
-                cls=f"{hue} tint",
-                weight="semibold",
-            )
+            s.text(px + 118, y + 31, str(block * 64 + offset), size=VALUE, cls=f"{hue} tint")
         if k < 3:
-            for dy in (-4.5, 0, 4.5):
-                s.circle(px - 15, y + 48 + dy, 1.3, "dot")
-    bc = (bx - 20 + px + 166) / 2  # visual center of panel b
-    s.text(bc, 300, "$a = P[b] \\cdot S + \\delta$,  $S = 64$", size=NOTE, anchor="middle")
+            for ddy in (-4.5, 0, 4.5):
+                s.circle(px - 15, y + 48 + ddy, 1.3, "dot")
+    bc = (340 + 812) / 2  # centre of panel b
+    s.text(bc, 304 + dy, "$a = P[b] \\cdot S + \\delta$,  $S = 64$", size=NOTE,
+           anchor="middle")
 
     # (c) Stable compaction ------------------------------------------------------
-    x1, cell = 848, 41
+    x1, cell = 852, 41
     ccols = [x1 + (j + 0.5) * cell for j in range(6)]
     for j, hue in SURVIVORS.items():
         s.line([(ccols[j], r1 + 32), (ccols[j], r2)], cls=f"{hue} trace", collide=False)
     for (j, hue), dest in zip(SURVIVORS.items(), range(3), strict=True):
         s.curve((ccols[j], r2 + 26), (ccols[dest], r3 - 1), cls=f"{hue} trace", collide=False)
-    s.text(x1 + 3 * cell, 56, "valid $v = [o = r]$", size=NOTE, anchor="middle")
-    s.band(x1, 110, 6 * cell, "$\\mathrm{cumsum}(v) - 1$")
+    s.text(x1 + 3 * cell, 56 + dy, "valid $v = [o = r]$", size=NOTE, anchor="middle",
+           cls="soft")
+    s.box(x1, 108 + dy, 6 * cell, 30, "$\\mathrm{cumsum}(v) - 1$")
     s.text(x1 - 12, r1 + 22, "$a$", anchor="end")
     s.text(x1 - 12, r2 + 19, "$p$", anchor="end")
     s.text(x1 - 12, r3 + 22, "$s$", anchor="end")
+    for y, h in ((r1, 32), (r2, 26), (r3, 32)):
+        s.base(x1, y, 6 * cell, h)
     s.strip(x1, r1, [708, DOT, 129, DOT, DOT, 451], cell=cell, hues=SURVIVORS, quiet=(1, 3, 4))
     s.strip(x1, r2, [0, DOT, 1, DOT, DOT, 2], cell=cell, height=26, hues=SURVIVORS, quiet=(1, 3, 4))
-    s.strip(x1, r3, [708, 129, 451, MINUS, MINUS, MINUS], cell=cell, hues=COMPACT, bold=True)
+    s.strip(x1, r3, [708, 129, 451, MINUS, MINUS, MINUS], cell=cell, hues=COMPACT)
     s.brace(x1 + 2, x1 + 3 * cell - 2, r3 + 38)
     s.brace(x1 + 3 * cell + 2, x1 + 6 * cell - 2, r3 + 38)
     s.text(x1 + 1.5 * cell, r3 + 64, "count $= 3$", size=NOTE, anchor="middle")
     s.text(x1 + 4.5 * cell, r3 + 64, "padding", size=NOTE, anchor="middle")
-
-    for cx, letter, title in (
-        (x0 + 3 * 40, "a", "Ownership"),
-        (bc, "b", "Paged translation"),
-        (x1 + 3 * cell, "c", "Stable compaction"),
-    ):
-        s.subcaption(cx, 326, letter, title)
     s.save(
         "fig-localization.svg",
-        panels=(
-            (22, 36, 306, 236, 6),
-            (22, 306, 306, 30),
-            (334, 36, 472, 304),
-            (808, 36, 300, 304),
-        ),
+        panels=((10, 8, 324, 342), (336, 8, 480, 342), (818, 8, 294, 342)),
     )
 
 
 def render_contract():
     """Figure 2: the worked row as a ruled table, with equations and both layouts."""
-    s = Figure(WIDTH, 400, "Coordinate translation and the two output layouts", "")
+    s = Figure(WIDTH, 420, "Coordinate translation and the two output layouts", "")
     s.description = (
         "Panel a is a table over the six input columns for rank 0 of two ranks, interleave 1, "
         "page size 64 and request page table [11, 2, 7, 5]. Global positions "
@@ -365,9 +349,11 @@ def render_contract():
         "[708, -1, 129, -1, -1, 451]. Both counts are 3; only the compacted row has a valid "
         "three-element prefix."
     )
-    left, x0, width = 24, 300, 66
+    s.panel(14, 12, 704, 396, "Coordinate translation", "a", ground="b")
+    s.panel(728, 12, 378, 396, "Equations and layouts", "b", ground="a")
+    left, x0, width = 34, 302, 66
     centers = [x0 + (j + 0.5) * width for j in range(6)]
-    top, pitch = 52, 38
+    top, pitch = 62, 40
     rows = TRANSLATION
     bottom = top + 34 + pitch * len(rows) + 4
     for j, hue in SURVIVORS.items():
@@ -381,38 +367,28 @@ def render_contract():
     for k, (label, values) in enumerate(rows):
         y = top + 34 + pitch * (k + 0.5) + 6.5
         s.text(left, y, label)
-        for j, (cx, value) in enumerate(zip(centers, values, strict=True)):
-            hue = SURVIVORS.get(j)
-            final = k == len(rows) - 1
-            s.text(
-                cx,
-                y,
-                value,
-                size=VALUE,
-                anchor="middle",
-                cls="mute" if value in ("—", MINUS) else "",
-                weight="semibold" if (final and hue) else "regular",
-            )
+        for cx, value in zip(centers, values, strict=True):
+            s.text(cx, y, value, size=VALUE, anchor="middle",
+                   cls="mute" if value in ("—", MINUS) else "")
 
-    xe = 820
-    s.equations(xe, 80, 34, EQUATIONS)
-    s.rule(752, 1096, 238, weight=HAIR_RULE, cls="rule")
-    sx, cell = 752, 49
-    for y, label, values, hues, bold in (
-        (262, "front compaction", COMPACTED, COMPACT, True),
-        (326, "column-preserving", PRESERVED, SURVIVORS, False),
+    xe = 840
+    s.equations(xe, 96, 34, EQUATIONS)
+    s.rule(748, 1086, 254, weight=HAIR_RULE, cls="rule")
+    sx, cell = 748, 49
+    for y, label, values, hues in (
+        (282, "front compaction", COMPACTED, COMPACT),
+        (346, "column-preserving", PRESERVED, SURVIVORS),
     ):
         s.text(sx, y, label, size=NOTE)
-        s.strip(sx, y + 8, values, cell=cell, hues=hues, bold=bold)
-        s.text(1096, y + 29, "$n = 3$", size=NOTE, anchor="end")
-    s.subcaption((left + x0 + 6 * width) / 2, 390, "a", "Coordinate translation")
-    s.subcaption(924, 390, "b", "Equations and layouts")
+        s.text(1086, y, "$n = 3$", size=NOTE, anchor="end")
+        s.base(sx, y + 8, 6 * cell, 30)
+        s.strip(sx, y + 8, values, cell=cell, hues=hues)
     s.save("fig-contract.svg")
 
 
 def render_contract_narrow():
     """Phone layout of Figure 2: the table transposed so each input column is a row."""
-    s = Figure(NARROW, 700, "Coordinate translation and output layouts, narrow layout", "")
+    s = Figure(NARROW, 760, "Coordinate translation and output layouts, narrow layout", "")
     s.description = (
         "The same worked row as the wide figure, transposed: each input column j is a table row. "
         "Columns 0, 2 and 5 survive: t = 8, 130, 262 map to local positions 4, 65, 131, "
@@ -420,51 +396,43 @@ def render_contract_narrow():
         "708, 129, 451. The equations and both output layouts follow."
     )
     heads = ["$j$", "$t$", "$o$", "$v$", "$\\ell$", "$(b, \\delta)$", "$P$", "$a$"]
-    xs = [34, 80, 124, 160, 202, 258, 318, 370]
-    top, pitch = 24, 34
+    xs = [36, 80, 122, 158, 198, 254, 314, 366]
+    top, pitch = 58, 34
     columns = [[j] + [values[j] for _, values in TRANSLATION] for j in range(6)]
     bottom = top + 34 + pitch * 6 + 4
+    s.panel(8, 12, 404, bottom + 18 - 12, "Coordinate translation", "a", ground="b")
     for j, hue in SURVIVORS.items():
         y = top + 34 + pitch * j + 2
-        s.rect(16, y, NARROW - 32, pitch, f"{hue} area")
-    s.rule(16, NARROW - 16, top, weight=1.4)
-    s.rule(16, NARROW - 16, top + 34, weight=HAIR_RULE)
-    s.rule(16, NARROW - 16, bottom, weight=1.4)
+        s.rect(18, y, NARROW - 36, pitch, f"{hue} area")
+    s.rule(18, NARROW - 18, top, weight=1.4)
+    s.rule(18, NARROW - 18, top + 34, weight=HAIR_RULE)
+    s.rule(18, NARROW - 18, bottom, weight=1.4)
     for x, head in zip(xs, heads, strict=True):
         s.text(x, top + 23, head, size=VALUE, anchor="middle")
     for j, values in enumerate(columns):
-        hue = SURVIVORS.get(j)
         y = top + 34 + pitch * (j + 0.5) + 6.5
-        for k, (x, value) in enumerate(zip(xs, values, strict=True)):
-            cls = "mute" if value in ("—", MINUS) else ""
-            s.text(
-                x,
-                y,
-                value,
-                size=VALUE,
-                anchor="middle",
-                cls=cls,
-                weight="semibold" if (hue and k == len(values) - 1) else "regular",
-            )
-    s.subcaption(NARROW / 2, bottom + 34, "a", "Coordinate translation")
-    xe = 150
-    s.equations(xe, bottom + 92, 34, EQUATIONS)
-    y = bottom + 92 + 34 * 4 + 30
-    s.rule(16, NARROW - 16, y - 2, weight=HAIR_RULE, cls="rule")
-    for dy, label, values, hues, bold in (
-        (24, "front compaction  $n = 3$", COMPACTED, COMPACT, True),
-        (88, "column-preserving  $n = 3$", PRESERVED, SURVIVORS, False),
+        for x, value in zip(xs, values, strict=True):
+            s.text(x, y, value, size=VALUE, anchor="middle",
+                   cls="mute" if value in ("—", MINUS) else "")
+    y0 = bottom + 30
+    s.panel(8, y0, 404, 396, "Equations and layouts", "b", ground="a")
+    s.equations(150, y0 + 78, 34, EQUATIONS)
+    y = y0 + 78 + 34 * 4 + 26
+    s.rule(28, NARROW - 28, y - 2, weight=HAIR_RULE, cls="rule")
+    for ddy, label, values, hues in (
+        (24, "front compaction  $n = 3$", COMPACTED, COMPACT),
+        (88, "column-preserving  $n = 3$", PRESERVED, SURVIVORS),
     ):
-        s.text(30, y + dy, label, size=NOTE)
-        s.strip(30, y + dy + 8, values, cell=60, hues=hues, bold=bold)
-    s.subcaption(NARROW / 2, y + 160, "b", "Equations and layouts")
-    s.height = int(y + 172)
+        s.text(30, y + ddy, label, size=NOTE)
+        s.base(30, y + ddy + 8, 6 * 60, 30)
+        s.strip(30, y + ddy + 8, values, cell=60, hues=hues)
+    s.height = int(y0 + 396 + 10)
     s.save("fig-contract-narrow.svg")
 
 
 def render_consumer():
     """Figure 5: layout masks, masked paged gathering, and shared normalization."""
-    s = Figure(WIDTH, 452, "Layout-aware masking, paged gathering and a shared softmax", "")
+    s = Figure(WIDTH, 470, "Layout-aware masking, paged gathering and a shared softmax", "")
     s.description = (
         "Panel a compares compact slots [14, 12, -1, -1] with mask [1, 1, 0, 0] to preserved "
         "columns [14, -1, 12, -1] with mask [1, 0, 1, 0]; both counts are 2. Panel b replaces "
@@ -478,12 +446,16 @@ def render_consumer():
     )
     pair = {0: "blue", 1: "orange"}
     spread = {0: "blue", 2: "orange"}
+    dy = 26
+    s.panel(14, 12, 294, 446, "Layout and validity", "a", ground="a")
+    s.panel(318, 12, 458, 446, "Masked gather", "b", ground="b")
+    s.panel(786, 12, 320, 446, "Shared normalization", "c", ground="a")
 
     # (a) Layout and validity ------------------------------------------------
     x0, cell = 64, 56
     for y, title, slots, mask, hues, rule in (
         (
-            58,
+            70 + dy,
             "front compaction",
             [14, 12, MINUS, MINUS],
             [1, 1, 0, 0],
@@ -491,7 +463,7 @@ def render_consumer():
             "$v_j = [\\, j < n \\,]$",
         ),
         (
-            232,
+            262 + dy,
             "column-preserving",
             [14, MINUS, 12, MINUS],
             [1, 0, 1, 0],
@@ -503,6 +475,7 @@ def render_consumer():
         s.text(x0 + 4 * cell, y, "$n = 2$", size=NOTE, anchor="end")
         s.text(x0 - 12, y + 32, "$s$", anchor="end")
         s.text(x0 - 12, y + 70, "$v$", anchor="end")
+        s.base(x0, y + 10, 4 * cell, 30)
         s.strip(
             x0,
             y + 10,
@@ -511,14 +484,15 @@ def render_consumer():
             hues=hues,
             quiet=tuple(j for j in range(4) if j not in hues),
         )
+        s.base(x0, y + 52, 4 * cell, 26)
         s.strip(x0, y + 52, mask, cell=cell, height=26, hues=hues)
         s.text(x0 + 2 * cell, y + 118, rule, anchor="middle", cls="soft")
-    s.rule(28, x0 + 4 * cell + 8, 202, weight=HAIR_RULE, cls="rule")
+    s.rule(30, x0 + 4 * cell + 14, 226 + dy, weight=HAIR_RULE, cls="rule")
 
     # (b) Masked gather --------------------------------------------------------
-    bx, bc = 400, 50
+    bx, bc = 380, 50
     cols = [bx + (j + 0.5) * bc for j in range(4)]
-    v_y, s_y, w1, s0, g, x_y, w2, out = 58, 96, 146, 188, 238, 280, 330, 372
+    v_y, s_y, w1, s0, g, x_y, w2, out = (v + dy for v in (58, 96, 146, 188, 238, 280, 330, 372))
     for j, x in enumerate(cols):
         hue = spread.get(j)
         cls = f"{hue} trace" if hue else "wire"
@@ -528,34 +502,39 @@ def render_consumer():
     # The mask reaches both selections through one dashed bus.
     bus = bx - 16
     s.line(
-        [(bx, v_y + 13), (bus, v_y + 13), (bus, w2 + 12), (bx - 1, w2 + 12)],
+        [(bx, v_y + 13), (bus, v_y + 13), (bus, w2 + 13), (bx - 1, w2 + 13)],
         cls="mask",
         arrow=True,
         radius=4,
         collide=False,
     )
-    s.line([(bus, w1 + 12), (bx - 1, w1 + 12)], cls="mask", arrow=True, collide=False)
-    s.circle(bus, w1 + 12, 2.2, "dot")
-    s.band(bx, w1 - 1, 4 * bc, "$\\mathrm{where}(v, s, 0)$")
-    s.band(bx, g - 1, 4 * bc, "gather $K$, $V$")
-    s.band(bx, w2 - 1, 4 * bc, "$\\mathrm{where}(v, x, 0)$")
+    s.line([(bus, w1 + 13), (bx - 1, w1 + 13)], cls="mask", arrow=True, collide=False)
+    s.circle(bus, w1 + 13, 2.2, "dot")
+    s.box(bx, w1 - 2, 4 * bc, 30, "$\\mathrm{where}(v, s, 0)$")
+    s.box(bx, g - 2, 4 * bc, 30, "gather $K$, $V$")
+    s.box(bx, w2 - 2, 4 * bc, 30, "$\\mathrm{where}(v, x, 0)$")
     s.text(bus - 10, v_y + 19, "$v$", anchor="end")
     s.text(bus - 10, s_y + 22, "$s$", anchor="end")
-    s.strip(bx, v_y, [1, 0, 1, 0], cell=bc, height=26, hues=spread)
-    s.strip(bx, s_y, [14, MINUS, 12, MINUS], cell=bc, hues=spread, quiet=(1, 3))
-    s.strip(bx, s0, [14, 0, 12, 0], cell=bc, hues=spread)
-    s.strip(bx, x_y, ["$x_{14}$", "$x_0$", "$x_{12}$", "$x_0$"], cell=bc, hues=spread)
-    s.strip(bx, out, ["$x_{14}$", 0, "$x_{12}$", 0], cell=bc, hues=spread, bold=True)
+    for y, values, h, quiet in (
+        (v_y, [1, 0, 1, 0], 26, ()),
+        (s_y, [14, MINUS, 12, MINUS], 30, (1, 3)),
+        (s0, [14, 0, 12, 0], 30, ()),
+        (x_y, ["$x_{14}$", "$x_0$", "$x_{12}$", "$x_0$"], 30, ()),
+        (out, ["$x_{14}$", 0, "$x_{12}$", 0], 30, ()),
+    ):
+        s.base(bx, y, 4 * bc, h)
+        s.strip(bx, y, values, cell=bc, height=h, hues=spread, quiet=quiet)
     # Paged cache: indexed K and V rows; row 0 is the placeholder address.
-    kx = 664
-    s.rect(kx - 30, 166, 150, 144, "zone")
-    s.text(kx + 45, 188, "paged KV cache", size=NOTE, anchor="middle")
-    for dx, name in ((0, "K"), (60, "V")):
-        s.text(kx + dx + 24, 212, f"${name}$", size=NOTE, anchor="middle")
+    kx = 640
+    s.memory(kx - 30, 166 + dy, 150, 144)
+    s.text(kx + 45, 188 + dy, "paged KV cache", size=NOTE, anchor="middle")
+    for ddx, name in ((0, "K"), (60, "V")):
+        s.text(kx + ddx + 24, 212 + dy, f"${name}$", size=NOTE, anchor="middle")
         for row, hue in enumerate((None, "orange", "blue")):
-            y = 222 + row * 22 + (12 if row else 0)
+            y = 222 + dy + row * 22 + (12 if row else 0)
+            s.base(kx + ddx, y, 48, 18)
             s.strip(
-                kx + dx,
+                kx + ddx,
                 y,
                 [""] * 4,
                 cell=12,
@@ -565,60 +544,48 @@ def render_consumer():
     for row, slot in enumerate((0, 12, 14)):
         s.text(
             kx - 8,
-            237 + row * 22 + (12 if row else 0),
+            237 + dy + row * 22 + (12 if row else 0),
             str(slot),
             size=NOTE,
             anchor="end",
             cls="mute",
         )
-    for dy in (-4.5, 0, 4.5):
-        s.circle(kx + 24, 248 + dy, 1.3, "dot")
-        s.circle(kx + 84, 248 + dy, 1.3, "dot")
-    s.line([(kx - 32, g + 12), (bx + 4 * bc + 1, g + 12)], arrow=True, collide=False)
+    for ddy in (-4.5, 0, 4.5):
+        s.circle(kx + 24, 248 + dy + ddy, 1.3, "dot")
+        s.circle(kx + 84, 248 + dy + ddy, 1.3, "dot")
+    s.flow([(kx - 32, g + 13), (bx + 4 * bc + 2, g + 13)], collide=False)
 
     # (c) Shared normalization -----------------------------------------------
-    cx = 950
-    s.text(cx, 76, "$z_{rj} = q \\cdot K_{rj} / \\sqrt{d}$", anchor="middle")
+    cx, fork = 946, 80  # N and Z sit one fork apart on either side
+    s.text(cx, 76 + dy, "$z_{rj} = q \\cdot K_{rj} / \\sqrt{d}$", anchor="middle")
     s.text(
         cx,
-        104,
+        104 + dy,
         "$z_{rj} \\gets -\\infty$ where $v_{rj} = 0$",
         size=NOTE,
         anchor="middle",
         cls="soft",
     )
-    s.line([(cx, 114), (cx, 140)], cls="flow", arrow=True)
-    s.text(cx, 164, "$m = \\max_{r, j} z_{rj}$", anchor="middle")
-    s.line([(cx, 176), (cx, 202)], cls="flow", arrow=True)
-    s.text(cx, 226, "$w_{rj} = v_{rj} \\exp(z_{rj} - m)$", anchor="middle")
-    s.line([(cx, 238), (cx, 252), (cx - 74, 252), (cx - 74, 272)], cls="flow", arrow=True,
-           radius=5)
-    s.line([(cx, 252), (cx + 74, 252), (cx + 74, 272)], cls="flow", arrow=True, radius=5)
-    s.circle(cx, 252, 2.2, "flow-head")
-    s.text(cx - 74, 296, "$N = \\sum_{r, j} w_{rj} V_{rj}$", anchor="middle")
-    s.text(cx + 74, 296, "$Z = \\sum_{r, j} w_{rj}$", anchor="middle")
-    s.line([(cx - 74, 308), (cx - 74, 322), (cx + 74, 322), (cx + 74, 308)], cls="flow",
-           radius=5)
-    s.circle(cx, 322, 2.2, "flow-head")
-    s.line([(cx, 322), (cx, 340)], cls="flow", arrow=True)
-    s.text(cx - 6, 372, "$y =$", anchor="end", cls="accent tint")
-    s.fraction(cx, 372, "$N$", "$Z$", cls="accent tint")
-    s.text(cx, 412, "$y = 0$ if $Z = 0$", size=NOTE, anchor="middle", cls="soft")
-
-    for x, letter, title in (
-        (x0 + 2 * cell, "a", "Layout and validity"),
-        (bx + 2 * bc + 72, "b", "Masked gather"),
-        (cx, "c", "Shared normalization"),
-    ):
-        s.subcaption(x, 442, letter, title)
+    s.flow([(cx, 114 + dy), (cx, 140 + dy)])
+    s.text(cx, 164 + dy, "$m = \\max_{r, j} z_{rj}$", anchor="middle")
+    s.flow([(cx, 176 + dy), (cx, 202 + dy)])
+    s.text(cx, 226 + dy, "$w_{rj} = v_{rj} \\exp(z_{rj} - m)$", anchor="middle")
+    s.flow([(cx, 238 + dy), (cx, 252 + dy), (cx - fork, 252 + dy), (cx - fork, 272 + dy)],
+           radius=6)
+    s.flow([(cx, 252 + dy), (cx + fork, 252 + dy), (cx + fork, 272 + dy)], radius=6)
+    s.junction(cx, 252 + dy)
+    s.text(cx - fork, 296 + dy, "$N = \\sum_{r, j} w_{rj} V_{rj}$", anchor="middle")
+    s.text(cx + fork, 296 + dy, "$Z = \\sum_{r, j} w_{rj}$", anchor="middle")
+    s.flow([(cx - fork, 310 + dy), (cx - fork, 322 + dy), (cx + fork, 322 + dy), (cx + fork, 310 + dy)],
+           arrow=False, radius=6)
+    s.junction(cx, 322 + dy)
+    s.flow([(cx, 322 + dy), (cx, 342 + dy)])
+    s.text(cx - 6, 372 + dy, "$y =$", anchor="end", cls="accent tint")
+    s.fraction(cx, 372 + dy, "$N$", "$Z$", cls="accent tint")
+    s.text(cx, 412 + dy, "$y = 0$ if $Z = 0$", size=NOTE, anchor="middle", cls="soft")
     s.save(
         "fig-consumer.svg",
-        panels=(
-            (0, 40, 334, 324, 6),
-            (0, 420, 334, 32),
-            (338, 40, 460, 412),
-            (806, 40, 300, 412),
-        ),
+        panels=((10, 8, 302, 454), (314, 8, 466, 454), (782, 8, 328, 454)),
     )
 
 
@@ -743,7 +710,7 @@ def _tile_row(s, x, y, order, cell):
 
 def render_order():
     """Figure 6: atomic reservation against stable prefix destinations, over replays."""
-    s = Figure(WIDTH, 346, "Completion-order reservation versus deterministic tile prefixes", "")
+    s = Figure(WIDTH, 362, "Completion-order reservation versus deterministic tile prefixes", "")
     s.description = (
         "Tile groups T0 = [704, 705], T1 = [132, 133], T2 = [448, 896] and T3 = [897, 260] "
         "are tracked by four colors. Panel a: atomic reservation claims output offsets in "
@@ -753,35 +720,42 @@ def render_order():
         "values and count; curves trace the first replay. These are schematic arrays, not "
         "measured GPU results."
     )
-    cell = 46
-    for panel, (x, orders, title, note) in enumerate(
+    cell, dy = 46, 34
+    for panel, (left, x, orders, title, note, ground) in enumerate(
         (
-            (124, ATOMIC, "Atomic reservation", "offsets claimed in completion order"),
+            (40, 140, ATOMIC, "Atomic reservation", "offsets claimed in completion order", "a"),
             (
-                690,
+                600,
+                700,
                 [[0, 1, 2, 3]] * 3,
                 "Stable prefix destinations",
                 "offsets from an exclusive scan: 0, 2, 4, 6",
+                "b",
             ),
         )
     ):
+        s.panel(left, 12, 480, 336, title, "ab"[panel], ground=ground)
         centers = [x + (2 * k + 1) * cell for k in range(4)]
-        s.text(x + 4 * cell, 50, note, size=NOTE, anchor="middle")
+        s.text(x + 4 * cell, 50 + dy, note, size=NOTE, anchor="middle", cls="soft")
         for k, hue in enumerate(TILE_HUES):
-            s.text(centers[k], 80, f"$T_{k}$", size=NOTE, anchor="middle", cls=f"{hue} tint")
-        s.text(x - 14, 110, "input", anchor="end")
-        _tile_row(s, x, 88, [0, 1, 2, 3], cell)
+            s.text(centers[k], 80 + dy, f"$T_{k}$", size=NOTE, anchor="middle", cls=f"{hue} tint")
+        s.text(x - 14, 110 + dy, "input", anchor="end")
+        s.base(x, 88 + dy, 8 * cell, 30)
+        _tile_row(s, x, 88 + dy, [0, 1, 2, 3], cell)
         for r, order in enumerate(orders):
-            y = 174 + 46 * r
+            y = 174 + dy + 46 * r
             s.text(x - 14, y + 22, f"replay {r + 1}", anchor="end")
+            s.base(x, y, 8 * cell, 30)
             _tile_row(s, x, y, order, cell)
         for t in range(4):
             dest = orders[0].index(t)
             s.curve(
-                (centers[t], 118), (centers[dest], 173), cls=f"{TILE_HUES[t]} trace", collide=False
+                (centers[t], 118 + dy),
+                (centers[dest], 173 + dy),
+                cls=f"{TILE_HUES[t]} trace",
+                collide=False,
             )
-        s.subcaption(x + 4 * cell, 334, "ab"[panel], title)
-    s.save("fig-problem.svg", panels=((32, 36, 472, 310), (598, 36, 472, 310)))
+    s.save("fig-problem.svg", panels=((36, 8, 488, 344), (596, 8, 488, 344)))
 
 
 def main():

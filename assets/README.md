@@ -39,12 +39,20 @@ remain selectable SVG text. [`tools/figure_style.py`](../tools/figure_style.py)
 measures the same font files to lay out and check every label.
 
 Wide figures use a 1120-unit canvas, shown at about 840 CSS pixels in a README.
-Labels, equations, and subcaptions use 21 units (about 16 pixels); tensor
-entries use 20, and headers, ticks, and bar values use 18. Narrow layouts
-restack the same panels, or redraw a figure, on a 420-unit canvas so phone text
-stays at a similar size. Panels carry LaTeX-style subcaptions, "(a) Title",
-below the drawing; explanation and measurement scope belong in the Markdown
-caption.
+Labels, equations, and panel titles use 21 units (about 16 pixels); tensor
+entries and category labels use 20, and notes, headers, ticks, and bar values
+use 18. A chart's title uses 23. The README figures state the 21-unit label size
+on the canvas itself, so a label without its own size never falls back to a
+browser's smaller default. Every glyph in the README figures is set in regular
+weight; emphasis comes from position, hue, and size, never from bold. Narrow
+layouts restack the same panels, or redraw a figure, on a 420-unit canvas so
+phone text stays at a similar size.
+
+In the README illustrations each panel carries its title at the top left and its
+letter, "(a)", at the top right; the scan figure keeps LaTeX-style subcaptions
+below its panels. Each README chart opens with a centred title over a gray
+subtitle that names the measure and says which way is better. Explanation and
+measurement scope belong in the Markdown caption.
 
 Mathematics is typeset from a small LaTeX subset: italic variables, upright
 operator names such as `mod` and `divmod`, true minus signs, and TeX spacing
@@ -67,28 +75,41 @@ strongly enough to read as an object, with digits left in ink; large regions,
 such as table columns and the margin band, take a pale area tint instead.
 
 - Continuous strips with hairline dividers are tensors; dots after an open end
-  mean the strip continues.
-- An operation applied to every column is a stage ruled above and below;
-  connectors pass beneath it. SILKern's own stage is ruled in the accent color
-  at twice the weight, over a pale accent tint.
+  mean the strip continues. In the README figures a tensor sits on an opaque
+  page-colored base, so its open cells stay white on a panel's ground.
+- In the README illustrations every component is a rounded box with a navy
+  outline: SILKern's own in pale blue, everything else white. An operation
+  applied to every column is such a box laid across the strip; connectors pass
+  beneath it. The scan figure keeps the earlier form, a stage ruled above and
+  below, with SILKern's own stage ruled in the accent color.
+- Each panel of a README illustration sits on a pale ground inside a dashed
+  border; neighbouring panels alternate a lavender and a gray ground, and the
+  two ranks of the system figure share one.
+- Dataflow between components runs on pale steel-blue arrows of one weight and
+  one head size, and a junction dot joins or splits them. An arrow never ends in
+  a gap shorter than about two heads: the generator refuses one.
 - A selector, which keeps a few of many candidates, is drawn as a funnel.
-- Solid connectors carry values, dashed connectors carry masks, and a junction
-  dot joins branches. Where curves cross, the one drawn later is cased in the
-  page color and passes over.
-- A dashed outline holds physical KV memory; a light solid frame holds the work
-  of one rank.
+- Solid connectors in a token's hue carry its values, dashed connectors carry
+  masks. Where curves cross, the one drawn later is cased in its panel's ground
+  and passes over.
+- A dashed outline over a faint ground holds physical KV memory; addresses that
+  point into it sit outside it.
 - Booktabs rules, without vertical lines, organize tables.
 - Figures carry no pictorial icons; names and geometry identify every part.
 
-In charts, blue is the measured implementation and gray the comparison; orange
-marks the adverse result and the region beyond a margin. Every latency scale
-starts at zero. The Apple dot plot places all eleven geometries on one scale,
-names its two marks in place, and lists each ratio in a column reached by a
-dotted leader, so no value is repeated as a label; bar labels in the CUDA chart
-repeat recorded medians to one decimal place. Interval charts keep their
-recorded confidence levels and margins, with labeled ticks only where the
-precision is uniform. Styling must never alter a measurement or its
-interpretation.
+The README charts follow the layout of a model-release chart: a title and a gray
+subtitle, flat bars with a hairline outline and slightly rounded tops, values
+set just above their bars, light gridlines behind them, and a small swatch
+legend. SILKern's measured arm is a saturated blue, its other kernel a pale
+blue, and the comparison gray; orange marks the adverse result and the region
+beyond a margin. Every latency scale starts at zero. The Apple chart sets each
+geometry's two bars side by side on one scale for all eleven geometries, with
+the speedup above each pair; its phone layout gives every geometry a row, with
+the speedup at the right. Bar labels in the CUDA chart repeat recorded medians
+to one decimal place, and each bar is named twice, by kernel and by owner.
+Interval charts keep their recorded confidence levels and margins, with labeled
+ticks only where the precision is uniform. Styling must never alter a
+measurement or its interpretation.
 
 ## Checks
 
@@ -110,8 +131,9 @@ Layout studies included the architecture and kernel figures of the
 [Native Sparse Attention](https://arxiv.org/abs/2502.11089),
 [FlashAttention](https://arxiv.org/abs/2205.14135), and the
 [PagedAttention](https://arxiv.org/abs/2309.06180) paper, together with the release
-charts for [gpt-oss](https://openai.com/index/introducing-gpt-oss/) and
-[Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5). The
+charts for [gpt-oss](https://openai.com/index/introducing-gpt-oss/),
+[Claude Opus 4.5](https://www.anthropic.com/news/claude-opus-4-5), and
+[Gemini 4 Argon](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/). The
 illustrations are original SILKern diagrams; their data comes only from this
 repository's examples and evidence.
 

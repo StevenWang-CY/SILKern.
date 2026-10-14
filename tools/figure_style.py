@@ -123,6 +123,80 @@ DARK = {
 }
 HUES = ("blue", "orange", "green", "violet", "gray", "accent")
 
+# README figures: illustrations in a component-diagram language, charts in the
+# language of a model-release chart. Components are rounded boxes with a navy
+# outline (white, "box"; SILKern's own in pale blue, "ours"), panels sit on pale
+# grounds inside a dashed border, and dataflow runs on pale steel-blue arrows.
+# Chart bars are flat with a hairline outline: SILKern's measured arm in a
+# saturated blue, its other kernel in pale blue, the comparison in grays. These
+# variables and classes ship only in figures that use them, so the other
+# exports keep their bytes.
+README_LIGHT = {
+    "outline": "#27334a",
+    "flow": "#a7bbd3",
+    "ground-a": "#f4f2fa",
+    "ground-b": "#f3f5f7",
+    "panel-line": "#5c6675",
+    "box": "#ffffff",
+    "ours": "#dfeaf8",
+    "ours-line": "#2563b0",
+    "memory": "#f8f9fb",
+    "bar-hi": "#3a7bd5",
+    "bar-soft": "#c5d9f4",
+    "bar-lo": "#e3e7ee",
+    "bar-mid": "#b7bdc8",
+    "bar-line": "#2b3138",
+    "margin": "#fbeadf",
+}
+README_DARK = {
+    "outline": "#c9d1d9",
+    "flow": "#506b8c",
+    "ground-a": "#17151f",
+    "ground-b": "#151a21",
+    "panel-line": "#8b949e",
+    "box": "#0d1117",
+    "ours": "#17283f",
+    "ours-line": "#6fa8ee",
+    "memory": "#11161d",
+    "bar-hi": "#5b9bf0",
+    "bar-soft": "#24405f",
+    "bar-lo": "#3a414b",
+    "bar-mid": "#68717d",
+    "bar-line": "#d0d7de",
+    "margin": "#2a1b12",
+}
+# Stroke weights at README scale: outlines near 0.75 pt, arrows near 1.5 pt (1 pt is
+# about 2.3 units).
+OUTLINE = 1.7  # component boxes
+PANEL_LINE = 1.4  # dashed panel borders
+FLOW = 3.4  # dataflow arrows
+FLOW_HEAD = 8.0  # their heads' length and width
+README_CSS = (
+    # Text set at the label size carries no font-size attribute, so the canvas states
+    # it; otherwise a browser sets those labels at its 16-unit default, below the notes.
+    f"svg{{font-size:{LABEL}px}}"
+    f"svg{{{';'.join(f'--{k}:{v}' for k, v in README_LIGHT.items())}}}"
+    f"@media(prefers-color-scheme:dark){{svg{{{';'.join(f'--{k}:{v}' for k, v in README_DARK.items())}}}}}"
+    f".p-box{{fill:var(--box);stroke:var(--outline);stroke-width:{OUTLINE}}}"
+    f".p-ours{{fill:var(--ours);stroke:var(--ours-line);stroke-width:{OUTLINE + 0.3}}}"
+    f".p-panel-a{{fill:var(--ground-a);stroke:var(--panel-line);stroke-width:{PANEL_LINE};"
+    "stroke-dasharray:6 4}"
+    f".p-panel-b{{fill:var(--ground-b);stroke:var(--panel-line);stroke-width:{PANEL_LINE};"
+    "stroke-dasharray:6 4}"
+    f".p-memory{{fill:var(--memory);stroke:var(--wire);stroke-width:{HAIR + 0.2};"
+    "stroke-dasharray:4 3}"
+    ".p-base-fill{fill:var(--paper)}"
+    f".p-flow{{fill:none;stroke:var(--flow);stroke-width:{FLOW};stroke-linecap:butt;"
+    "stroke-linejoin:round}"
+    ".p-flow-head{fill:var(--flow)}"
+    ".p-casing-a{fill:none;stroke:var(--ground-a);stroke-width:5.5;stroke-linecap:round}"
+    ".p-casing-b{fill:none;stroke:var(--ground-b);stroke-width:5.5;stroke-linecap:round}"
+    ".g-bar{stroke:var(--bar-line);stroke-width:1.1}"
+    ".g-hi{fill:var(--bar-hi)}.g-soft{fill:var(--bar-soft)}"
+    ".g-lo{fill:var(--bar-lo)}.g-mid{fill:var(--bar-mid)}"
+    ".g-margin{fill:var(--margin)}"
+)
+
 
 def _variables(palette: dict[str, str]) -> str:
     return ";".join(f"--{name}:{color}" for name, color in palette.items())
@@ -456,6 +530,7 @@ class Figure:
         self.boxes: list[Box] = []
         self.wires: list[tuple[list[tuple[float, float]], tuple[str, ...]]] = []
         self.glyphs: dict[str, set[str]] = {face: set() for face in FACES}
+        self.readme = False  # set by the README-figure helpers; adds README_CSS
 
     # Text -----------------------------------------------------------------
 
@@ -635,7 +710,7 @@ class Figure:
             f"{_fmt(c2[0])} {_fmt(c2[1])} {_fmt(end_draw[0])} {_fmt(end_draw[1])}"
         )
         if casing:
-            self.path(d, "casing")
+            self.path(d, casing if isinstance(casing, str) else "casing")
         self.path(d, cls)
         if arrow:
             head = cls.replace("trace", "trace-head") if trace else cls.replace("wire", "head")
@@ -810,6 +885,130 @@ class Figure:
     def subcaption(self, cx: float, y: float, letter: str, title: str) -> None:
         self.text(cx, y, f"({letter}) {title}", size=CAPTION, anchor="middle")
 
+    # README figures: panels, components and dataflow -------------------------
+
+    def panel(
+        self,
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+        title: str,
+        letter: str | None = None,
+        *,
+        ground: str = "a",
+        note: str | None = None,
+    ) -> float:
+        """A panel on a pale ground inside a dashed border, its title at the top
+        left and its letter at the top right. Titles and letters are set in the
+        label size and regular weight, like all text. Returns the title's baseline."""
+        self.readme = True
+        self.rect(x, y, w, h, f"p-panel-{ground}", rx=10)
+        base = y + 30
+        title_box = self.text(x + 16, base, title, size=CAPTION)
+        if note:
+            self.text(title_box.x1 + 12, base, note, size=NOTE, cls="soft")
+        if letter:
+            self.text(x + w - 16, base, f"({letter})", size=CAPTION, anchor="end")
+        return base
+
+    def box(
+        self,
+        x: float,
+        y: float,
+        w: float,
+        h: float,
+        markup,
+        *,
+        kind: str = "box",
+        size: float = LABEL,
+        radius: float = 6,
+        name: str | None = None,
+    ) -> None:
+        """A component: a rounded box, white ("box") or SILKern's pale blue ("ours"),
+        with its label centred."""
+        self.readme = True
+        self.rect(x, y, w, h, f"p-{kind}", rx=radius)
+        if markup:
+            self.text(x + w / 2, y + h / 2 + size * 0.34, markup, size=size, anchor="middle",
+                      name=name)
+
+    def funnel(self, cx: float, top: float, width: float, height: float, inset: float,
+               markup) -> None:
+        """A selector, which keeps a few of many candidates, as a funnel."""
+        self.readme = True
+        left, right = cx - width / 2, cx + width / 2
+        self.path(
+            f"M{_fmt(left)} {_fmt(top)}H{_fmt(right)}L{_fmt(right - inset)} {_fmt(top + height)}"
+            f"H{_fmt(left + inset)}Z",
+            "p-box",
+        )
+        self.text(cx, top + height / 2 + LABEL * 0.34, markup, anchor="middle")
+
+    def memory(self, x: float, y: float, w: float, h: float) -> None:
+        """Physical KV memory: a dashed outline over a faint ground."""
+        self.readme = True
+        self.rect(x, y, w, h, "p-memory", rx=6)
+
+    def flow(
+        self,
+        points,
+        *,
+        arrow: bool = True,
+        radius: float = 8,
+        collide: bool = True,
+        ignore: tuple[str, ...] = (),
+    ) -> None:
+        """A dataflow arrow: a pale steel-blue shaft and a solid triangular head of
+        one size, ending at its target's edge."""
+        self.readme = True
+        points = [tuple(map(float, p)) for p in points]
+        draw = list(points)
+        if arrow:
+            (ax, ay), (bx, by) = draw[-2], draw[-1]
+            seg = math.hypot(bx - ax, by - ay)
+            if seg < 2.2 * FLOW_HEAD:
+                raise ValueError(f"a flow arrow of {seg:.1f} units is too short for its head")
+            draw[-1] = (bx - (bx - ax) / seg * (FLOW_HEAD - 0.5),
+                        by - (by - ay) / seg * (FLOW_HEAD - 0.5))
+        d = f"M{_fmt(draw[0][0])} {_fmt(draw[0][1])}"
+        for k in range(1, len(draw)):
+            if radius and 0 < k < len(draw) - 1:
+                (px, py), (cx, cy), (nx, ny) = draw[k - 1], draw[k], draw[k + 1]
+                l1, l2 = math.hypot(cx - px, cy - py), math.hypot(nx - cx, ny - cy)
+                r = min(radius, l1 / 2, l2 / 2)
+                ax_, ay_ = cx - (cx - px) / l1 * r, cy - (cy - py) / l1 * r
+                bx_, by_ = cx + (nx - cx) / l2 * r, cy + (ny - cy) / l2 * r
+                d += f"L{_fmt(ax_)} {_fmt(ay_)}Q{_fmt(cx)} {_fmt(cy)} {_fmt(bx_)} {_fmt(by_)}"
+            else:
+                d += f"L{_fmt(draw[k][0])} {_fmt(draw[k][1])}"
+        self.path(d, "p-flow")
+        if arrow:
+            (ax, ay), (bx, by) = points[-2], points[-1]
+            norm = math.hypot(bx - ax, by - ay)
+            ux, uy = (bx - ax) / norm, (by - ay) / norm
+            nx, ny = -uy, ux
+            half = FLOW_HEAD / 2
+            pts = [
+                (bx, by),
+                (bx - ux * FLOW_HEAD + nx * half, by - uy * FLOW_HEAD + ny * half),
+                (bx - ux * FLOW_HEAD - nx * half, by - uy * FLOW_HEAD - ny * half),
+            ]
+            self.path("M" + "L".join(f"{_fmt(px)} {_fmt(py)}" for px, py in pts) + "Z",
+                      "p-flow-head")
+        if collide:
+            self.wires.append((points, ignore))
+
+    def junction(self, x: float, y: float) -> None:
+        """Where one dataflow splits or two meet."""
+        self.readme = True
+        self.circle(x, y, 3.6, "p-flow-head")
+
+    def base(self, x: float, y: float, w: float, h: float) -> None:
+        """An opaque page-colored base, so a tensor's open cells stay white on a panel."""
+        self.readme = True
+        self.rect(x, y, w, h, "p-base-fill")
+
     # Export ------------------------------------------------------------------
 
     def check(self) -> None:
@@ -856,7 +1055,7 @@ class Figure:
         return "".join(rules)
 
     def render(self) -> str:
-        css = self._font_css() + THEME_CSS + BASE_CSS
+        css = self._font_css() + THEME_CSS + BASE_CSS + (README_CSS if self.readme else "")
         return "\n".join(
             [
                 f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.width}" '
