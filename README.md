@@ -221,11 +221,7 @@ python -m bench.bench_mlx --compiled
 python -m bench.bench_mlx_attention
 ```
 
-### CUDA (archived)
-
-These measurements come from an earlier revision on two NVIDIA H100 GPUs,
-running complete 48-layer decode steps on a reference executor. We have not
-repeated NVIDIA experiments since.
+### CUDA
 
 <picture>
   <source media="(max-width: 767px)" srcset="assets/fig-cost-narrow.svg">
